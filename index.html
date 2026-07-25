@@ -90,6 +90,12 @@
   .ramp-preview{display:flex;height:14px;border-radius:3px;overflow:hidden;border:1px solid var(--line);margin-top:4px;}
   .ramp-preview div{flex:1;}
 
+  #mk-left.collapsed,#mk-right.collapsed{display:none;}
+  .tbl-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
+  #tblFilterWrap{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:8px;background:#fafbfd;}
+  .legend-row select{width:70px;padding:3px;border:1px solid var(--line);border-radius:4px;font-size:11px;flex-shrink:0;}
+  .legend-add-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;}
+
   /* ---------- Layout module ---------- */
   #module-layout{display:flex;}
   #toolrail{width:96px;background:var(--panel);border-right:1px solid var(--line);padding:10px 6px;display:flex;flex-direction:column;gap:4px;overflow-y:auto;flex-shrink:0;}
@@ -146,6 +152,7 @@
   #toast.show{opacity:1;}
   .capturing .leaflet-control-zoom,.capturing .leaflet-control-scale{display:none !important;}
 </style>
+<script data-goatcounter="https://jcinnamon.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
 
@@ -206,12 +213,13 @@
 
   <div id="mk-center">
     <div id="mk-toolbar">
+      <button class="btn light small" id="mkToggleLeft" title="Collapse/expand layers panel">⟨ Layers</button>
       <button class="btn light small" id="mkTableBtn">▦ Attribute table</button>
-      <button class="btn light small" id="mkCalcBtn">ƒx Field calculator</button>
       <button class="btn light small" id="mkSpatialBtn">⬡ Spatial tools</button>
       <span style="flex:1"></span>
       <span class="kv" id="mkStatus"></span>
       <button class="btn small" id="mkSendBtn">Send to Layout ▸</button>
+      <button class="btn light small" id="mkToggleRight" title="Collapse/expand style panel">Style ⟩</button>
     </div>
     <div id="mk-map"></div>
   </div>
@@ -280,7 +288,7 @@
       <p style="margin-top:6px;"><b>B. ArcGIS Online → Layout.</b> Style your map in ArcGIS Online, export an image with the Print widget, and upload it in the Layout module via <b>Map Frame</b>. Calibrate the scale bar by drawing a reference line of known distance.</p>
     </div>
     <div class="help-step"><b>Map Maker basics.</b>
-      <p>Add GeoJSON, CSV (with lat/long columns), or zipped shapefiles. Select a layer to set its symbology (single, categories, graduated colour with equal interval / quantile / natural breaks / manual classification, graduated symbol size), filters, and labels. The Field Calculator creates new attributes (e.g. <i>rate = crimes / pop * 1000</i>). Spatial tools: buffer, select by location, and count/sum points in polygons.</p>
+      <p>Add GeoJSON, CSV (with lat/long columns), or zipped shapefiles. Select a layer to set its symbology (single, categories, graduated colour with equal interval / quantile / natural breaks / manual classification, graduated symbol size), filters, and labels. The attribute table includes the filter builder and Field Calculator (e.g. <i>rate = crimes / pop * 1000</i>). Spatial tools: buffer, select by location, points-in-polygons statistics, clip, erase, intersect, union, dissolve, merge, centroids, convex hull, bounding box, simplify, nearest-neighbour join, and distance matrix. The ⬇ button on each layer exports valid GeoJSON (works in ArcGIS Online) or CSV — including any calculated fields. The ⟨ ⟩ buttons collapse the side panels to maximize the map.</p>
     </div>
     <div class="help-step"><b>Layout basics.</b>
       <p>Start from a <b>Template</b> if you like. Add title, text, legend, north arrow, scale bar, neatline, images. Everything drags, resizes, and rotates. Undo with Ctrl+Z. The <b>Margins</b> button shows 0.5" margin guides (never exported). A <b>Live Embed</b> shows an interactive ArcGIS map on screen for reference but prints as a placeholder — use a real image frame for submission.</p>
@@ -340,10 +348,33 @@
 <div class="modal-overlay hidden" id="modal-table">
   <div class="modal wide">
     <h2 id="attrTableTitle">Attribute table</h2>
-    <div class="checkline"><input type="checkbox" id="attrRespectFilter" checked><label for="attrRespectFilter" style="margin:0;font-size:12px;color:var(--text);">Show filtered features only</label>
-      <span class="kv" id="attrCount" style="margin-left:12px;"></span></div>
+    <div class="tbl-toolbar">
+      <button class="btn small secondary" id="tblCalcBtn">ƒx Field calculator</button>
+      <button class="btn small light" id="tblFilterBtn">▾ Filter</button>
+      <span class="checkline" style="margin:0;"><input type="checkbox" id="attrRespectFilter" checked><label for="attrRespectFilter" style="margin:0;font-size:12px;color:var(--text);">Apply filter to table</label></span>
+      <span class="kv" id="attrCount"></span>
+    </div>
+    <div id="tblFilterWrap" class="hidden"></div>
     <div id="attr-table-wrap"><table id="attr-table"></table></div>
     <div class="modal-close-row"><button class="btn" onclick="closeModal('modal-table')">Close</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-exportlayer">
+  <div class="modal">
+    <h2>Export layer</h2>
+    <div class="field"><label>Layer</label><select id="expLayerSel"></select></div>
+    <div class="checkline"><input type="checkbox" id="expRespectFilter" checked><label for="expRespectFilter" style="margin:0;font-size:12.5px;color:var(--text);">Export filtered features only</label></div>
+    <div class="field"><label>Format</label>
+      <select id="expLayerFormat">
+        <option value="geojson">GeoJSON — for ArcGIS Online, QGIS, etc.</option>
+        <option value="csv">CSV — attributes (plus lat/long for points)</option>
+      </select></div>
+    <p class="kv">GeoJSON exports are valid FeatureCollections and include any calculated fields. Note: <b>Save project</b> files are for reloading work in this tool and are not GeoJSON — use this export for other GIS software.</p>
+    <div class="modal-close-row">
+      <button class="btn ghost" onclick="closeModal('modal-exportlayer')">Cancel</button>
+      <button class="btn" id="expLayerGo">Export</button>
+    </div>
   </div>
 </div>
 
@@ -369,9 +400,29 @@
     <h2>Spatial tools</h2>
     <div class="field"><label>Operation</label>
       <select id="spOp">
-        <option value="buffer">Buffer — build zones around features</option>
-        <option value="selloc">Select by location — features that intersect another layer</option>
-        <option value="pip">Count points in polygons (+ optional sum)</option>
+        <optgroup label="Proximity & selection">
+          <option value="buffer">Buffer — build zones around features</option>
+          <option value="selloc">Select by location</option>
+          <option value="nearest">Nearest neighbour join</option>
+          <option value="distmatrix">Distance matrix (CSV download)</option>
+        </optgroup>
+        <optgroup label="Aggregation & joins">
+          <option value="pip">Points in polygons — count / statistics</option>
+          <option value="dissolve">Dissolve polygons (by attribute or all)</option>
+          <option value="mergelyr">Merge two layers</option>
+        </optgroup>
+        <optgroup label="Overlay">
+          <option value="clip">Clip — keep parts inside polygons</option>
+          <option value="erase">Erase — keep parts outside polygons</option>
+          <option value="intersect">Intersect — polygon ∩ polygon with attributes</option>
+          <option value="unionop">Union — combined dissolved geometry</option>
+        </optgroup>
+        <optgroup label="Geometry">
+          <option value="centroid">Centroids</option>
+          <option value="hull">Convex hull</option>
+          <option value="bbox">Bounding box</option>
+          <option value="simplify">Simplify (generalize)</option>
+        </optgroup>
       </select>
     </div>
     <div id="spForm"></div>
@@ -511,6 +562,15 @@ function niceRound(x){
   const d=x/p;
   return (d>=5?5:d>=2?2:1)*p;
 }
+function download(filename, text, mime){
+  const blob=new Blob([text],{type:mime||'application/octet-stream'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
 
 /* ================= MAP MAKER ================= */
 const RAMPS = {
@@ -533,13 +593,12 @@ const BASEMAPS = {
 let mkMap=null, mkBasemapLayers=[], mkLayers=[], mkSelectedId=null;
 
 function defaultStyle(geom){
-  const base = {mode:'single', field:null, normField:null, method:'quantile', classes:5,
+  return {mode:'single', field:null, normField:null, method:'quantile', classes:5,
     ramp: geom==='polygon' ? 'YlOrRd' : 'Blues', reverse:false, manualBreaks:'',
     color: geom==='polygon' ? '#7fb2d9' : geom==='line' ? '#3a4a72' : '#2f7d78',
     fillOpacity: geom==='polygon' ? 0.75 : 0.85,
     strokeColor:'#555555', strokeWeight: geom==='line' ? 2.5 : 1, dash:'',
     radius:6, minR:4, maxR:22, sizeScale:'sqrt', catMap:{}};
-  return base;
 }
 function defaultLabels(){ return {enabled:false, field:null, size:11, color:'#22293a', halo:true}; }
 
@@ -594,6 +653,16 @@ function setBasemap(key){
 }
 document.getElementById('mkBasemap').addEventListener('change', e=>setBasemap(e.target.value));
 
+/* ---------- collapsible panels ---------- */
+function togglePanel(id, btnId, openLabel, closedLabel){
+  const p=document.getElementById(id);
+  p.classList.toggle('collapsed');
+  document.getElementById(btnId).textContent = p.classList.contains('collapsed') ? closedLabel : openLabel;
+  setTimeout(()=>{ if(mkMap) mkMap.invalidateSize(); }, 220);
+}
+document.getElementById('mkToggleLeft').onclick=()=>togglePanel('mk-left','mkToggleLeft','⟨ Layers','⟩ Layers');
+document.getElementById('mkToggleRight').onclick=()=>togglePanel('mk-right','mkToggleRight','Style ⟩','Style ⟨');
+
 /* ---------- data ingestion ---------- */
 document.getElementById('mkAddData').onclick = ()=>document.getElementById('fileMakerData').click();
 document.getElementById('fileMakerData').addEventListener('change', function(e){
@@ -632,6 +701,7 @@ function addMakerLayer(gj, name){
   if(gj && gj.type==='Feature') gj={type:'FeatureCollection',features:[gj]};
   if(!gj || !gj.features){ toast('That file does not look like GeoJSON.'); return; }
   gj.features=gj.features.filter(f=>f&&f.geometry);
+  if(!gj.features.length){ toast('No features with geometry found.'); return; }
   const geom=geomOf(gj);
   const lyr={id:uid(), name, geojson:gj, geom, visible:true, opacity:1,
     style:defaultStyle(geom), labels:defaultLabels(),
@@ -643,6 +713,7 @@ function addMakerLayer(gj, name){
   renderMakerPanels();
   try{ mkMap.fitBounds(L.geoJSON(gj).getBounds(), {maxZoom:14, padding:[20,20]}); }catch(_){}
   toast('Added layer: '+name+' ('+gj.features.length+' features)');
+  return lyr;
 }
 function selectedLayer(){ return mkLayers.find(l=>l.id===mkSelectedId)||null; }
 
@@ -664,6 +735,45 @@ function featurePasses(lyr, f){
   return lyr.filter.logic==='AND' ? results.every(Boolean) : results.some(Boolean);
 }
 function visibleFeatures(lyr){ return lyr.geojson.features.filter(f=>featurePasses(lyr,f)); }
+
+/* Reusable filter-builder UI (right tab + attribute table) */
+function renderFilterUI(container, lyr, onChange){
+  const fields=fieldsOf(lyr), f=lyr.filter;
+  container.innerHTML=`
+    <div class="field"><label>Combine conditions with</label>
+      <select class="fu-logic"><option ${f.logic==='AND'?'selected':''}>AND</option><option ${f.logic==='OR'?'selected':''}>OR</option></select></div>
+    <div class="fu-rows"></div>
+    <button class="btn small secondary fu-add">+ Add condition</button>
+    <button class="btn small light fu-clear" style="margin-left:6px;">Clear all</button>
+    <div class="kv fu-count" style="margin-top:8px;"></div>`;
+  const rowsEl=container.querySelector('.fu-rows');
+  const countEl=container.querySelector('.fu-count');
+  function updateCount(){
+    countEl.innerHTML='<b>'+visibleFeatures(lyr).length+'</b> of '+lyr.geojson.features.length+' features pass the filter.';
+  }
+  function changed(){ updateCount(); onChange&&onChange(); }
+  function drawRows(){
+    rowsEl.innerHTML=f.conds.map((c,i)=>`
+      <div class="filt-row" data-i="${i}">
+        <select class="f-field"><option value="">field…</option>${fields.map(fd=>'<option '+(c.field===fd?'selected':'')+'>'+esc(fd)+'</option>').join('')}</select>
+        <select class="f-op">${Object.keys(OPS).map(o=>'<option '+(c.op===o?'selected':'')+'>'+o+'</option>').join('')}</select>
+        <input class="f-val" type="text" value="${esc(c.value)}" placeholder="value">
+        <button>✕</button>
+      </div>`).join('');
+    rowsEl.querySelectorAll('.filt-row').forEach(row=>{
+      const i=+row.getAttribute('data-i');
+      row.querySelector('.f-field').onchange=e=>{ f.conds[i].field=e.target.value; changed(); };
+      row.querySelector('.f-op').onchange=e=>{ f.conds[i].op=e.target.value; changed(); };
+      row.querySelector('.f-val').onchange=e=>{ f.conds[i].value=e.target.value; changed(); };
+      row.querySelector('button').onclick=()=>{ f.conds.splice(i,1); drawRows(); changed(); };
+    });
+    updateCount();
+  }
+  container.querySelector('.fu-logic').onchange=e=>{ f.logic=e.target.value; changed(); };
+  container.querySelector('.fu-add').onclick=()=>{ f.conds.push({field:'',op:'=',value:''}); drawRows(); };
+  container.querySelector('.fu-clear').onclick=()=>{ f.conds=[]; drawRows(); changed(); };
+  drawRows();
+}
 
 /* ---------- classification & colors ---------- */
 function valueOf(lyr, f){
@@ -703,7 +813,7 @@ function computeClassification(lyr){
     for(let i=0;i<=n;i++) breaks.push(vals[Math.min(vals.length-1, Math.floor(i*vals.length/n))]);
     breaks[breaks.length-1]=max;
     breaks=Array.from(new Set(breaks)).sort((a,b)=>a-b);
-    if(breaks.length<2) breaks=[min, max+ (max===min?1:0)];
+    if(breaks.length<2) breaks=[min, max+(max===min?1:0)];
   }
   const k=breaks.length-1;
   let colors=chroma.scale(chroma.brewer[st.ramp]||chroma.brewer.YlOrRd).colors(Math.max(k,2)).slice(0,k);
@@ -755,11 +865,10 @@ function featureStyle(lyr, f){
   let color=st.color;
   if(st.mode==='cat') color=catColor(lyr,f);
   else if(st.mode==='grad') color=classColor(lyr, valueOf(lyr,f));
-  const base={color: lyr.geom==='line'? color : st.strokeColor,
+  return {color: lyr.geom==='line'? color : st.strokeColor,
     weight: st.strokeWeight, opacity: lyr.opacity,
     fillColor: color, fillOpacity: st.fillOpacity*lyr.opacity,
     dashArray: st.dash||null};
-  return base;
 }
 function renderLayer(lyr){
   if(lyr.leaflet){ mkMap.removeLayer(lyr.leaflet); lyr.leaflet=null; }
@@ -828,6 +937,7 @@ function renderMakerLayerList(){
         <button data-act="up" title="Move up">↑</button>
         <button data-act="down" title="Move down">↓</button>
         <button data-act="dup" title="Duplicate">⧉</button>
+        <button data-act="exp" title="Export layer (GeoJSON/CSV)">⬇</button>
         <button data-act="del" title="Remove">✕</button>
       </div>
     </div>`).join('');
@@ -846,10 +956,11 @@ function renderMakerLayerList(){
         if(act==='up'&&i>0){ mkLayers.splice(i,1); mkLayers.splice(i-1,0,l); reorderAll(); }
         if(act==='down'&&i<mkLayers.length-1){ mkLayers.splice(i,1); mkLayers.splice(i+1,0,l); reorderAll(); }
         if(act==='dup'){
-          const copy=JSON.parse(JSON.stringify({name:l.name+' copy', geojson:l.geojson, geom:l.geom, style:l.style, labels:l.labels, filter:l.filter}));
+          const copy=clone({name:l.name+' copy', geojson:l.geojson, geom:l.geom, style:l.style, labels:l.labels, filter:l.filter});
           const nl=Object.assign(copy,{id:uid(), visible:true, opacity:l.opacity, leaflet:null});
           mkLayers.splice(i,0,nl); mkSelectedId=nl.id; reorderAll();
         }
+        if(act==='exp'){ openExportLayer(id); }
         if(act==='del'){
           if(!window.confirm('Remove layer "'+l.name+'" from the map? (Your original file is untouched.)')) return;
           if(l.leaflet) mkMap.removeLayer(l.leaflet);
@@ -865,6 +976,49 @@ function reorderAll(){
   mkLayers.forEach(l=>{ if(l.leaflet){ mkMap.removeLayer(l.leaflet); l.leaflet=null; } });
   renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
 }
+
+/* ---------- layer export (valid GeoJSON / CSV) ---------- */
+function openExportLayer(preselectId){
+  if(!mkLayers.length){ toast('No layers to export.'); return; }
+  const sel=document.getElementById('expLayerSel');
+  sel.innerHTML=mkLayers.map(l=>'<option value="'+l.id+'" '+((preselectId||mkSelectedId)===l.id?'selected':'')+'>'+esc(l.name)+'</option>').join('');
+  openModal('modal-exportlayer');
+}
+document.getElementById('expLayerGo').onclick=()=>{
+  const lyr=mkLayers.find(l=>l.id===document.getElementById('expLayerSel').value);
+  if(!lyr) return;
+  const respect=document.getElementById('expRespectFilter').checked;
+  const feats=(respect? visibleFeatures(lyr) : lyr.geojson.features).map(f=>({
+    type:'Feature',
+    properties: Object.assign({}, f.properties||{}),
+    geometry: clone(f.geometry)
+  }));
+  const fname=lyr.name.replace(/[^a-z0-9\-_]+/gi,'_');
+  const fmt=document.getElementById('expLayerFormat').value;
+  if(fmt==='geojson'){
+    const fc={type:'FeatureCollection', features:feats};
+    download(fname+'.geojson', JSON.stringify(fc), 'application/geo+json');
+  } else {
+    const cols=fieldsOf(lyr);
+    const isPt=lyr.geom==='point';
+    const header=[...cols, ...(isPt?['longitude','latitude']:[])];
+    const lines=[header.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')];
+    feats.forEach(f=>{
+      const row=cols.map(c=>{
+        const v=(f.properties||{})[c];
+        return v==null?'':'"'+String(v).replace(/"/g,'""')+'"';
+      });
+      if(isPt){
+        const co=(f.geometry&&f.geometry.type==='Point')?f.geometry.coordinates:['',''];
+        row.push(co[0],co[1]);
+      }
+      lines.push(row.join(','));
+    });
+    download(fname+'.csv', lines.join('\n'), 'text/csv');
+  }
+  closeModal('modal-exportlayer');
+  toast('Exported '+feats.length+' features.');
+};
 
 /* ---------- right panel: tabs ---------- */
 document.querySelectorAll('.mk-tab-btn').forEach(btn=>{
@@ -1014,42 +1168,8 @@ function renderFilterTab(){
   const el=document.getElementById('mk-tab-filter');
   const lyr=selectedLayer();
   if(!lyr){ el.innerHTML='<div class="empty-hint">Select a layer to filter it.</div>'; return; }
-  const fields=fieldsOf(lyr);
-  const f=lyr.filter;
-  let html=`<h3>${esc(lyr.name)} — filter</h3>
-    <div class="field"><label>Combine conditions with</label>
-      <select id="ftLogic"><option ${f.logic==='AND'?'selected':''}>AND</option><option ${f.logic==='OR'?'selected':''}>OR</option></select></div>
-    <div id="ftRows"></div>
-    <button class="btn small secondary" id="ftAdd">+ Add condition</button>
-    <button class="btn small light" id="ftClear" style="margin-left:6px;">Clear all</button>
-    <div class="kv" id="ftCount" style="margin-top:10px;"></div>`;
-  el.innerHTML=html;
-  const rowsEl=document.getElementById('ftRows');
-  function drawRows(){
-    rowsEl.innerHTML=f.conds.map((c,i)=>`
-      <div class="filt-row" data-i="${i}">
-        <select class="f-field"><option value="">field…</option>${fields.map(fd=>'<option '+(c.field===fd?'selected':'')+'>'+esc(fd)+'</option>').join('')}</select>
-        <select class="f-op">${Object.keys(OPS).map(o=>'<option '+(c.op===o?'selected':'')+'>'+o+'</option>').join('')}</select>
-        <input class="f-val" type="text" value="${esc(c.value)}" placeholder="value">
-        <button>✕</button>
-      </div>`).join('');
-    rowsEl.querySelectorAll('.filt-row').forEach(row=>{
-      const i=+row.getAttribute('data-i');
-      row.querySelector('.f-field').onchange=e=>{ f.conds[i].field=e.target.value; apply(); };
-      row.querySelector('.f-op').onchange=e=>{ f.conds[i].op=e.target.value; apply(); };
-      row.querySelector('.f-val').onchange=e=>{ f.conds[i].value=e.target.value; apply(); };
-      row.querySelector('button').onclick=()=>{ f.conds.splice(i,1); drawRows(); apply(); };
-    });
-    const total=lyr.geojson.features.length, vis=visibleFeatures(lyr).length;
-    document.getElementById('ftCount').innerHTML='<b>'+vis+'</b> of '+total+' features pass the filter.';
-  }
-  function apply(){ renderLayer(lyr); updateMkStatus();
-    const total=lyr.geojson.features.length, vis=visibleFeatures(lyr).length;
-    document.getElementById('ftCount').innerHTML='<b>'+vis+'</b> of '+total+' features pass the filter.'; }
-  document.getElementById('ftLogic').onchange=e=>{ f.logic=e.target.value; apply(); };
-  document.getElementById('ftAdd').onclick=()=>{ f.conds.push({field:'',op:'=',value:''}); drawRows(); };
-  document.getElementById('ftClear').onclick=()=>{ f.conds=[]; drawRows(); apply(); };
-  drawRows();
+  el.innerHTML='<h3>'+esc(lyr.name)+' — filter</h3><div id="ftWrap"></div>';
+  renderFilterUI(document.getElementById('ftWrap'), lyr, ()=>{ renderLayer(lyr); updateMkStatus(); });
 }
 
 function renderLabelsTab(){
@@ -1076,16 +1196,32 @@ function renderLabelsTab(){
   g('lbHalo').onchange=()=>{ lb.halo=g('lbHalo').checked; rl(); };
 }
 
-/* ---------- attribute table ---------- */
+/* ---------- attribute table (with filter + field calculator) ---------- */
 let attrSort={col:null, asc:true};
 document.getElementById('mkTableBtn').onclick=()=>{
   const lyr=selectedLayer();
   if(!lyr){ toast('Select a layer first.'); return; }
   attrSort={col:null, asc:true};
+  document.getElementById('tblFilterWrap').classList.add('hidden');
   openModal('modal-table');
   renderAttrTable();
 };
 document.getElementById('attrRespectFilter').onchange=renderAttrTable;
+document.getElementById('tblFilterBtn').onclick=()=>{
+  const wrap=document.getElementById('tblFilterWrap');
+  const lyr=selectedLayer(); if(!lyr) return;
+  wrap.classList.toggle('hidden');
+  if(!wrap.classList.contains('hidden')){
+    renderFilterUI(wrap, lyr, ()=>{ renderLayer(lyr); updateMkStatus(); renderAttrTable(); renderFilterTab(); });
+  }
+};
+document.getElementById('tblCalcBtn').onclick=()=>{
+  const lyr=selectedLayer(); if(!lyr) return;
+  document.getElementById('calcLayerName').textContent='Layer: '+lyr.name;
+  document.getElementById('calcFields').innerHTML='<b>Available fields:</b> '+fieldsOf(lyr).map(esc).join(', ');
+  document.getElementById('calcPreview').textContent='';
+  openModal('modal-calc');
+};
 function renderAttrTable(){
   const lyr=selectedLayer(); if(!lyr) return;
   document.getElementById('attrTableTitle').textContent='Attribute table — '+lyr.name;
@@ -1116,14 +1252,6 @@ function renderAttrTable(){
 }
 
 /* ---------- field calculator ---------- */
-document.getElementById('mkCalcBtn').onclick=()=>{
-  const lyr=selectedLayer();
-  if(!lyr){ toast('Select a layer first.'); return; }
-  document.getElementById('calcLayerName').textContent='Layer: '+lyr.name;
-  document.getElementById('calcFields').innerHTML='<b>Available fields:</b> '+fieldsOf(lyr).map(esc).join(', ');
-  document.getElementById('calcPreview').textContent='';
-  openModal('modal-calc');
-};
 function calcCompile(){
   const expr=document.getElementById('calcExpr').value.trim();
   if(!expr) return null;
@@ -1154,40 +1282,186 @@ document.getElementById('calcApplyBtn').onclick=()=>{
   });
   closeModal('modal-calc');
   renderLayer(lyr); renderMakerPanels();
+  if(!document.getElementById('modal-table').classList.contains('hidden')) renderAttrTable();
   toast('Field "'+name+'" added'+(errs?' ('+errs+' features errored → null)':'')+'.');
 };
 
 /* ---------- spatial tools ---------- */
 function layerOptions(sel, geomFilter){
   return mkLayers.filter(l=>!geomFilter||l.geom===geomFilter)
-    .map(l=>'<option value="'+l.id+'" '+(sel===l.id?'selected':'')+'>'+esc(l.name)+'</option>').join('');
+    .map(l=>'<option value="'+l.id+'" '+(sel===l.id?'selected':'')+'>'+esc(l.name)+' ('+l.geom+')</option>').join('');
 }
+function fcOf(lyr){ return {type:'FeatureCollection', features: clone(visibleFeatures(lyr))}; }
+function polygonFeatures(lyr){ return visibleFeatures(lyr).filter(f=>/Polygon/.test(f.geometry.type)); }
+function centroidOf(f){
+  try{ return f.geometry.type==='Point'? f : turf.centroid(f); }catch(_){ return null; }
+}
+function unionAll(features){
+  let u=null;
+  features.forEach(f=>{
+    try{ u = u? turf.union(u,f) : clone(f); }catch(_){}
+  });
+  return u;
+}
+function keepInside(f, polys, inside){
+  const t=f.geometry.type;
+  const out=[];
+  try{
+    if(/Point/.test(t)){
+      const inAny=polys.some(p=>{ try{ return turf.booleanPointInPolygon(f,p); }catch(_){ return false; } });
+      if(inAny===inside) out.push(clone(f));
+    } else if(/Polygon/.test(t)){
+      if(inside){
+        polys.forEach(p=>{
+          try{ const i=turf.intersect(f,p); if(i){ i.properties=Object.assign({},f.properties); out.push(i); } }catch(_){}
+        });
+      } else {
+        let geom=clone(f);
+        for(const p of polys){
+          try{ geom=turf.difference(geom,p); }catch(_){}
+          if(!geom) break;
+        }
+        if(geom){ geom.properties=Object.assign({},f.properties); out.push(geom); }
+      }
+    } else { /* line */
+      let segments=[f];
+      polys.forEach(p=>{
+        const next=[];
+        segments.forEach(seg=>{
+          try{
+            const split=turf.lineSplit(seg, turf.polygonToLine(p));
+            if(split.features.length) next.push(...split.features);
+            else next.push(seg);
+          }catch(_){ next.push(seg); }
+        });
+        segments=next;
+      });
+      segments.forEach(seg=>{
+        try{
+          const mid=turf.along(seg, Math.max(1e-6, turf.length(seg)/2));
+          const inAny=polys.some(p=>{ try{ return turf.booleanPointInPolygon(mid,p); }catch(_){ return false; } });
+          if(inAny===inside){ seg.properties=Object.assign({},f.properties); out.push(clone(seg)); }
+        }catch(_){}
+      });
+    }
+  }catch(_){}
+  return out;
+}
+
 function renderSpatialForm(){
   const op=document.getElementById('spOp').value;
   const el=document.getElementById('spForm');
+  const selA='<div class="field"><label>Input layer</label><select id="spA">'+layerOptions(mkSelectedId,null)+'</select></div>';
   if(op==='buffer'){
-    el.innerHTML=`<div class="field"><label>Layer to buffer</label><select id="spA">${layerOptions(null,null)}</select></div>
+    el.innerHTML=selA+`
       <div class="row2">
         <div class="field"><label>Distance</label><input type="number" id="spDist" value="1" min="0.001" step="0.1"></div>
         <div class="field"><label>Unit</label><select id="spUnit"><option value="kilometers">km</option><option value="meters">m</option><option value="miles">mi</option></select></div>
-      </div>`;
+      </div>
+      <div class="checkline"><input type="checkbox" id="spDissolve"><label for="spDissolve" style="margin:0;color:var(--text);">Dissolve overlapping buffers into one shape</label></div>`;
   } else if(op==='selloc'){
-    el.innerHTML=`<div class="field"><label>Select features from</label><select id="spA">${layerOptions(null,null)}</select></div>
-      <div class="field"><label>that intersect features in</label><select id="spB">${layerOptions(null,null)}</select></div>
-      <div class="kv">Creates a new layer containing only the intersecting features. Filters on both layers are respected.</div>`;
-  } else {
+    el.innerHTML=`<div class="field"><label>Select features from</label><select id="spA">${layerOptions(mkSelectedId,null)}</select></div>
+      <div class="field"><label>Relationship</label>
+        <select id="spRel">
+          <option value="intersects">intersect features in</option>
+          <option value="within">are completely within polygons of</option>
+          <option value="contains">contain features of</option>
+          <option value="distance">are within a distance of features in</option>
+        </select></div>
+      <div class="field"><label>Reference layer</label><select id="spB">${layerOptions(null,null)}</select></div>
+      <div class="row2" id="spDistRow" style="display:none;">
+        <div class="field"><label>Distance</label><input type="number" id="spDist" value="1" min="0.001" step="0.1"></div>
+        <div class="field"><label>Unit</label><select id="spUnit"><option value="kilometers">km</option><option value="meters">m</option><option value="miles">mi</option></select></div>
+      </div>
+      <div class="checkline"><input type="checkbox" id="spInvert"><label for="spInvert" style="margin:0;color:var(--text);">Invert — keep features that do NOT match</label></div>`;
+    document.getElementById('spRel').onchange=e=>{
+      document.getElementById('spDistRow').style.display = e.target.value==='distance'?'flex':'none';
+    };
+  } else if(op==='pip'){
     el.innerHTML=`<div class="field"><label>Polygon layer</label><select id="spA">${layerOptions(null,'polygon')}</select></div>
       <div class="field"><label>Point layer</label><select id="spB">${layerOptions(null,'point')}</select></div>
-      <div class="field"><label>New count field name</label><input type="text" id="spCountName" value="pt_count"></div>
-      <div class="field"><label>Also sum this point field (optional)</label>
-        <select id="spSumField"><option value="">none</option></select></div>
-      <div class="kv">Creates a copy of the polygon layer with the count (and sum) joined — ready for a choropleth or rate calculation.</div>`;
+      <div class="field"><label>New field name prefix</label><input type="text" id="spCountName" value="pt"></div>
+      <div class="field"><label>Statistics on point field (optional)</label>
+        <select id="spSumField"><option value="">count only</option></select></div>
+      <div class="field" id="spStatsRow" style="display:none;"><label>Statistics to compute</label>
+        <div class="checkline" style="margin-bottom:2px;"><input type="checkbox" id="spStSum" checked><label for="spStSum" style="margin:0;color:var(--text);">Sum</label>
+          <input type="checkbox" id="spStMean" style="margin-left:12px;"><label for="spStMean" style="margin:0;color:var(--text);">Mean</label>
+          <input type="checkbox" id="spStMin" style="margin-left:12px;"><label for="spStMin" style="margin:0;color:var(--text);">Min</label>
+          <input type="checkbox" id="spStMax" style="margin-left:12px;"><label for="spStMax" style="margin:0;color:var(--text);">Max</label></div>
+      </div>
+      <div class="kv">Creates a copy of the polygon layer with a count field (and chosen statistics) joined — ready for a choropleth or rate calculation.</div>`;
     const b=document.getElementById('spB');
     const fill=()=>{
       const lyr=mkLayers.find(l=>l.id===b.value);
-      document.getElementById('spSumField').innerHTML='<option value="">none</option>'+(lyr?numericFieldsOf(lyr).map(f=>'<option>'+esc(f)+'</option>').join(''):'');
+      document.getElementById('spSumField').innerHTML='<option value="">count only</option>'+(lyr?numericFieldsOf(lyr).map(f=>'<option>'+esc(f)+'</option>').join(''):'');
     };
     b.onchange=fill; fill();
+    document.getElementById('spSumField').onchange=e=>{
+      document.getElementById('spStatsRow').style.display=e.target.value?'block':'none';
+    };
+  } else if(op==='clip'||op==='erase'){
+    el.innerHTML=`<div class="field"><label>Input layer (any geometry)</label><select id="spA">${layerOptions(mkSelectedId,null)}</select></div>
+      <div class="field"><label>${op==='clip'?'Clip to polygons of':'Erase using polygons of'}</label><select id="spB">${layerOptions(null,'polygon')}</select></div>
+      <div class="kv">${op==='clip'?'Keeps only the parts of the input inside the polygons.':'Removes the parts of the input inside the polygons.'}</div>`;
+  } else if(op==='intersect'){
+    el.innerHTML=`<div class="field"><label>Polygon layer A</label><select id="spA">${layerOptions(null,'polygon')}</select></div>
+      <div class="field"><label>Polygon layer B</label><select id="spB">${layerOptions(null,'polygon')}</select></div>
+      <div class="kv">Output features carry attributes from both layers (B's fields prefixed "B_").</div>`;
+  } else if(op==='unionop'){
+    el.innerHTML=`<div class="field"><label>Polygon layer A</label><select id="spA">${layerOptions(null,'polygon')}</select></div>
+      <div class="field"><label>Polygon layer B</label><select id="spB">${layerOptions(null,'polygon')}</select></div>
+      <div class="kv">Combines all polygons from both layers into one dissolved shape (attributes are not preserved).</div>`;
+  } else if(op==='dissolve'){
+    el.innerHTML=`<div class="field"><label>Polygon layer</label><select id="spA">${layerOptions(null,'polygon')}</select></div>
+      <div class="field"><label>Dissolve by field (blank = dissolve all into one)</label>
+        <select id="spField"><option value="">— all into one —</option></select></div>`;
+    const a=document.getElementById('spA');
+    const fill=()=>{
+      const lyr=mkLayers.find(l=>l.id===a.value);
+      document.getElementById('spField').innerHTML='<option value="">— all into one —</option>'+(lyr?fieldsOf(lyr).map(f=>'<option>'+esc(f)+'</option>').join(''):'');
+    };
+    a.onchange=fill; fill();
+  } else if(op==='mergelyr'){
+    el.innerHTML=`<div class="field"><label>Layer A</label><select id="spA">${layerOptions(null,null)}</select></div>
+      <div class="field"><label>Layer B (same geometry type)</label><select id="spB">${layerOptions(null,null)}</select></div>`;
+  } else if(op==='centroid'){
+    el.innerHTML=selA+`<div class="kv">Creates a point layer at each feature's centroid, keeping all attributes — useful for placing labels or proportional symbols on polygons.</div>`;
+  } else if(op==='hull'){
+    el.innerHTML=selA+`<div class="checkline"><input type="checkbox" id="spPerFeat"><label for="spPerFeat" style="margin:0;color:var(--text);">One hull per feature (instead of one for the whole layer)</label></div>`;
+  } else if(op==='bbox'){
+    el.innerHTML=selA+`<div class="checkline"><input type="checkbox" id="spPerFeat"><label for="spPerFeat" style="margin:0;color:var(--text);">One box per feature (instead of the layer extent)</label></div>`;
+  } else if(op==='simplify'){
+    el.innerHTML=selA+`
+      <div class="field"><label>Tolerance (degrees; ~0.001 ≈ 100 m)</label><input type="number" id="spTol" value="0.001" min="0.00001" step="0.0005"></div>
+      <div class="checkline"><input type="checkbox" id="spHQ" checked><label for="spHQ" style="margin:0;color:var(--text);">High quality (slower, better shape retention)</label></div>
+      <div class="kv">Douglas–Peucker generalization — the classic cartographic line simplification.</div>`;
+  } else if(op==='nearest'){
+    el.innerHTML=`<div class="field"><label>For each feature in</label><select id="spA">${layerOptions(mkSelectedId,null)}</select></div>
+      <div class="field"><label>find the nearest feature in</label><select id="spB">${layerOptions(null,null)}</select></div>
+      <div class="field"><label>Copy this field from the nearest feature (optional)</label>
+        <select id="spCopyField"><option value="">just the distance</option></select></div>
+      <div class="kv">Adds near_dist_km (and the copied field as "near_&lt;field&gt;") to a copy of the input layer. Non-point features use centroids.</div>`;
+    const b=document.getElementById('spB');
+    const fill=()=>{
+      const lyr=mkLayers.find(l=>l.id===b.value);
+      document.getElementById('spCopyField').innerHTML='<option value="">just the distance</option>'+(lyr?fieldsOf(lyr).map(f=>'<option>'+esc(f)+'</option>').join(''):'');
+    };
+    b.onchange=fill; fill();
+  } else if(op==='distmatrix'){
+    el.innerHTML=`<div class="field"><label>Origin layer (rows)</label><select id="spA">${layerOptions(mkSelectedId,null)}</select></div>
+      <div class="field"><label>Destination layer (columns)</label><select id="spB">${layerOptions(null,null)}</select></div>
+      <div class="row2">
+        <div class="field"><label>Row label field</label><select id="spRowId"></select></div>
+        <div class="field"><label>Column label field</label><select id="spColId"></select></div>
+      </div>
+      <div class="kv">Downloads a CSV of distances in km between all pairs (centroids used for non-points; capped at 400 × 400).</div>`;
+    const a=document.getElementById('spA'), b=document.getElementById('spB');
+    const fillIds=()=>{
+      const la=mkLayers.find(l=>l.id===a.value), lb=mkLayers.find(l=>l.id===b.value);
+      document.getElementById('spRowId').innerHTML=la?fieldsOf(la).map(f=>'<option>'+esc(f)+'</option>').join(''):'';
+      document.getElementById('spColId').innerHTML=lb?fieldsOf(lb).map(f=>'<option>'+esc(f)+'</option>').join(''):'';
+    };
+    a.onchange=fillIds; b.onchange=fillIds; fillIds();
   }
 }
 document.getElementById('mkSpatialBtn').onclick=()=>{
@@ -1203,44 +1477,201 @@ document.getElementById('spRunBtn').onclick=()=>{
   status.textContent='Working…';
   setTimeout(()=>{
     try{
+      const gv=id=>{ const e=document.getElementById(id); return e?e.value:null; };
+      const A=mkLayers.find(l=>l.id===gv('spA'));
+      const B=mkLayers.find(l=>l.id===gv('spB'));
       if(op==='buffer'){
-        const lyr=mkLayers.find(l=>l.id===document.getElementById('spA').value);
-        const dist=+document.getElementById('spDist').value, unit=document.getElementById('spUnit').value;
-        const fc={type:'FeatureCollection', features: visibleFeatures(lyr)};
-        const out=turf.buffer(fc, dist, {units:unit});
-        addMakerLayer(out, lyr.name+'_buffer');
-      } else if(op==='selloc'){
-        const A=mkLayers.find(l=>l.id===document.getElementById('spA').value);
-        const B=mkLayers.find(l=>l.id===document.getElementById('spB').value);
+        const out=turf.buffer(fcOf(A), +gv('spDist'), {units:gv('spUnit')});
+        if(document.getElementById('spDissolve').checked){
+          const u=unionAll(out.features);
+          if(u){ u.properties={source:A.name+' buffer'}; addMakerLayer({type:'FeatureCollection',features:[u]}, A.name+'_buffer'); }
+          else { status.textContent='Dissolve failed — layer created undissolved.'; addMakerLayer(out, A.name+'_buffer'); }
+        } else addMakerLayer(out, A.name+'_buffer');
+      }
+      else if(op==='selloc'){
+        const rel=gv('spRel'), invert=document.getElementById('spInvert').checked;
         const bFeats=visibleFeatures(B);
-        const selected=visibleFeatures(A).filter(fa=>bFeats.some(fb=>{
-          try{ return turf.booleanIntersects(fa, fb); }catch(_){ return false; }
-        }));
-        if(!selected.length){ status.textContent='No features intersect.'; return; }
-        addMakerLayer({type:'FeatureCollection', features: JSON.parse(JSON.stringify(selected))}, A.name+'_selected');
-      } else {
-        const P=mkLayers.find(l=>l.id===document.getElementById('spA').value);
-        const T=mkLayers.find(l=>l.id===document.getElementById('spB').value);
-        if(!P||!T){ status.textContent='Pick both layers.'; return; }
-        const cName=document.getElementById('spCountName').value.trim()||'pt_count';
-        const sField=document.getElementById('spSumField').value||null;
-        const pts=visibleFeatures(T);
-        const polysCopy=JSON.parse(JSON.stringify({type:'FeatureCollection', features: visibleFeatures(P)}));
-        polysCopy.features.forEach(poly=>{
-          let count=0, sum=0;
+        let dist=+gv('spDist'), unit=gv('spUnit');
+        const matches=visibleFeatures(A).filter(fa=>{
+          const hit=bFeats.some(fb=>{
+            try{
+              if(rel==='intersects') return turf.booleanIntersects(fa,fb);
+              if(rel==='within') return turf.booleanWithin(fa,fb);
+              if(rel==='contains') return turf.booleanContains(fa,fb);
+              if(rel==='distance'){
+                const ca=centroidOf(fa), cb=centroidOf(fb);
+                if(!ca||!cb) return false;
+                return turf.distance(ca,cb,{units:unit})<=dist;
+              }
+            }catch(_){ return false; }
+            return false;
+          });
+          return invert? !hit : hit;
+        });
+        if(!matches.length){ status.textContent='No features match.'; return; }
+        addMakerLayer({type:'FeatureCollection',features:clone(matches)}, A.name+'_selected');
+      }
+      else if(op==='pip'){
+        const prefix=(gv('spCountName')||'pt').trim();
+        const sField=gv('spSumField')||null;
+        const pts=visibleFeatures(B);
+        const polys=clone({type:'FeatureCollection',features:visibleFeatures(A)});
+        polys.features.forEach(poly=>{
+          const vals=[];
+          let count=0;
           pts.forEach(pt=>{
             try{
-              if(turf.booleanPointInPolygon(pt, poly)){
+              if(turf.booleanPointInPolygon(pt,poly)){
                 count++;
-                if(sField){ const v=parseFloat((pt.properties||{})[sField]); if(isFinite(v)) sum+=v; }
+                if(sField){ const v=parseFloat((pt.properties||{})[sField]); if(isFinite(v)) vals.push(v); }
               }
             }catch(_){}
           });
-          poly.properties=poly.properties||{};
-          poly.properties[cName]=count;
-          if(sField) poly.properties[cName+'_sum']=+sum.toFixed(4);
+          const p=poly.properties=poly.properties||{};
+          p[prefix+'_count']=count;
+          if(sField && vals.length){
+            if(document.getElementById('spStSum').checked) p[prefix+'_sum']=+vals.reduce((a,b)=>a+b,0).toFixed(4);
+            if(document.getElementById('spStMean').checked) p[prefix+'_mean']=+(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(4);
+            if(document.getElementById('spStMin').checked) p[prefix+'_min']=Math.min.apply(null,vals);
+            if(document.getElementById('spStMax').checked) p[prefix+'_max']=Math.max.apply(null,vals);
+          }
         });
-        addMakerLayer(polysCopy, P.name+'_counts');
+        addMakerLayer(polys, A.name+'_stats');
+      }
+      else if(op==='clip'||op==='erase'){
+        const polys=polygonFeatures(B);
+        if(!polys.length){ status.textContent='Reference layer has no polygons.'; return; }
+        const out=[];
+        visibleFeatures(A).forEach(f=>out.push(...keepInside(f, polys, op==='clip')));
+        if(!out.length){ status.textContent='Result is empty.'; return; }
+        addMakerLayer({type:'FeatureCollection',features:out}, A.name+'_'+op);
+      }
+      else if(op==='intersect'){
+        const out=[];
+        polygonFeatures(A).forEach(fa=>{
+          polygonFeatures(B).forEach(fb=>{
+            try{
+              const i=turf.intersect(fa,fb);
+              if(i){
+                const props=Object.assign({},fa.properties);
+                Object.keys(fb.properties||{}).forEach(k=>props['B_'+k]=fb.properties[k]);
+                i.properties=props;
+                out.push(i);
+              }
+            }catch(_){}
+          });
+        });
+        if(!out.length){ status.textContent='No overlapping polygons.'; return; }
+        addMakerLayer({type:'FeatureCollection',features:out}, A.name+'_x_'+B.name);
+      }
+      else if(op==='unionop'){
+        const u=unionAll([...polygonFeatures(A), ...polygonFeatures(B)]);
+        if(!u){ status.textContent='Union failed.'; return; }
+        u.properties={source:A.name+' ∪ '+B.name};
+        addMakerLayer({type:'FeatureCollection',features:[u]}, A.name+'_union');
+      }
+      else if(op==='dissolve'){
+        const field=gv('spField')||null;
+        const feats=polygonFeatures(A);
+        let out=[];
+        if(field){
+          const groups={};
+          feats.forEach(f=>{
+            const k=String((f.properties||{})[field]);
+            (groups[k]=groups[k]||[]).push(f);
+          });
+          Object.keys(groups).forEach(k=>{
+            const u=unionAll(groups[k]);
+            if(u){ u.properties={}; u.properties[field]=groups[k][0].properties[field]; u.properties.n_merged=groups[k].length; out.push(u); }
+          });
+        } else {
+          const u=unionAll(feats);
+          if(u){ u.properties={n_merged:feats.length}; out=[u]; }
+        }
+        if(!out.length){ status.textContent='Dissolve failed.'; return; }
+        addMakerLayer({type:'FeatureCollection',features:out}, A.name+'_dissolved');
+      }
+      else if(op==='mergelyr'){
+        if(A.geom!==B.geom){ status.textContent='Layers must have the same geometry type.'; return; }
+        const feats=[...clone(visibleFeatures(A)), ...clone(visibleFeatures(B))];
+        addMakerLayer({type:'FeatureCollection',features:feats}, A.name+'_merged');
+      }
+      else if(op==='centroid'){
+        const out=visibleFeatures(A).map(f=>{
+          const c=centroidOf(f);
+          if(c){ const cc=clone(c); cc.properties=Object.assign({},f.properties); return cc; }
+          return null;
+        }).filter(Boolean);
+        addMakerLayer({type:'FeatureCollection',features:out}, A.name+'_centroids');
+      }
+      else if(op==='hull'){
+        const per=document.getElementById('spPerFeat').checked;
+        let out=[];
+        if(per){
+          visibleFeatures(A).forEach(f=>{
+            try{ const h=turf.convex({type:'FeatureCollection',features:[f]}); if(h){ h.properties=Object.assign({},f.properties); out.push(h);} }catch(_){}
+          });
+        } else {
+          const h=turf.convex(fcOf(A));
+          if(h){ h.properties={source:A.name}; out=[h]; }
+        }
+        if(!out.length){ status.textContent='Could not build hull (need ≥3 distinct points).'; return; }
+        addMakerLayer({type:'FeatureCollection',features:out}, A.name+'_hull');
+      }
+      else if(op==='bbox'){
+        const per=document.getElementById('spPerFeat').checked;
+        let out=[];
+        if(per){
+          visibleFeatures(A).forEach(f=>{
+            try{ const bb=turf.bboxPolygon(turf.bbox(f)); bb.properties=Object.assign({},f.properties); out.push(bb); }catch(_){}
+          });
+        } else {
+          const bb=turf.bboxPolygon(turf.bbox(fcOf(A)));
+          bb.properties={source:A.name};
+          out=[bb];
+        }
+        addMakerLayer({type:'FeatureCollection',features:out}, A.name+'_bbox');
+      }
+      else if(op==='simplify'){
+        const tol=+gv('spTol')||0.001;
+        const hq=document.getElementById('spHQ').checked;
+        const out=turf.simplify(fcOf(A), {tolerance:tol, highQuality:hq});
+        addMakerLayer(out, A.name+'_simplified');
+      }
+      else if(op==='nearest'){
+        const copyField=gv('spCopyField')||null;
+        const bFeats=visibleFeatures(B).map(f=>({f, c:centroidOf(f)})).filter(x=>x.c);
+        if(!bFeats.length){ status.textContent='Reference layer is empty.'; return; }
+        const out=clone(visibleFeatures(A));
+        out.forEach(f=>{
+          const c=centroidOf(f); if(!c) return;
+          let best=null, bestD=Infinity;
+          bFeats.forEach(x=>{
+            try{ const d=turf.distance(c,x.c,{units:'kilometers'}); if(d<bestD){ bestD=d; best=x.f; } }catch(_){}
+          });
+          f.properties=f.properties||{};
+          f.properties.near_dist_km=+bestD.toFixed(4);
+          if(copyField&&best) f.properties['near_'+copyField]=(best.properties||{})[copyField];
+        });
+        addMakerLayer({type:'FeatureCollection',features:out}, A.name+'_nearest');
+      }
+      else if(op==='distmatrix'){
+        const rowId=gv('spRowId'), colId=gv('spColId');
+        const rows=visibleFeatures(A).slice(0,400).map(f=>({f, c:centroidOf(f)})).filter(x=>x.c);
+        const cols=visibleFeatures(B).slice(0,400).map(f=>({f, c:centroidOf(f)})).filter(x=>x.c);
+        const header=['origin', ...cols.map(x=>String((x.f.properties||{})[colId]??''))];
+        const lines=[header.map(h=>'"'+h.replace(/"/g,'""')+'"').join(',')];
+        rows.forEach(r=>{
+          const line=['"'+String((r.f.properties||{})[rowId]??'').replace(/"/g,'""')+'"'];
+          cols.forEach(cx=>{
+            let d='';
+            try{ d=turf.distance(r.c,cx.c,{units:'kilometers'}).toFixed(3); }catch(_){}
+            line.push(d);
+          });
+          lines.push(line.join(','));
+        });
+        download('distance-matrix_km.csv', lines.join('\n'), 'text/csv');
+        toast('Distance matrix downloaded ('+rows.length+' × '+cols.length+').');
       }
       closeModal('modal-spatial');
     }catch(err){ status.textContent='Error: '+err.message; }
@@ -1251,28 +1682,29 @@ document.getElementById('spRunBtn').onclick=()=>{
 function legendSpecForLayer(lyr){
   const st=lyr.style;
   const items=[];
+  const shp_= lyr.geom==='point'?'circle': lyr.geom==='line'?'line':'rect';
   if(st.mode==='single'){
-    items.push({color:st.color, label:lyr.name, shape: lyr.geom==='point'?'circle': lyr.geom==='line'?'line':'rect'});
+    items.push({color:st.color, label:lyr.name, shape:shp_});
   } else if(st.mode==='cat'){
     computeCategories(lyr);
-    (lyr._cats||[]).forEach(v=>items.push({color:st.catMap[v], label:v, shape: lyr.geom==='point'?'circle': lyr.geom==='line'?'line':'rect'}));
+    (lyr._cats||[]).forEach(v=>items.push({color:st.catMap[v], label:v, shape:shp_}));
   } else if(st.mode==='grad'){
     computeClassification(lyr);
     if(lyr._breaks){
       for(let i=0;i<lyr._breaks.length-1;i++){
-        items.push({color:lyr._colors[i], label:fmtNum(lyr._breaks[i])+' – '+fmtNum(lyr._breaks[i+1]), shape:lyr.geom==='point'?'circle': lyr.geom==='line'?'line':'rect'});
+        items.push({color:lyr._colors[i], label:fmtNum(lyr._breaks[i])+' – '+fmtNum(lyr._breaks[i+1]), shape:shp_});
       }
     }
   } else if(st.mode==='gradSize'){
     sizeRange(lyr);
     if(lyr._vmax!=null){
-      [[lyr._vmin,st.minR],[ (lyr._vmin+lyr._vmax)/2, gradRadius(lyr,(lyr._vmin+lyr._vmax)/2)],[lyr._vmax,st.maxR]].forEach(([v,r])=>{
+      [[lyr._vmin,st.minR],[(lyr._vmin+lyr._vmax)/2, gradRadius(lyr,(lyr._vmin+lyr._vmax)/2)],[lyr._vmax,st.maxR]].forEach(([v,r])=>{
         items.push({color:st.color, label:fmtNum(v), shape:'circle', size:Math.round(r*2)});
       });
     }
   }
   let title=lyr.name;
-  if(st.field && st.mode!=='single'){ title=st.field + (st.normField? ' / '+st.normField : ''); }
+  if(st.field && st.mode!=='single'){ title=lyr.name+' — '+st.field + (st.normField? ' / '+st.normField : ''); }
   return {title, items};
 }
 
@@ -1526,27 +1958,37 @@ function rebuildNorthArrow(obj, style){
   return g;
 }
 
-/* ---------- legend (rect / circle / line swatches) ---------- */
+/* ---------- legend (headings + rect / circle / line swatches) ---------- */
 function buildLegendGroup(title, items){
-  const padding=10, swW=14, width=200;
+  const padding=10, swW=14, width=210;
   let y=padding+26;
   const parts=[];
   const rows=[];
-  items.forEach(it=>{
-    const size=it.size|| (it.shape==='circle'? 14 : 14);
-    const rowH=Math.max(20, size+6);
-    rows.push({it, y, rowH, size});
-    y+=rowH;
+  items.forEach((it,idx)=>{
+    if(it.header){
+      const rowH= idx===0 ? 22 : 28;
+      rows.push({it, y, rowH, size:0});
+      y+=rowH;
+    } else {
+      const size=it.size||14;
+      const rowH=Math.max(20, size+6);
+      rows.push({it, y, rowH, size});
+      y+=rowH;
+    }
   });
   const bg=new fabric.Rect({left:0, top:0, width, height:y+padding-6, fill:'rgba(255,255,255,0.92)', stroke:'#8f97a8', strokeWidth:1, rx:3, ry:3});
   parts.push(bg);
   parts.push(new fabric.Text(title||'Legend',{left:padding, top:padding, fontSize:14, fontWeight:'700', fill:'#1b2a4a', fontFamily:'Arial'}));
   rows.forEach(({it,y,rowH,size})=>{
     const cy=y+rowH/2;
+    if(it.header){
+      parts.push(new fabric.Text(String(it.label),{left:padding, top:cy-1, fontSize:12, fontWeight:'700', fill:'#3a4a72', fontFamily:'Arial'}));
+      return;
+    }
     if(it.shape==='circle'){
       parts.push(new fabric.Circle({radius:size/2, fill:it.color, stroke:'#555', strokeWidth:0.7, left:padding+swW/2, top:cy, originX:'center', originY:'center'}));
     } else if(it.shape==='line'){
-      parts.push(new fabric.Rect({left:padding, top:cy-1.5, width:swW+4, height:3, fill:it.color}));
+      parts.push(new fabric.Rect({left:padding-2, top:cy-1.5, width:swW+6, height:3, fill:it.color}));
     } else {
       parts.push(new fabric.Rect({left:padding, top:cy-swW/2, width:swW, height:swW, fill:it.color, stroke:'#555', strokeWidth:0.7}));
     }
@@ -1567,7 +2009,11 @@ function rebuildLegendOnCanvas(obj){
   return g;
 }
 document.getElementById('toolLegend').onclick=()=>{
-  const items=[{color:'#3a9a93', label:'Category A', shape:'rect'},{color:'#e8b23a', label:'Category B', shape:'rect'}];
+  const items=[
+    {color:'#3a9a93', label:'Area category', shape:'rect'},
+    {color:'#b3572f', label:'Point feature', shape:'circle'},
+    {color:'#3a4a72', label:'Line feature', shape:'line'}
+  ];
   addObj(buildLegendGroup('Legend', items),{type:'legend', title:'Legend', items});
 };
 
@@ -1931,7 +2377,12 @@ function showPropertiesForSelection(e){
   if(obj.data.type==='legend'){
     html+=`<div class="field"><label>Legend title</label><input type="text" id="pLegendTitle" value="${esc(obj.data.title)}"></div>
       <div id="legendRows"></div>
-      <button class="btn small secondary" id="pLegendAddRow">+ Add row</button>`;
+      <div class="legend-add-row">
+        <button class="btn small secondary" id="pLegAddBox">+ Box</button>
+        <button class="btn small secondary" id="pLegAddPt">+ Point</button>
+        <button class="btn small secondary" id="pLegAddLn">+ Line</button>
+        <button class="btn small secondary" id="pLegAddHd">+ Heading</button>
+      </div>`;
   }
   if(obj.data.type==='northArrow'){
     html+=`<div class="field"><label>Style</label>
@@ -1992,7 +2443,11 @@ function showPropertiesForSelection(e){
   if(obj.data.type==='legend'){
     renderLegendRows(obj);
     g('pLegendTitle').onchange=()=>{ obj.data.title=g('pLegendTitle').value; const ng=rebuildLegendOnCanvas(obj); showPropertiesForSelection({selected:[ng]}); };
-    g('pLegendAddRow').onclick=()=>{ obj.data.items.push({color:'#3a9a93', label:'New item', shape:'rect'}); const ng=rebuildLegendOnCanvas(obj); showPropertiesForSelection({selected:[ng]}); };
+    const addItem=it=>{ obj.data.items.push(it); const ng=rebuildLegendOnCanvas(obj); showPropertiesForSelection({selected:[ng]}); };
+    g('pLegAddBox').onclick=()=>addItem({color:'#3a9a93', label:'New area', shape:'rect'});
+    g('pLegAddPt').onclick=()=>addItem({color:'#b3572f', label:'New point', shape:'circle'});
+    g('pLegAddLn').onclick=()=>addItem({color:'#3a4a72', label:'New line', shape:'line'});
+    g('pLegAddHd').onclick=()=>addItem({header:true, label:'Heading'});
   }
   if(obj.data.type==='scaleBar'){
     g('pScaleRecalc').onclick=()=>{
@@ -2016,18 +2471,34 @@ function showPropertiesForSelection(e){
 }
 function renderLegendRows(obj){
   const wrap=document.getElementById('legendRows');
-  wrap.innerHTML=obj.data.items.map((it,i)=>`
-    <div class="legend-row" data-i="${i}">
-      <input type="color" value="${toHex(it.color)}">
-      <input type="text" value="${esc(it.label)}">
+  wrap.innerHTML=obj.data.items.map((it,i)=>{
+    const shapeSel=`<select class="shape-sel">
+      <option value="header" ${it.header?'selected':''}>Head</option>
+      <option value="rect" ${!it.header&&it.shape==='rect'?'selected':''}>Box</option>
+      <option value="circle" ${!it.header&&it.shape==='circle'?'selected':''}>Point</option>
+      <option value="line" ${!it.header&&it.shape==='line'?'selected':''}>Line</option>
+    </select>`;
+    const colorInp=it.header?'':'<input type="color" value="'+toHex(it.color)+'">';
+    return `<div class="legend-row" data-i="${i}">
+      ${shapeSel}${colorInp}
+      <input type="text" value="${esc(it.label)}" ${it.header?'style="font-weight:700;"':''}>
       <button title="Remove">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   wrap.querySelectorAll('.legend-row').forEach(row=>{
     const i=+row.getAttribute('data-i');
-    row.querySelector('input[type=color]').oninput=ev=>{ obj.data.items[i].color=ev.target.value; };
-    row.querySelector('input[type=color]').onchange=()=>{ const ng=rebuildLegendOnCanvas(obj); showPropertiesForSelection({selected:[ng]}); };
-    row.querySelector('input[type=text]').onchange=ev=>{ obj.data.items[i].label=ev.target.value; const ng=rebuildLegendOnCanvas(obj); showPropertiesForSelection({selected:[ng]}); };
-    row.querySelector('button').onclick=()=>{ obj.data.items.splice(i,1); const ng=rebuildLegendOnCanvas(obj); showPropertiesForSelection({selected:[ng]}); };
+    const rebuild=()=>{ const ng=rebuildLegendOnCanvas(obj); showPropertiesForSelection({selected:[ng]}); };
+    row.querySelector('.shape-sel').onchange=ev=>{
+      const v=ev.target.value;
+      const it=obj.data.items[i];
+      if(v==='header'){ delete it.shape; delete it.color; delete it.size; it.header=true; }
+      else { delete it.header; it.shape=v; if(!it.color) it.color='#3a9a93'; }
+      rebuild();
+    };
+    const ci=row.querySelector('input[type=color]');
+    if(ci){ ci.oninput=ev=>{ obj.data.items[i].color=ev.target.value; }; ci.onchange=rebuild; }
+    row.querySelector('input[type=text]').onchange=ev=>{ obj.data.items[i].label=ev.target.value; rebuild(); };
+    row.querySelector('button').onclick=()=>{ obj.data.items.splice(i,1); rebuild(); };
   });
 }
 
@@ -2149,14 +2620,24 @@ function receiveFromMaker(dataURL, metersPerImagePx, legendSpecs, wantScale){
     img.set({left:(canvas.getWidth()-img.width*s)/2, top:70, scaleX:s, scaleY:s});
     const frame=addObj(img,{type:'mapFrame', calibration:{constant:metersPerImagePx, calibratedAt:Date.now()}, fromMaker:true});
     let yCursor=img.top+img.height*s+14;
-    legendSpecs.forEach(spec=>{
-      const lg=buildLegendGroup(spec.title, spec.items);
+    if(legendSpecs.length){
+      let items=[];
+      if(legendSpecs.length===1){
+        items=legendSpecs[0].items.slice();
+      } else {
+        legendSpecs.forEach(spec=>{
+          items.push({header:true, label:spec.title});
+          items.push(...spec.items);
+        });
+      }
+      const title=legendSpecs.length===1? legendSpecs[0].title : 'Legend';
+      const lg=buildLegendGroup(title, items);
       lg.set({left:40, top:yCursor});
-      lg.data={id:uid(), type:'legend', title:spec.title, items:spec.items};
+      lg.data={id:uid(), type:'legend', title, items};
       lg.set({cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
       canvas.add(lg);
       yCursor+=lg.height*lg.scaleY+10;
-    });
+    }
     if(wantScale){
       const widthMeters=(img.width*s)*(metersPerImagePx/s);
       let nice=niceRound(widthMeters/4), dist, unit;
