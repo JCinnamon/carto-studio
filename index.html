@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Carto Studio — GEOG 270</title>
+<title>Carto Studio</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root{
@@ -191,19 +191,19 @@
   <aside id="mk-left">
     <div class="sec">
       <button class="btn" id="mkAddData" style="width:100%;justify-content:center;">+ Add data</button>
-      <div class="kv" style="margin-top:6px;">GeoJSON, CSV (lat/long), or zipped shapefile. Drag &amp; drop onto the map also works.</div>
+      <div class="kv" style="margin-top:6px;">GeoJSON, CSV (lat/long), or zipped shapefile. Or drag &amp; drop.</div>
     </div>
     <div class="sec">
       <h3>Basemap</h3>
       <select id="mkBasemap" style="width:100%;padding:5px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
+        <option value="carto-light">Carto Positron</option>
+        <option value="carto-dark">Carto Dark Matter</option>
+        <option value="osm">OpenStreetMap</option>
         <option value="esri-gray">Esri Light Gray</option>
         <option value="esri-dark">Esri Dark Gray</option>
         <option value="esri-topo">Esri Topographic</option>
         <option value="esri-imagery">Esri Imagery</option>
-        <option value="esri-streets">Esri Streets</option>
-        <option value="osm">OpenStreetMap</option>
-        <option value="carto-light">Carto Positron</option>
-        <option value="carto-dark">Carto Dark Matter</option>
+        <option value="esri-streets">Esri Streets</option>              
         <option value="none">None (blank canvas)</option>
       </select>
     </div>
