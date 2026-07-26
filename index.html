@@ -91,6 +91,56 @@
   .ramp-preview div{flex:1;}
 
   #mk-left.collapsed,#mk-right.collapsed{display:none;}
+
+  /* ---------- home / projects ---------- */
+  #module-home{overflow-y:auto;background:var(--bg);}
+  #home-wrap{max-width:1060px;margin:0 auto;padding:34px 26px 60px;}
+  .home-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px;}
+  .home-head h2{margin:0;font-size:22px;color:var(--navy);}
+  .home-tabs{display:flex;gap:4px;margin:16px 0 18px;border-bottom:1px solid var(--line);}
+  .home-tab{background:none;border:none;padding:9px 16px;font-size:13px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;}
+  .home-tab.active{color:var(--navy);border-bottom-color:var(--teal);}
+  .home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;}
+  .proj-card{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;transition:box-shadow .15s;}
+  .proj-card:hover{box-shadow:0 4px 16px rgba(20,30,60,.14);border-color:#b9c4d6;}
+  .proj-thumb{height:130px;background:#f0f3f8 center/cover no-repeat;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#aab3c5;font-size:34px;}
+  .proj-body{padding:10px 12px;}
+  .proj-body .pname{font-size:13.5px;font-weight:700;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .proj-body .pmeta{font-size:11px;color:var(--muted);margin-top:3px;}
+  .proj-actions{display:flex;gap:2px;padding:6px 8px;border-top:1px solid #eef1f6;flex-wrap:wrap;}
+  .proj-actions button{border:none;background:none;font-size:11px;color:var(--muted);padding:3px 6px;border-radius:4px;}
+  .proj-actions button:hover{background:#eef2f8;color:var(--text);}
+  .proj-card.newcard{display:flex;align-items:center;justify-content:center;min-height:216px;border-style:dashed;color:var(--teal);font-weight:700;font-size:14px;background:#fbfcfe;}
+  .home-note{margin-top:26px;max-width:640px;}
+  #lib-table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  #lib-table th{background:var(--navy);color:#fff;text-align:left;padding:8px 10px;font-size:11.5px;}
+  #lib-table td{padding:7px 10px;border-bottom:1px solid #eef1f6;}
+  #lib-table tr:last-child td{border-bottom:none;}
+  #lib-table .lib-ops button{border:none;background:none;font-size:12px;color:var(--muted);padding:2px 5px;border-radius:3px;}
+  #lib-table .lib-ops button:hover{background:#eef2f8;color:var(--text);}
+  #projectSwitcher{padding:3px 5px;border-radius:4px;border:1px solid #465a86;background:#2a3b64;color:#fff;font-size:12px;max-width:160px;}
+  .libpick-row{display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid #eef1f6;font-size:12.5px;}
+  .libpick-row .nm{flex:1;font-weight:600;}
+  .libpick-row .meta{color:var(--muted);font-size:11px;}
+
+  /* add-data dropdown */
+  .add-menu{position:relative;}
+  .add-menu-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:7px;box-shadow:0 6px 20px rgba(20,30,60,.18);z-index:50;overflow:hidden;margin-top:3px;}
+  .add-menu-list button{display:block;width:100%;text-align:left;background:none;border:none;padding:9px 12px;font-size:12.5px;font-weight:600;color:var(--text);}
+  .add-menu-list button:hover{background:#eef4f3;}
+
+  /* projected preview */
+  #mk-proj{flex:1;position:relative;background:#fff;overflow:hidden;}
+  #mk-proj canvas{position:absolute;inset:0;width:100%;height:100%;}
+  #projMsg{position:absolute;left:10px;bottom:8px;font-size:11px;color:var(--muted);background:rgba(255,255,255,.85);padding:3px 8px;border-radius:4px;}
+
+  /* collapsible layout right panel */
+  #rightpanel{position:relative;transition:width .15s;}
+  #rightpanel.collapsed{width:30px;}
+  #rightpanel.collapsed .tabs,#rightpanel.collapsed .tabcontent{display:none !important;}
+  #loPanelToggle{position:absolute;top:8px;left:4px;z-index:5;border:1px solid var(--line);background:#f5f7fa;border-radius:5px;font-size:12px;padding:3px 6px;color:var(--muted);}
+  #loPanelToggle:hover{background:#e7ecf5;color:var(--text);}
+  #rightpanel:not(.collapsed) #loPanelToggle{position:absolute;top:9px;right:6px;left:auto;}
   .tbl-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
   #tblFilterWrap{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:8px;background:#fafbfd;}
   .legend-row select{width:70px;padding:3px;border:1px solid var(--line);border-radius:4px;font-size:11px;flex-shrink:0;}
@@ -152,7 +202,6 @@
   #toast.show{opacity:1;}
   .capturing .leaflet-control-zoom,.capturing .leaflet-control-scale{display:none !important;}
 </style>
-<script data-goatcounter="https://jcinnamon.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
 
@@ -177,8 +226,9 @@
     <button class="btn ghost small" id="btnRedo" title="Redo (Ctrl+Shift+Z)">↪</button>
   </div>
   <div class="grp">
-    <button class="btn secondary small" id="btnSave">Save project</button>
-    <button class="btn secondary small" id="btnLoad">Load project</button>
+    <button class="btn ghost small" id="btnHome" title="Projects home">🏠</button>
+    <select id="projectSwitcher" title="Switch project"></select>
+    <button class="btn secondary small" id="btnSave" title="Save this project to browser storage">Save</button>
   </div>
   <div class="grp">
     <button class="btn small" id="btnExportOpen">Export ▸</button>
@@ -186,26 +236,94 @@
   </div>
 </div>
 
+<!-- ================= HOME / PROJECTS ================= -->
+<div id="module-home" class="module hidden">
+  <div id="home-wrap">
+    <div class="home-head">
+      <h2>🗺️ Carto Studio</h2>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="homeNewBtn">+ New project</button>
+        <button class="btn secondary" id="homeImportBtn">Import project file</button>
+      </div>
+    </div>
+    <div class="home-tabs">
+      <button class="home-tab active" data-t="projects">Projects</button>
+      <button class="home-tab" data-t="library">Data library</button>
+    </div>
+    <div id="home-projects" class="home-grid"></div>
+    <div id="home-library" class="hidden"></div>
+    <p class="kv home-note"><b>Where your work lives:</b> projects and datasets are stored in this browser on this computer — nothing is uploaded to a server. On a shared or lab computer, always download a project file (card menu → Export) or a project archive as your backup, and take it with you.</p>
+  </div>
+</div>
+
 <!-- ================= MAP MAKER ================= -->
-<div id="module-maker" class="module">
+<div id="module-maker" class="module hidden">
   <aside id="mk-left">
     <div class="sec">
-      <button class="btn" id="mkAddData" style="width:100%;justify-content:center;">+ Add data</button>
-      <div class="kv" style="margin-top:6px;">GeoJSON, CSV (lat/long), or zipped shapefile. Or drag &amp; drop.</div>
+      <div class="add-menu">
+        <button class="btn" id="mkAddMenuBtn" style="width:100%;justify-content:center;">+ Add data ▾</button>
+        <div class="add-menu-list hidden" id="mkAddMenuList">
+          <button id="mkAddUpload">⬆ Upload files…</button>
+          <button id="mkAddLibrary">▤ From my library…</button>
+          <button id="mkAddOnline">🌐 Online sources…</button>
+        </div>
+      </div>
+      <div class="kv" style="margin-top:6px;">GeoJSON, CSV (lat/long), or zipped shapefile — or fetch from online sources. Drag &amp; drop onto the map also works. Everything you add lands in your data library for reuse across projects.</div>
     </div>
     <div class="sec">
       <h3>Basemap</h3>
       <select id="mkBasemap" style="width:100%;padding:5px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
-        <option value="carto-light">Carto Positron</option>
-        <option value="carto-dark">Carto Dark Matter</option>
-        <option value="osm">OpenStreetMap</option>
         <option value="esri-gray">Esri Light Gray</option>
         <option value="esri-dark">Esri Dark Gray</option>
         <option value="esri-topo">Esri Topographic</option>
         <option value="esri-imagery">Esri Imagery</option>
-        <option value="esri-streets">Esri Streets</option>              
+        <option value="esri-streets">Esri Streets</option>
+        <option value="osm">OpenStreetMap</option>
+        <option value="carto-light">Carto Positron</option>
+        <option value="carto-dark">Carto Dark Matter</option>
         <option value="none">None (blank canvas)</option>
       </select>
+    </div>
+    <div class="sec">
+      <h3>Projection</h3>
+      <select id="mkProjection" style="width:100%;padding:5px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
+        <option value="mercator-edit">Web Mercator (editing view)</option>
+        <optgroup label="World">
+          <option value="equalEarth">Equal Earth</option>
+          <option value="robinson">Robinson</option>
+          <option value="winkel3">Winkel Tripel</option>
+          <option value="mollweide">Mollweide (equal-area)</option>
+          <option value="mercatorS">Mercator (static)</option>
+          <option value="orthographic">Orthographic (globe)</option>
+        </optgroup>
+        <optgroup label="Regional (conic)">
+          <option value="albersConic">Albers Equal-Area Conic</option>
+          <option value="lambertConic">Lambert Conformal Conic</option>
+        </optgroup>
+        <optgroup label="Azimuthal">
+          <option value="azimuthalEq">Azimuthal Equidistant</option>
+          <option value="stereographic">Stereographic</option>
+        </optgroup>
+        <optgroup label="Historical & other">
+          <option value="gallPeters">Gall–Peters</option>
+          <option value="goode">Goode Homolosine</option>
+          <option value="bonne">Bonne</option>
+        </optgroup>
+      </select>
+      <div id="projOptions" class="hidden" style="margin-top:8px;">
+        <div class="row2">
+          <div class="field"><label>Centre lon</label><input type="number" id="projLon" value="0" step="5" min="-180" max="180"></div>
+          <div class="field"><label>Centre lat</label><input type="number" id="projLat" value="0" step="5" min="-90" max="90"></div>
+        </div>
+        <div class="row2" id="projParallelsRow">
+          <div class="field"><label>Std parallel 1</label><input type="number" id="projP1" value="30" step="1"></div>
+          <div class="field"><label>Std parallel 2</label><input type="number" id="projP2" value="60" step="1"></div>
+        </div>
+        <div class="checkline"><input type="checkbox" id="projGraticule" checked><label for="projGraticule" style="margin:0;color:var(--text);">Graticule</label></div>
+        <div class="checkline"><input type="checkbox" id="projSphere" checked><label for="projSphere" style="margin:0;color:var(--text);">World land backdrop &amp; sphere outline</label></div>
+        <button class="btn small secondary" id="projFitBtn" style="width:100%;justify-content:center;">Fit to my data</button>
+        <div class="kv" style="margin-top:6px;">Projected view shows your vector layers only (raster basemaps can't be reprojected in the browser). Editing tools still work; switch back to Web Mercator for basemaps.</div>
+      </div>
     </div>
     <div class="sec" style="border-bottom:none;padding-bottom:4px;"><h3>Layers</h3></div>
     <div id="mk-layerlist"><div class="empty-hint">No layers yet. Click “+ Add data” to upload a dataset.</div></div>
@@ -222,6 +340,10 @@
       <button class="btn light small" id="mkToggleRight" title="Collapse/expand style panel">Style ⟩</button>
     </div>
     <div id="mk-map"></div>
+    <div id="mk-proj" class="hidden">
+      <canvas id="projCanvas"></canvas>
+      <div id="projMsg"></div>
+    </div>
   </div>
 
   <aside id="mk-right">
@@ -241,9 +363,9 @@
   <aside id="toolrail">
     <div class="tool-btn" id="toolTemplates" title="Start from a layout template"><span class="ic">▦</span>Templates</div>
     <div class="tool-sep"></div>
-    <div class="tool-btn" id="toolMapFrame" title="Upload a styled map image (e.g. exported from ArcGIS Online)"><span class="ic">🖼️</span>Map Frame</div>
+    <div class="tool-btn" id="toolMapFrame" title="Upload a styled map image exported from any GIS or graphics software"><span class="ic">🖼️</span>Map Frame</div>
     <div class="tool-btn" id="toolInset" title="Build a locator / inset map"><span class="ic">📍</span>Inset Map</div>
-    <div class="tool-btn" id="toolEmbed" title="Interactive ArcGIS embed (on-screen preview only)"><span class="ic">🔗</span>Live Embed</div>
+    <div class="tool-btn" id="toolEmbed" title="Interactive web map embed (on-screen preview only)"><span class="ic">🔗</span>Live Embed</div>
     <div class="tool-btn" id="toolImage" title="Add an image or logo"><span class="ic">🏞️</span>Image</div>
     <div class="tool-sep"></div>
     <div class="tool-btn" id="toolTitle"><span class="ic">T</span>Title</div>
@@ -267,6 +389,7 @@
   </main>
 
   <aside id="rightpanel">
+    <button id="loPanelToggle" title="Collapse/expand panel">⟩</button>
     <div class="tabs" id="lo-tabs">
       <button class="tab-btn active" data-tab="props">Properties</button>
       <button class="tab-btn" data-tab="layers">Layers</button>
@@ -284,20 +407,29 @@
   <div class="modal">
     <h2>Quick start</h2>
     <div class="help-step"><b>Two ways to work:</b>
-      <p><b>A. Map Maker → Layout (all in this tool).</b> Upload your data in Map Maker, filter and symbolize it, then click <b>Send to Layout</b> — your styled map arrives as a map frame with the scale already calibrated and a legend built from your symbology.</p>
-      <p style="margin-top:6px;"><b>B. ArcGIS Online → Layout.</b> Style your map in ArcGIS Online, export an image with the Print widget, and upload it in the Layout module via <b>Map Frame</b>. Calibrate the scale bar by drawing a reference line of known distance.</p>
+      <p><b>A. Map Maker → Layout (all in this tool).</b> Add data in Map Maker, filter and symbolize it, then click <b>Send to Layout</b> — your styled map arrives as a map frame with the scale already calibrated and a legend built from your symbology.</p>
+      <p style="margin-top:6px;"><b>B. Bring your own map image.</b> Made a map elsewhere (any GIS or graphics software)? Export it as an image and upload it in the Layout module via <b>Map Frame</b>, then calibrate the scale bar by drawing a reference line of known distance.</p>
     </div>
     <div class="help-step"><b>Map Maker basics.</b>
-      <p>Add GeoJSON, CSV (with lat/long columns), or zipped shapefiles. Select a layer to set its symbology (single, categories, graduated colour with equal interval / quantile / natural breaks / manual classification, graduated symbol size), filters, and labels. The attribute table includes the filter builder and Field Calculator (e.g. <i>rate = crimes / pop * 1000</i>). Spatial tools: buffer, select by location, points-in-polygons statistics, clip, erase, intersect, union, dissolve, merge, centroids, convex hull, bounding box, simplify, nearest-neighbour join, and distance matrix. The ⬇ button on each layer exports valid GeoJSON (works in ArcGIS Online) or CSV — including any calculated fields. The ⟨ ⟩ buttons collapse the side panels to maximize the map.</p>
+      <p>The <b>+ Add data</b> menu takes uploads (GeoJSON, CSV with lat/long, zipped shapefile), your data library, and online sources: Natural Earth base layers, OpenStreetMap features for your map area, open-data portal search, or any GeoJSON/CSV/feature-service URL. Select a layer to set its symbology (single, categories, graduated colour with equal interval / quantile / natural breaks / manual classification, graduated symbol size), filters, and labels. The attribute table includes the filter builder and Field Calculator (e.g. <i>rate = count / population * 1000</i>). Spatial tools: buffer, select by location, points-in-polygons statistics, clip, erase, intersect, union, dissolve, merge, centroids, convex hull, bounding box, simplify, nearest-neighbour join, and distance matrix. The ⬇ button on each layer exports valid GeoJSON or CSV, including calculated fields. The ⟨ ⟩ buttons collapse the side panels.</p>
+    </div>
+    <div class="help-step"><b>Projections.</b>
+      <p>The <b>Projection</b> selector switches the map from the Web Mercator editing view into any of 13 projections — world (Equal Earth, Robinson, Winkel Tripel, Mollweide, Mercator, Orthographic), regional conic (Albers, Lambert Conformal, with adjustable centre and standard parallels), azimuthal (Equidistant, Stereographic), and historical (Gall–Peters, Goode, Bonne). Projected view draws your vector layers with an optional graticule and world-land backdrop; raster basemaps can't be reprojected in the browser, so they hide. Send to Layout captures the projected map (scale bars don't apply — scale varies across a projection).</p>
     </div>
     <div class="help-step"><b>Layout basics.</b>
-      <p>Start from a <b>Template</b> if you like. Add title, text, legend, north arrow, scale bar, neatline, images. Everything drags, resizes, and rotates. Undo with Ctrl+Z. The <b>Margins</b> button shows 0.5" margin guides (never exported). A <b>Live Embed</b> shows an interactive ArcGIS map on screen for reference but prints as a placeholder — use a real image frame for submission.</p>
+      <p>Start from a <b>Template</b> if you like — double-click any placeholder to fill it with the real element in that exact spot. Add title, text, legend, north arrow, scale bar, neatline, images. Everything drags, resizes, and rotates. Undo with Ctrl+Z. The <b>Margins</b> button shows 0.5" margin guides (never exported). A <b>Live Embed</b> shows an interactive web map on screen for reference but prints as a placeholder — use a real image frame for the final export.</p>
     </div>
     <div class="help-step"><b>Scale bars.</b>
-      <p>Scale bars link to a map frame. Frames sent from Map Maker are calibrated automatically. For uploaded images, select the frame, click <b>Calibrate scale</b>, click two points with a known real-world distance between them, and enter the distance. The bar resizes automatically if you resize the frame.</p>
+      <p>Scale bars link to a map frame. Frames sent from Map Maker (in Web Mercator view) are calibrated automatically. For uploaded images, select the frame, click <b>Calibrate scale</b>, click two points with a known real-world distance between them, and enter the distance. The bar resizes automatically if you resize the frame.</p>
     </div>
-    <div class="help-step"><b>Saving and exporting.</b>
-      <p><b>Save project</b> downloads a JSON file with your data, styling, and layout — reload it anytime with <b>Load project</b>. Nothing is uploaded to a server. <b>Export</b> produces a print-ready PNG or PDF at Letter/A4/Tabloid size.</p>
+    <div class="help-step"><b>Projects and the data library.</b>
+      <p>The 🏠 home screen lists all your projects (stored in this browser — nothing goes to a server) with rename, duplicate, delete, import, and export. The project dropdown in the top bar jumps between them; work is autosaved as you go. Datasets live in a shared <b>Data library</b> usable across projects — "+ Add data → From my library" adds one to the current project. On shared computers, always download a project file or archive as backup before you leave.</p>
+    </div>
+    <div class="help-step"><b>Exporting.</b>
+      <p><b>Export</b> covers everything: the layout as print-ready PDF/PNG; the Map Maker view as a georeferenced PNG with world file (usable in other GIS software); all data layers as a zip of GeoJSON files; or a full project archive (layout + layers + project file) — the complete package in one download.</p>
+    </div>
+    <div class="help-step"><b>About this tool.</b>
+      <p>Carto Studio was created by <a href="https://www.jonathancinnamon.com" target="_blank" rel="noopener">Jonathan Cinnamon</a> (Geography, UBC Okanagan). It's free to use and runs entirely in your browser — your data stays on your computer. Basemap tiles and online data sources are the only network requests your data workflow makes.</p>
     </div>
     <div class="modal-close-row"><button class="btn" onclick="closeModal('modal-help')">Got it</button></div>
   </div>
@@ -306,7 +438,7 @@
 <div class="modal-overlay hidden" id="modal-templates">
   <div class="modal wide">
     <h2>Layout templates</h2>
-    <p class="kv">Templates give you a conventional starting arrangement — everything stays editable. Applying a template replaces the current page contents.</p>
+    <p class="kv">Templates give you a conventional starting arrangement — everything stays editable, and <b>double-clicking a placeholder</b> fills it with the real element in that spot. Applying a template replaces the current page contents.</p>
     <div class="tmpl-cards">
       <div class="tmpl-card" data-tmpl="classic">
         <div class="thumb"></div>
@@ -367,7 +499,7 @@
     <div class="checkline"><input type="checkbox" id="expRespectFilter" checked><label for="expRespectFilter" style="margin:0;font-size:12.5px;color:var(--text);">Export filtered features only</label></div>
     <div class="field"><label>Format</label>
       <select id="expLayerFormat">
-        <option value="geojson">GeoJSON — for ArcGIS Online, QGIS, etc.</option>
+        <option value="geojson">GeoJSON — opens in any GIS software</option>
         <option value="csv">CSV — attributes (plus lat/long for points)</option>
       </select></div>
     <p class="kv">GeoJSON exports are valid FeatureCollections and include any calculated fields. Note: <b>Save project</b> files are for reloading work in this tool and are not GeoJSON — use this export for other GIS software.</p>
@@ -470,17 +602,29 @@
 
 <div class="modal-overlay hidden" id="modal-export">
   <div class="modal">
-    <h2>Export layout</h2>
-    <div class="field"><label>File name</label><input type="text" id="exportName" value="my-map-layout"></div>
+    <h2>Export</h2>
+    <div class="field"><label>What to export</label>
+      <select id="exportFormat">
+        <optgroup label="Layout page">
+          <option value="pdf">Layout — PDF (print-ready)</option>
+          <option value="png">Layout — PNG image</option>
+        </optgroup>
+        <optgroup label="Map & data">
+          <option value="mapimg">Map Maker view — georeferenced PNG + world file (zip)</option>
+          <option value="layerszip">All data layers — GeoJSON files (zip)</option>
+        </optgroup>
+        <optgroup label="Everything">
+          <option value="archive">Project archive — layout PDF/PNG + all layers + project file (zip)</option>
+        </optgroup>
+      </select>
+    </div>
     <div class="row2">
-      <div class="field"><label>Format</label>
-        <select id="exportFormat"><option value="pdf">PDF (print-ready)</option><option value="png">PNG (image)</option></select>
-      </div>
-      <div class="field"><label>Resolution</label>
+      <div class="field"><label>File name</label><input type="text" id="exportName" value="my-map"></div>
+      <div class="field" id="exportDPIWrap"><label>Resolution</label>
         <select id="exportDPI"><option value="150">150 dpi (draft)</option><option value="300" selected>300 dpi (print)</option></select>
       </div>
     </div>
-    <p class="kv">Margin guides and live-embed previews are excluded automatically. Live embeds print as placeholders — swap them for image frames before submitting.</p>
+    <p class="kv" id="exportNote">Margin guides and live-embed previews are excluded automatically. Live embeds print as placeholders — swap them for image frames before submitting.</p>
     <div class="modal-close-row">
       <button class="btn ghost" onclick="closeModal('modal-export')">Cancel</button>
       <button class="btn" id="doExportBtn">Export</button>
@@ -488,11 +632,115 @@
   </div>
 </div>
 
+<div class="modal-overlay hidden" id="modal-online">
+  <div class="modal wide">
+    <h2>Add data from online sources</h2>
+    <div class="home-tabs" style="margin:0 0 14px;">
+      <button class="online-tab home-tab active" data-t="ne">World base data</button>
+      <button class="online-tab home-tab" data-t="osm">OpenStreetMap</button>
+      <button class="online-tab home-tab" data-t="portal">Open data portals</button>
+      <button class="online-tab home-tab" data-t="url">From URL</button>
+    </div>
+
+    <div id="online-ne">
+      <p class="kv">Natural Earth — the standard public-domain base layers used in professional cartography.</p>
+      <div class="row2">
+        <div class="field"><label>Layer</label>
+          <select id="neLayer">
+            <optgroup label="Cultural">
+              <option value="admin_0_countries">Countries</option>
+              <option value="admin_1_states_provinces">States & provinces</option>
+              <option value="populated_places">Populated places (cities)</option>
+              <option value="urban_areas">Urban areas</option>
+            </optgroup>
+            <optgroup label="Physical">
+              <option value="land">Land</option>
+              <option value="ocean">Ocean</option>
+              <option value="coastline">Coastline</option>
+              <option value="rivers_lake_centerlines">Rivers & lake centerlines</option>
+              <option value="lakes">Lakes</option>
+            </optgroup>
+          </select></div>
+        <div class="field"><label>Detail level</label>
+          <select id="neScale">
+            <option value="110m">110m — small scale, fast</option>
+            <option value="50m">50m — medium detail</option>
+            <option value="10m">10m — high detail, big files</option>
+          </select></div>
+      </div>
+      <button class="btn" id="neAddBtn">Fetch &amp; add</button>
+    </div>
+
+    <div id="online-osm" class="hidden">
+      <p class="kv">Fetches live OpenStreetMap features inside the <b>current Map Maker view</b> — zoom to your study area first. Community-contributed data: coverage and quality vary.</p>
+      <div class="field"><label>Feature type</label>
+        <select id="osmPreset">
+          <option value="schools">Schools</option>
+          <option value="hospitals">Hospitals & clinics</option>
+          <option value="parks">Parks & green space</option>
+          <option value="supermarkets">Supermarkets & groceries</option>
+          <option value="foodplaces">Restaurants & cafés</option>
+          <option value="busstops">Bus stops</option>
+          <option value="majorroads">Major roads</option>
+          <option value="cycleways">Cycle paths</option>
+          <option value="waterways">Rivers & streams</option>
+          <option value="buildings">Buildings (can be very large)</option>
+        </select></div>
+      <button class="btn" id="osmAddBtn">Fetch from current map view</button>
+      <p class="kv">Results are capped at 8,000 features per query. Complex multipolygon features may be omitted.</p>
+    </div>
+
+    <div id="online-portal" class="hidden">
+      <div class="row2">
+        <div class="field"><label>Portal</label>
+          <select id="portalDomain">
+            <option value="data.opendatasoft.com">Opendatasoft network (many cities & agencies)</option>
+            <option value="opendata.vancouver.ca">City of Vancouver</option>
+            <option value="__custom">Custom Opendatasoft portal…</option>
+          </select></div>
+        <div class="field hidden" id="portalCustomWrap"><label>Portal domain</label><input type="text" id="portalCustom" placeholder="e.g. data.somecity.gov"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Search datasets</label><input type="text" id="portalQ" placeholder="e.g. street trees, crime, zoning, transit"></div>
+        <div class="field" style="max-width:120px;align-self:flex-end;"><button class="btn" id="portalSearchBtn" style="width:100%;justify-content:center;">Search</button></div>
+      </div>
+      <div id="portalResults" style="max-height:36vh;overflow-y:auto;"></div>
+    </div>
+
+    <div id="online-url" class="hidden">
+      <div class="field"><label>URL — GeoJSON, CSV (with lat/long), or Esri feature service layer</label>
+        <input type="text" id="urlInput" placeholder="https://…"></div>
+      <button class="btn" id="urlAddBtn">Fetch &amp; add</button>
+      <p class="kv">Examples: a .geojson export link from any open data portal, or an Esri REST endpoint ending in /FeatureServer/0. The source must allow cross-origin access (most public portals do).</p>
+    </div>
+
+    <div class="kv" id="onlineStatus" style="margin-top:12px;"></div>
+    <div id="onlinePendingRow" class="hidden" style="margin-top:8px;">
+      <span class="kv" id="onlinePendingMsg"></span>
+      <span style="display:inline-flex;gap:8px;margin-left:10px;">
+        <button class="btn small" id="onlineLoadAll">Load all</button>
+        <button class="btn small secondary" id="onlineLoadSome">Load first 5,000</button>
+        <button class="btn small light" id="onlineCancel">Cancel</button>
+      </span>
+    </div>
+    <div class="modal-close-row"><button class="btn ghost" onclick="closeModal('modal-online')">Close</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-libpick">
+  <div class="modal">
+    <h2>Add from data library</h2>
+    <p class="kv">Datasets from all your projects. Adding one creates a new layer in the current project that references the shared dataset.</p>
+    <div id="libpickList" style="max-height:50vh;overflow-y:auto;"></div>
+    <div class="modal-close-row"><button class="btn ghost" onclick="closeModal('modal-libpick')">Close</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="modal-embed">
   <div class="modal">
     <h2>Add live embed (on-screen preview)</h2>
-    <p class="kv">Paste the URL from ArcGIS Online Map Viewer's <b>Embed map</b> button (the map must be shared publicly). It displays live and interactive on screen, but exports as a placeholder — use an image map frame for the submitted version.</p>
-    <div class="field"><label>Embed URL</label><input type="text" id="embedUrl" placeholder="https://www.arcgis.com/apps/Embed/index.html?webmap=..."></div>
+    <p class="kv">Paste an embed URL from a publicly shared web map (e.g. a map viewer's “Embed map” option). It displays live and interactive on screen, but exports as a placeholder — use an image map frame for the final version.</p>
+    <div class="field"><label>Embed URL</label><input type="text" id="embedUrl" placeholder="https://…(embed URL from your web map)"></div>
     <div class="modal-close-row">
       <button class="btn ghost" onclick="closeModal('modal-embed')">Cancel</button>
       <button class="btn" id="addEmbedBtn">Add embed</button>
@@ -517,9 +765,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-statistics/7.8.3/simple-statistics.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo-projection@4.0.0/dist/d3-geo-projection.min.js"></script>
 <script>
 /* ============================================================
-   Carto Studio — GEOG 270
+   Carto Studio
    Map Maker (build & symbolize) + Map Layout (compose & export)
    Single-file, client-side. No accounts, no server.
    ============================================================ */
@@ -663,8 +913,17 @@ function togglePanel(id, btnId, openLabel, closedLabel){
 document.getElementById('mkToggleLeft').onclick=()=>togglePanel('mk-left','mkToggleLeft','⟨ Layers','⟩ Layers');
 document.getElementById('mkToggleRight').onclick=()=>togglePanel('mk-right','mkToggleRight','Style ⟩','Style ⟨');
 
+/* ---------- add-data menu ---------- */
+const addMenuList=document.getElementById('mkAddMenuList');
+document.getElementById('mkAddMenuBtn').onclick=(e)=>{
+  e.stopPropagation();
+  addMenuList.classList.toggle('hidden');
+};
+document.addEventListener('click', ()=>addMenuList.classList.add('hidden'));
+document.getElementById('mkAddUpload').onclick=()=>{ addMenuList.classList.add('hidden'); document.getElementById('fileMakerData').click(); };
+document.getElementById('mkAddLibrary').onclick=()=>{ addMenuList.classList.add('hidden'); openLibPick(); };
+
 /* ---------- data ingestion ---------- */
-document.getElementById('mkAddData').onclick = ()=>document.getElementById('fileMakerData').click();
 document.getElementById('fileMakerData').addEventListener('change', function(e){
   Array.from(e.target.files||[]).forEach(handleMakerFile);
   e.target.value='';
@@ -697,13 +956,14 @@ function handleMakerFile(file){
     });
   }
 }
-function addMakerLayer(gj, name){
+function addMakerLayer(gj, name, opts){
   if(gj && gj.type==='Feature') gj={type:'FeatureCollection',features:[gj]};
   if(!gj || !gj.features){ toast('That file does not look like GeoJSON.'); return; }
   gj.features=gj.features.filter(f=>f&&f.geometry);
   if(!gj.features.length){ toast('No features with geometry found.'); return; }
   const geom=geomOf(gj);
-  const lyr={id:uid(), name, geojson:gj, geom, visible:true, opacity:1,
+  const ds=registerDataset(gj, name, geom, opts||{});
+  const lyr={id:uid(), name:ds.name, datasetId:ds.id, geojson:ds.geojson, geom, visible:true, opacity:1,
     style:defaultStyle(geom), labels:defaultLabels(),
     filter:{logic:'AND', conds:[]}, leaflet:null};
   mkLayers.unshift(lyr);
@@ -712,7 +972,8 @@ function addMakerLayer(gj, name){
   renderMakerLayerList();
   renderMakerPanels();
   try{ mkMap.fitBounds(L.geoJSON(gj).getBounds(), {maxZoom:14, padding:[20,20]}); }catch(_){}
-  toast('Added layer: '+name+' ('+gj.features.length+' features)');
+  toast('Added layer: '+ds.name+' ('+gj.features.length+' features)');
+  markProjectDirty();
   return lyr;
 }
 function selectedLayer(){ return mkLayers.find(l=>l.id===mkSelectedId)||null; }
@@ -901,6 +1162,7 @@ function renderLayer(lyr){
   lyr.leaflet=L.geoJSON(lyr.geojson, opts).addTo(mkMap);
   updateLabelCss(lyr);
   updateMkStatus();
+  if(projActive) scheduleProjRender();
 }
 function updateLabelCss(lyr){
   const id='labelcss-'+lyr.id;
@@ -956,8 +1218,8 @@ function renderMakerLayerList(){
         if(act==='up'&&i>0){ mkLayers.splice(i,1); mkLayers.splice(i-1,0,l); reorderAll(); }
         if(act==='down'&&i<mkLayers.length-1){ mkLayers.splice(i,1); mkLayers.splice(i+1,0,l); reorderAll(); }
         if(act==='dup'){
-          const copy=clone({name:l.name+' copy', geojson:l.geojson, geom:l.geom, style:l.style, labels:l.labels, filter:l.filter});
-          const nl=Object.assign(copy,{id:uid(), visible:true, opacity:l.opacity, leaflet:null});
+          const nl={id:uid(), name:l.name+' copy', datasetId:l.datasetId, geojson:l.geojson, geom:l.geom,
+            visible:true, opacity:l.opacity, style:clone(l.style), labels:clone(l.labels), filter:clone(l.filter), leaflet:null};
           mkLayers.splice(i,0,nl); mkSelectedId=nl.id; reorderAll();
         }
         if(act==='exp'){ openExportLayer(id); }
@@ -1283,6 +1545,7 @@ document.getElementById('calcApplyBtn').onclick=()=>{
   closeModal('modal-calc');
   renderLayer(lyr); renderMakerPanels();
   if(!document.getElementById('modal-table').classList.contains('hidden')) renderAttrTable();
+  persistDataset(lyr.datasetId);
   toast('Field "'+name+'" added'+(errs?' ('+errs+' features errored → null)':'')+'.');
 };
 
@@ -1715,6 +1978,17 @@ document.getElementById('mkSendBtn').onclick=()=>{
 };
 document.getElementById('sendGoBtn').onclick=()=>{
   const status=document.getElementById('sendStatus');
+  const wantLegend=document.getElementById('sendLegend').checked;
+  const wantScale=document.getElementById('sendScale').checked;
+  const specs = wantLegend ? mkLayers.filter(l=>l.visible).map(legendSpecForLayer).filter(s=>s.items.length) : [];
+  if(projActive){
+    /* projected view: capture the projection canvas directly */
+    const dataURL=document.getElementById('projCanvas').toDataURL('image/png');
+    closeModal('modal-send');
+    window.__layout.receiveFromMaker(dataURL, null, specs, false);
+    if(wantScale) toast('No scale bar added — scale varies across a projected map.', 4200);
+    return;
+  }
   status.textContent='Capturing map…';
   const mapEl=document.getElementById('mk-map');
   mapEl.classList.add('capturing');
@@ -1726,9 +2000,6 @@ document.getElementById('sendGoBtn').onclick=()=>{
     mapEl.classList.remove('capturing');
     const dataURL=snap.toDataURL('image/png');
     const metersPerImagePx = metersPerScreenPx / CAPSCALE;
-    const wantLegend=document.getElementById('sendLegend').checked;
-    const wantScale=document.getElementById('sendScale').checked;
-    const specs = wantLegend ? mkLayers.filter(l=>l.visible).map(legendSpecForLayer).filter(s=>s.items.length) : [];
     closeModal('modal-send');
     window.__layout.receiveFromMaker(dataURL, metersPerImagePx, specs, wantScale);
   }).catch(err=>{
@@ -1736,6 +2007,229 @@ document.getElementById('sendGoBtn').onclick=()=>{
     status.textContent='Capture failed: '+err.message+'. Try a different basemap (some tile servers block capture).';
   });
 };
+/* ================= PROJECTED PREVIEW (d3-geo) ================= */
+let projActive=false, projKey='mercator-edit', projTimer=null, worldLand=null, worldLandLoading=false;
+
+const PROJ_DEFS={
+  equalEarth:   {label:'Equal Earth',            make:()=>d3.geoEqualEarth(),             kind:'world'},
+  robinson:     {label:'Robinson',               make:()=>d3.geoRobinson(),               kind:'world'},
+  winkel3:      {label:'Winkel Tripel',          make:()=>d3.geoWinkel3(),                kind:'world'},
+  mollweide:    {label:'Mollweide',              make:()=>d3.geoMollweide(),              kind:'world'},
+  mercatorS:    {label:'Mercator',               make:()=>d3.geoMercator(),               kind:'world'},
+  orthographic: {label:'Orthographic',           make:()=>d3.geoOrthographic(),           kind:'rotate'},
+  albersConic:  {label:'Albers Equal-Area',      make:()=>d3.geoConicEqualArea(),         kind:'conic'},
+  lambertConic: {label:'Lambert Conformal',      make:()=>d3.geoConicConformal(),         kind:'conic'},
+  azimuthalEq:  {label:'Azimuthal Equidistant',  make:()=>d3.geoAzimuthalEquidistant(),   kind:'rotate'},
+  stereographic:{label:'Stereographic',          make:()=>d3.geoStereographic(),          kind:'rotate'},
+  gallPeters:   {label:'Gall–Peters',            make:()=>d3.geoCylindricalEqualArea().parallel(45), kind:'world'},
+  goode:        {label:'Goode Homolosine',       make:()=>d3.geoInterruptedHomolosine(),  kind:'world'},
+  bonne:        {label:'Bonne',                  make:()=>d3.geoBonne(),                  kind:'world'}
+};
+
+function projDataFC(){
+  const feats=[];
+  mkLayers.filter(l=>l.visible).forEach(l=>{
+    visibleFeatures(l).forEach(f=>feats.push(f));
+  });
+  return {type:'FeatureCollection', features:feats};
+}
+function projDataCentroid(){
+  const fc=projDataFC();
+  if(!fc.features.length) return null;
+  try{ const c=turf.center(fc); return c.geometry.coordinates; }catch(_){ return null; }
+}
+function ensureWorldLand(){
+  if(worldLand||worldLandLoading) return;
+  worldLandLoading=true;
+  fetch('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/physical/ne_110m_land.json')
+    .then(r=>r.json()).then(gj=>{ worldLand=gj; worldLandLoading=false; if(projActive) renderProjection(); })
+    .catch(()=>{ worldLandLoading=false; });
+}
+function scheduleProjRender(){
+  clearTimeout(projTimer);
+  projTimer=setTimeout(renderProjection, 60);
+}
+
+function buildProjection(w, h){
+  const def=PROJ_DEFS[projKey];
+  if(!def) return null;
+  const proj=def.make();
+  const lon=parseFloat(document.getElementById('projLon').value)||0;
+  const lat=parseFloat(document.getElementById('projLat').value)||0;
+  if(def.kind==='conic'){
+    const p1=parseFloat(document.getElementById('projP1').value)||30;
+    const p2=parseFloat(document.getElementById('projP2').value)||60;
+    if(proj.parallels) proj.parallels([p1,p2]);
+    proj.rotate([-lon,0]);
+    if(proj.center) proj.center([0,lat]);
+  } else if(def.kind==='rotate'){
+    proj.rotate([-lon,-lat]);
+  } else {
+    proj.rotate([-lon,0,0]);
+  }
+  /* fit */
+  const pad=18;
+  const extent=[[pad,pad],[w-pad,h-pad]];
+  const fc=projDataFC();
+  const showSphere=document.getElementById('projSphere').checked;
+  try{
+    if(def.kind==='world' || (def.kind==='rotate' && showSphere && !fc.features.length)){
+      proj.fitExtent(extent, {type:'Sphere'});
+    } else if(fc.features.length){
+      proj.fitExtent(extent, fc);
+    } else {
+      proj.fitExtent(extent, {type:'Sphere'});
+    }
+  }catch(_){
+    try{ proj.fitExtent(extent, {type:'Sphere'}); }catch(__){}
+  }
+  return proj;
+}
+
+function renderProjection(){
+  if(!projActive) return;
+  const wrap=document.getElementById('mk-proj');
+  const cnv=document.getElementById('projCanvas');
+  const w=wrap.clientWidth||800, h=wrap.clientHeight||500;
+  const dpr=Math.min(window.devicePixelRatio||1, 2);
+  cnv.width=Math.round(w*dpr); cnv.height=Math.round(h*dpr);
+  const ctx=cnv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='#ffffff';
+  ctx.fillRect(0,0,w,h);
+  const proj=buildProjection(w,h);
+  if(!proj){ return; }
+  const path=d3.geoPath(proj, ctx);
+  const showSphere=document.getElementById('projSphere').checked;
+  const showGrat=document.getElementById('projGraticule').checked;
+
+  if(showSphere){
+    ctx.beginPath(); path({type:'Sphere'});
+    ctx.fillStyle='#f2f6fa'; ctx.fill();
+    if(worldLand){
+      ctx.beginPath(); path(worldLand);
+      ctx.fillStyle='#e4e7dd'; ctx.fill();
+      ctx.strokeStyle='#cdd2c4'; ctx.lineWidth=0.5; ctx.stroke();
+    } else ensureWorldLand();
+  }
+  if(showGrat){
+    ctx.beginPath(); path(d3.geoGraticule10());
+    ctx.strokeStyle='rgba(90,110,140,0.35)'; ctx.lineWidth=0.6; ctx.stroke();
+  }
+  if(showSphere){
+    ctx.beginPath(); path({type:'Sphere'});
+    ctx.strokeStyle='#5a6e8c'; ctx.lineWidth=1.2; ctx.stroke();
+  }
+
+  /* draw layers bottom-up */
+  mkLayers.slice().reverse().forEach(lyr=>{
+    if(!lyr.visible) return;
+    const st=lyr.style;
+    if(st.mode==='grad'||st.mode==='gradSize'){ computeClassification(lyr); sizeRange(lyr); }
+    if(st.mode==='cat') computeCategories(lyr);
+    visibleFeatures(lyr).forEach(f=>{
+      if(!f.geometry) return;
+      let color=st.color;
+      if(st.mode==='cat') color=catColor(lyr,f);
+      else if(st.mode==='grad') color=classColor(lyr, valueOf(lyr,f));
+      const gt=f.geometry.type;
+      try{
+        if(/Point/.test(gt)){
+          let r=st.radius;
+          if(st.mode==='gradSize') r=gradRadius(lyr, valueOf(lyr,f));
+          path.pointRadius(r);
+          ctx.beginPath(); path(f);
+          ctx.fillStyle=chroma(color).alpha(st.fillOpacity*lyr.opacity).css();
+          ctx.fill();
+          if(st.strokeWeight>0){
+            ctx.strokeStyle=chroma(st.strokeColor).alpha(lyr.opacity).css();
+            ctx.lineWidth=st.strokeWeight; ctx.stroke();
+          }
+        } else if(/Polygon/.test(gt)){
+          ctx.beginPath(); path(f);
+          ctx.fillStyle=chroma(color).alpha(st.fillOpacity*lyr.opacity).css();
+          ctx.fill();
+          if(st.strokeWeight>0){
+            ctx.strokeStyle=chroma(st.strokeColor).alpha(lyr.opacity).css();
+            ctx.lineWidth=st.strokeWeight; ctx.stroke();
+          }
+        } else {
+          ctx.beginPath(); path(f);
+          ctx.strokeStyle=chroma(color).alpha(lyr.opacity).css();
+          ctx.lineWidth=st.strokeWeight;
+          if(st.dash){ ctx.setLineDash(st.dash.split(',').map(Number).filter(isFinite)); }
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }catch(_){}
+    });
+    /* labels */
+    if(lyr.labels.enabled && lyr.labels.field){
+      ctx.font='600 '+lyr.labels.size+'px Arial';
+      ctx.textAlign='center';
+      visibleFeatures(lyr).forEach(f=>{
+        const v=(f.properties||{})[lyr.labels.field];
+        if(v==null) return;
+        try{
+          const c=turf.center(f).geometry.coordinates;
+          const pt=proj(c);
+          if(!pt) return;
+          if(lyr.labels.halo){
+            ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=3;
+            ctx.strokeText(String(v), pt[0], pt[1]);
+          }
+          ctx.fillStyle=lyr.labels.color;
+          ctx.fillText(String(v), pt[0], pt[1]);
+        }catch(_){}
+      });
+    }
+  });
+  document.getElementById('projMsg').textContent=PROJ_DEFS[projKey].label+' projection · vector layers only';
+}
+
+function setProjectionMode(key){
+  projKey=key;
+  const editing=key==='mercator-edit';
+  projActive=!editing;
+  document.getElementById('mk-map').style.display=editing?'block':'none';
+  document.getElementById('mk-proj').classList.toggle('hidden', editing);
+  document.getElementById('projOptions').classList.toggle('hidden', editing);
+  if(editing){
+    setTimeout(()=>mkMap.invalidateSize(), 60);
+    return;
+  }
+  const def=PROJ_DEFS[key];
+  document.getElementById('projParallelsRow').style.display = def.kind==='conic' ? 'flex' : 'none';
+  document.getElementById('projLat').disabled = def.kind==='world';
+  /* sensible defaults from data */
+  const c=projDataCentroid();
+  if(c && (def.kind==='conic'||def.kind==='rotate')){
+    document.getElementById('projLon').value=Math.round(c[0]);
+    document.getElementById('projLat').value=Math.round(c[1]);
+    if(def.kind==='conic'){
+      try{
+        const bb=turf.bbox(projDataFC());
+        const latSpan=bb[3]-bb[1];
+        document.getElementById('projP1').value=Math.round(bb[1]+latSpan/6);
+        document.getElementById('projP2').value=Math.round(bb[3]-latSpan/6);
+      }catch(_){}
+    }
+  }
+  renderProjection();
+}
+document.getElementById('mkProjection').addEventListener('change', e=>setProjectionMode(e.target.value));
+['projLon','projLat','projP1','projP2'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', scheduleProjRender);
+});
+['projGraticule','projSphere'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', scheduleProjRender);
+});
+document.getElementById('projFitBtn').onclick=()=>{
+  /* re-fit is implicit in renderProjection (fitExtent to data) — force data fit by nudging */
+  scheduleProjRender();
+};
+window.addEventListener('resize', ()=>{ if(projActive) scheduleProjRender(); });
 /* ================= MAP LAYOUT ================= */
 let canvas, pageState={size:'letter', orientation:'portrait', wIn:8.5, hIn:11};
 let insetMap=null, insetLayers=[], insetDrawState=null, insetLocatorLayer=null;
@@ -1790,6 +2284,10 @@ function initCanvas(){
   canvas.on('object:moving', onObjectMoving);
   canvas.on('mouse:up', hideGuides);
   canvas.on('after:render', positionEmbedFrames);
+  canvas.on('mouse:dblclick', e=>{
+    const t=e.target;
+    if(t && t.data && t.data.type==='placeholder') fillPlaceholder(t);
+  });
 
   document.addEventListener('keydown',(e)=>{
     const tag=(document.activeElement&&document.activeElement.tagName)||'';
@@ -1882,23 +2380,63 @@ document.getElementById('toolMargins').onclick=()=>{
   canvas.renderAll();
 };
 
-/* ---------- map frame (image upload) ---------- */
+/* ---------- map frame (image upload) + smart placeholders ---------- */
+let pendingPlaceholderId=null;
+function firstPlaceholder(role){
+  return canvas.getObjects().find(o=>o.data&&o.data.type==='placeholder'&&(!role||o.data.role===role));
+}
+function fitIntoPlaceholder(obj, ph){
+  const b=ph.getBoundingRect(true,true);
+  const s=Math.min(b.width/obj.width, b.height/obj.height);
+  obj.set({scaleX:s, scaleY:s, left:b.left+(b.width-obj.width*s)/2, top:b.top+(b.height-obj.height*s)/2});
+  canvas.remove(ph);
+}
 document.getElementById('toolMapFrame').onclick=()=>document.getElementById('fileMapImage').click();
 document.getElementById('fileMapImage').addEventListener('change', function(e){
   const file=e.target.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=ev=>{
     fabric.Image.fromURL(ev.target.result, img=>{
-      const maxW=canvas.getWidth()*0.82, maxH=canvas.getHeight()*0.6;
-      const s=Math.min(maxW/img.width, maxH/img.height, 1);
-      img.set({left:40, top:40, scaleX:s, scaleY:s});
-      addObj(img,{type:'mapFrame', calibration:null});
-      toast('Map frame added — select it and use "Calibrate scale" to enable an accurate scale bar.');
+      const ph=(pendingPlaceholderId && findById(pendingPlaceholderId)) || firstPlaceholder('mapframe');
+      pendingPlaceholderId=null;
+      if(ph){
+        fitIntoPlaceholder(img, ph);
+        addObj(img,{type:'mapFrame', calibration:null});
+        toast('Map frame placed into the template slot. Use "Calibrate scale" for an accurate scale bar.');
+      } else {
+        const maxW=canvas.getWidth()*0.82, maxH=canvas.getHeight()*0.6;
+        const s=Math.min(maxW/img.width, maxH/img.height, 1);
+        img.set({left:40, top:40, scaleX:s, scaleY:s});
+        addObj(img,{type:'mapFrame', calibration:null});
+        toast('Map frame added — select it and use "Calibrate scale" to enable an accurate scale bar.');
+      }
     });
   };
   reader.readAsDataURL(file);
   e.target.value='';
 });
+function fillPlaceholder(ph){
+  const role=ph.data.role;
+  if(role==='legend'){
+    const b=ph.getBoundingRect(true,true);
+    const items=[
+      {color:'#3a9a93', label:'Area category', shape:'rect'},
+      {color:'#b3572f', label:'Point feature', shape:'circle'},
+      {color:'#3a4a72', label:'Line feature', shape:'line'}
+    ];
+    const lg=buildLegendGroup('Legend', items);
+    const s=Math.min(b.width/lg.width, b.height/lg.height, 1.4);
+    lg.set({left:b.left, top:b.top, scaleX:s, scaleY:s});
+    canvas.remove(ph);
+    addObj(lg,{type:'legend', title:'Legend', items});
+    toast('Legend created — edit its rows in Properties.');
+  } else {
+    /* map frame slot */
+    pendingPlaceholderId=ph.data.id;
+    toast('Choose a map image to fill this slot — or use Send to Layout in Map Maker.', 3800);
+    document.getElementById('fileMapImage').click();
+  }
+}
 
 /* ---------- generic image / logo ---------- */
 document.getElementById('toolImage').onclick=()=>document.getElementById('fileLayoutImage').click();
@@ -2227,7 +2765,7 @@ function positionEmbedFrames(){
 /* ---------- templates ---------- */
 function placeholderGroup(label, l, t, w, h){
   const r=new fabric.Rect({left:0, top:0, width:w, height:h, fill:'#f4f7fb', stroke:'#9aa6bc', strokeDashArray:[8,5], strokeWidth:1.5});
-  const tx=new fabric.Text(label,{left:w/2, top:h/2, fontSize:13, fill:'#7c879c', fontFamily:'Arial', originX:'center', originY:'center', textAlign:'center'});
+  const tx=new fabric.Text(label+'\n(double-click to fill)',{left:w/2, top:h/2, fontSize:13, fill:'#7c879c', fontFamily:'Arial', originX:'center', originY:'center', textAlign:'center'});
   const g=new fabric.Group([r,tx],{left:l, top:t});
   return g;
 }
@@ -2245,14 +2783,14 @@ function applyTemplate(name){
   canvas.getObjects().slice().forEach(o=>canvas.remove(o));
   Object.keys(embedFrames).forEach(id=>{ embedFrames[id].remove(); delete embedFrames[id]; });
   const W=canvas.getWidth(), H=canvas.getHeight(), m=EDIT_DPI/2;
-  function addP(label,l,t,w,h){ const g=placeholderGroup(label,l,t,w,h); g.data={id:uid(), type:'placeholder'}; canvas.add(g); }
+  function addP(label,l,t,w,h,role){ const g=placeholderGroup(label,l,t,w,h); g.data={id:uid(), type:'placeholder', role:role||'mapframe'}; canvas.add(g); }
   if(name==='classic'){
     if(pageState.orientation!=='portrait'){ pageState.orientation='portrait'; document.getElementById('pageOrientation').value='portrait'; applyPageSize(); }
     const t=new fabric.IText('Map Title',{fontSize:32, fontWeight:'700', fontFamily:'Georgia, serif', fill:'#1b2a4a'});
     t.set({left:canvas.getWidth()/2-90, top:m});
     t.data={id:uid(), type:'title'}; canvas.add(t);
-    addP('Map frame — use Map Frame or Send to Layout', m, m+60, canvas.getWidth()-2*m, canvas.getHeight()*0.58);
-    addP('Legend', m, canvas.getHeight()*0.58+m+75, 200, 150);
+    addP('Map frame', m, m+60, canvas.getWidth()-2*m, canvas.getHeight()*0.58, 'mapframe');
+    addP('Legend', m, canvas.getHeight()*0.58+m+75, 200, 150, 'legend');
     const na=buildNorthArrow('classic'); na.set({left:canvas.getWidth()-m-50, top:canvas.getHeight()*0.58+m+75}); na.data={id:uid(), type:'northArrow', naStyle:'classic'}; canvas.add(na);
     const cap=new fabric.IText('Data source · Author · Date · Projection',{fontSize:11, fontFamily:'Arial', fill:'#6b7386'});
     cap.set({left:m, top:canvas.getHeight()-m-16}); cap.data={id:uid(), type:'text'}; canvas.add(cap);
@@ -2261,11 +2799,11 @@ function applyTemplate(name){
   } else if(name==='sidepanel'){
     if(pageState.orientation!=='landscape'){ pageState.orientation='landscape'; document.getElementById('pageOrientation').value='landscape'; applyPageSize(); }
     const W2=canvas.getWidth(), H2=canvas.getHeight();
-    addP('Map frame', m, m, W2*0.66, H2-2*m);
+    addP('Map frame', m, m, W2*0.66, H2-2*m, 'mapframe');
     const px=W2*0.66+m+18;
     const t=new fabric.IText('Map Title',{fontSize:26, fontWeight:'700', fontFamily:'Georgia, serif', fill:'#1b2a4a'});
     t.set({left:px, top:m}); t.data={id:uid(), type:'title'}; canvas.add(t);
-    addP('Legend', px, m+70, W2-px-m, 170);
+    addP('Legend', px, m+70, W2-px-m, 170, 'legend');
     const na=buildNorthArrow('classic'); na.set({left:px+20, top:m+270}); na.data={id:uid(), type:'northArrow', naStyle:'classic'}; canvas.add(na);
     const cap=new fabric.IText('Data source · Author · Date',{fontSize:11, fontFamily:'Arial', fill:'#6b7386'});
     cap.set({left:px, top:H2-m-16}); cap.data={id:uid(), type:'text'}; canvas.add(cap);
@@ -2275,9 +2813,9 @@ function applyTemplate(name){
     const t=new fabric.IText('Comparison Title',{fontSize:28, fontWeight:'700', fontFamily:'Georgia, serif', fill:'#1b2a4a'});
     t.set({left:W2/2-120, top:m}); t.data={id:uid(), type:'title'}; canvas.add(t);
     const fw=(W2-3*m)/2;
-    addP('Map frame A', m, m+60, fw, H2*0.62);
-    addP('Map frame B', 2*m+fw, m+60, fw, H2*0.62);
-    addP('Legend', m, m+70+H2*0.62, 220, 120);
+    addP('Map frame A', m, m+60, fw, H2*0.62, 'mapframe');
+    addP('Map frame B', 2*m+fw, m+60, fw, H2*0.62, 'mapframe');
+    addP('Legend', m, m+70+H2*0.62, 220, 120, 'legend');
     const cap=new fabric.IText('Data source · Author · Date',{fontSize:11, fontFamily:'Arial', fill:'#6b7386'});
     cap.set({left:W2-m-220, top:H2-m-16}); cap.data={id:uid(), type:'text'}; canvas.add(cap);
   }
@@ -2416,7 +2954,8 @@ function showPropertiesForSelection(e){
       <div class="kv">While interaction is on, the embed captures the mouse — turn it off to move/resize the object. Prints as a placeholder.</div>`;
   }
   if(obj.data.type==='placeholder'){
-    html+=`<div class="kv">Template placeholder — delete it once you've added the real element in its place.</div>`;
+    html+=`<div class="kv">Template placeholder — double-click it on the page (or use the button below) to fill it with the real element.</div>
+      <div class="field" style="margin-top:8px;"><button class="btn small" id="pFillPh">Fill placeholder now</button></div>`;
   }
   html+=`<div class="divider"></div><h3>Arrange</h3>
     <div class="row2">
@@ -2431,6 +2970,7 @@ function showPropertiesForSelection(e){
 
   const g=id=>document.getElementById(id);
   if(g('pCalibrate')) g('pCalibrate').onclick=()=>startCalibration(obj);
+  if(g('pFillPh')) g('pFillPh').onclick=()=>fillPlaceholder(obj);
   if(g('pText')) g('pText').oninput=()=>{ obj.set('text', g('pText').value); canvas.renderAll(); };
   if(g('pSize')) g('pSize').oninput=()=>{ obj.set('fontSize', parseInt(g('pSize').value||14,10)); canvas.renderAll(); };
   if(g('pColor')) g('pColor').oninput=()=>{ obj.set('fill', g('pColor').value); canvas.renderAll(); };
@@ -2615,11 +3155,19 @@ document.getElementById('insetAddToLayoutBtn').onclick=()=>{
 function receiveFromMaker(dataURL, metersPerImagePx, legendSpecs, wantScale){
   switchModule('layout');
   fabric.Image.fromURL(dataURL, img=>{
-    const maxW=canvas.getWidth()*0.85, maxH=canvas.getHeight()*0.62;
-    const s=Math.min(maxW/img.width, maxH/img.height, 1);
-    img.set({left:(canvas.getWidth()-img.width*s)/2, top:70, scaleX:s, scaleY:s});
-    const frame=addObj(img,{type:'mapFrame', calibration:{constant:metersPerImagePx, calibratedAt:Date.now()}, fromMaker:true});
+    const calibration = metersPerImagePx!=null ? {constant:metersPerImagePx, calibratedAt:Date.now()} : null;
+    const ph=firstPlaceholder('mapframe');
+    if(ph){
+      fitIntoPlaceholder(img, ph);
+    } else {
+      const maxW=canvas.getWidth()*0.85, maxH=canvas.getHeight()*0.62;
+      const s0=Math.min(maxW/img.width, maxH/img.height, 1);
+      img.set({left:(canvas.getWidth()-img.width*s0)/2, top:70, scaleX:s0, scaleY:s0});
+    }
+    const s=img.scaleX;
+    const frame=addObj(img,{type:'mapFrame', calibration, fromMaker:true});
     let yCursor=img.top+img.height*s+14;
+    const legendPh=firstPlaceholder('legend');
     if(legendSpecs.length){
       let items=[];
       if(legendSpecs.length===1){
@@ -2632,13 +3180,20 @@ function receiveFromMaker(dataURL, metersPerImagePx, legendSpecs, wantScale){
       }
       const title=legendSpecs.length===1? legendSpecs[0].title : 'Legend';
       const lg=buildLegendGroup(title, items);
-      lg.set({left:40, top:yCursor});
+      if(legendPh){
+        const b=legendPh.getBoundingRect(true,true);
+        const ls=Math.min(b.width/lg.width, b.height/lg.height, 1.4);
+        lg.set({left:b.left, top:b.top, scaleX:ls, scaleY:ls});
+        canvas.remove(legendPh);
+      } else {
+        lg.set({left:40, top:yCursor});
+      }
       lg.data={id:uid(), type:'legend', title, items};
       lg.set({cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
       canvas.add(lg);
       yCursor+=lg.height*lg.scaleY+10;
     }
-    if(wantScale){
+    if(wantScale && calibration){
       const widthMeters=(img.width*s)*(metersPerImagePx/s);
       let nice=niceRound(widthMeters/4), dist, unit;
       if(nice>=1000){ dist=nice/1000; unit='km'; } else { dist=nice; unit='m'; }
@@ -2650,44 +3205,14 @@ function receiveFromMaker(dataURL, metersPerImagePx, legendSpecs, wantScale){
       g.set({left:canvas.getWidth()-260, top:yCursor+6});
     }
     canvas.renderAll();
-    toast('Map placed on the layout — scale calibrated automatically. Add a title and arrange your elements.',4200);
+    toast(calibration
+      ? 'Map placed on the layout — scale calibrated automatically. Add a title and arrange your elements.'
+      : 'Projected map placed on the layout. Add a title and arrange your elements.', 4200);
   });
 }
 window.__layout={receiveFromMaker};
 
-/* ---------- save / load ---------- */
-function projectData(){
-  return {
-    version:2,
-    page:{size:pageState.size, orientation:pageState.orientation},
-    canvasJSON:canvas.toJSON(['data']),
-    maker:{
-      basemap:document.getElementById('mkBasemap').value,
-      view: mkMap? {center:[mkMap.getCenter().lat, mkMap.getCenter().lng], zoom:mkMap.getZoom()} : null,
-      layers: mkLayers.map(l=>({name:l.name, geom:l.geom, visible:l.visible, opacity:l.opacity,
-        style:l.style, labels:l.labels, filter:l.filter, geojson:l.geojson}))
-    }
-  };
-}
-document.getElementById('btnSave').onclick=()=>{
-  const data=projectData();
-  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='carto-studio-project_'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();
-  try{ localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data)); }catch(_){}
-  toast('Project saved (data + styling + layout).');
-};
-document.getElementById('btnLoad').onclick=()=>document.getElementById('fileProject').click();
-document.getElementById('fileProject').addEventListener('change', function(e){
-  const file=e.target.files[0]; if(!file) return;
-  file.text().then(text=>{
-    try{ loadProjectData(JSON.parse(text)); toast('Project loaded.'); }
-    catch(_){ toast('Could not read that project file.'); }
-  });
-  e.target.value='';
-});
+/* ---------- apply project data to UI (storage handled by project manager) ---------- */
 function loadProjectData(data){
   restoring=true;
   if(data.page){
@@ -2714,77 +3239,887 @@ function loadProjectData(data){
     renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels(); updateMkStatus();
   }
 }
-function autosave(){
-  try{ localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(projectData())); }catch(_){}
+
+/* ---------- module switching ---------- */
+function switchModule(which){
+  ['home','maker','layout'].forEach(m=>{
+    document.getElementById('module-'+m).classList.toggle('hidden', m!==which);
+  });
+  document.getElementById('modMakerBtn').classList.toggle('active', which==='maker');
+  document.getElementById('modLayoutBtn').classList.toggle('active', which==='layout');
+  document.getElementById('grp-page').style.display=which==='layout'?'flex':'none';
+  if(which==='maker' && mkMap) setTimeout(()=>mkMap.invalidateSize(), 60);
+  if(which==='layout'){ canvas.calcOffset(); canvas.renderAll(); }
+  positionEmbedFrames();
+  if(which==='home') renderHome();
+}
+document.getElementById('modMakerBtn').onclick=()=>{ requireProject(()=>switchModule('maker')); };
+document.getElementById('modLayoutBtn').onclick=()=>{ requireProject(()=>switchModule('layout')); };
+document.getElementById('btnHelp').onclick=()=>openModal('modal-help');
+document.getElementById('loPanelToggle').onclick=()=>{
+  const rp=document.getElementById('rightpanel');
+  rp.classList.toggle('collapsed');
+  document.getElementById('loPanelToggle').textContent=rp.classList.contains('collapsed')?'⟨':'⟩';
+  setTimeout(()=>{ canvas.calcOffset(); canvas.renderAll(); positionEmbedFrames(); }, 180);
+};
+/* ================= ONLINE DATA SOURCES ================= */
+const ONLINE_CAP = 5000;
+let onlinePending=null;
+
+document.getElementById('mkAddOnline').onclick=()=>{
+  document.getElementById('mkAddMenuList').classList.add('hidden');
+  onlineStatus('');
+  hidePending();
+  openModal('modal-online');
+};
+document.querySelectorAll('.online-tab').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.online-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const t=btn.getAttribute('data-t');
+    ['ne','osm','portal','url'].forEach(x=>{
+      document.getElementById('online-'+x).classList.toggle('hidden', x!==t);
+    });
+    onlineStatus(''); hidePending();
+  };
+});
+function onlineStatus(msg){ document.getElementById('onlineStatus').textContent=msg||''; }
+function hidePending(){ document.getElementById('onlinePendingRow').classList.add('hidden'); onlinePending=null; }
+
+/* snapshot into library, with size guard */
+function onlineFinish(gj, name, source, limit){
+  let feats=(gj.features||[]);
+  if(limit && feats.length>limit){
+    feats=feats.slice(0,limit);
+    name=name+' (first '+limit+')';
+  }
+  const lyr=addMakerLayer({type:'FeatureCollection', features:feats}, name, {});
+  if(lyr){
+    const ds=datasetById(lyr.datasetId);
+    if(ds){ ds.source=Object.assign({fetched:Date.now()}, source); persistDataset(ds.id); }
+    onlineStatus('Added "'+name+'" ('+feats.length+' features).');
+  }
+  hidePending();
+}
+function guardAndAdd(gj, name, source){
+  const n=(gj.features||[]).length;
+  if(!n){ onlineStatus('No features returned.'); return; }
+  if(n>ONLINE_CAP){
+    onlinePending={gj, name, source};
+    document.getElementById('onlinePendingMsg').textContent='This dataset has '+n.toLocaleString()+' features — large datasets can slow the browser.';
+    document.getElementById('onlinePendingRow').classList.remove('hidden');
+    onlineStatus('');
+  } else {
+    onlineFinish(gj, name, source);
+  }
+}
+document.getElementById('onlineLoadAll').onclick=()=>{ if(onlinePending) onlineFinish(onlinePending.gj, onlinePending.name, onlinePending.source); };
+document.getElementById('onlineLoadSome').onclick=()=>{ if(onlinePending) onlineFinish(onlinePending.gj, onlinePending.name, onlinePending.source, ONLINE_CAP); };
+document.getElementById('onlineCancel').onclick=()=>{ hidePending(); onlineStatus('Cancelled.'); };
+
+function fetchJson(url){
+  return fetch(url).then(r=>{
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.text();
+  }).then(t=>{
+    try{ return JSON.parse(t); }
+    catch(_){ throw new Error('response was not valid JSON'); }
+  });
+}
+function normalizeGeoJSON(data){
+  if(!data) return null;
+  if(data.type==='FeatureCollection') return data;
+  if(data.type==='Feature') return {type:'FeatureCollection', features:[data]};
+  if(data.type && data.coordinates) return {type:'FeatureCollection', features:[{type:'Feature', properties:{}, geometry:data}]};
+  return null;
 }
 
-/* ---------- export ---------- */
-document.getElementById('btnExportOpen').onclick=()=>{
-  switchModule('layout');
-  openModal('modal-export');
+/* ---------- Natural Earth ---------- */
+const NE_CULTURAL=['admin_0_countries','admin_1_states_provinces','populated_places','urban_areas'];
+const NE_LABELS={admin_0_countries:'Countries', admin_1_states_provinces:'States & provinces', populated_places:'Populated places',
+  urban_areas:'Urban areas', land:'Land', ocean:'Ocean', coastline:'Coastline', rivers_lake_centerlines:'Rivers & lakes (lines)', lakes:'Lakes'};
+document.getElementById('neAddBtn').onclick=()=>{
+  const layer=document.getElementById('neLayer').value;
+  let scale=document.getElementById('neScale').value;
+  if(layer==='urban_areas' && scale==='110m'){ scale='50m'; onlineStatus('Urban areas is not published at 110m — using 50m.'); }
+  const cat=NE_CULTURAL.includes(layer)?'cultural':'physical';
+  const url='https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/'+scale+'/'+cat+'/ne_'+scale+'_'+layer+'.json';
+  onlineStatus('Fetching Natural Earth '+NE_LABELS[layer]+' ('+scale+')…');
+  fetchJson(url).then(data=>{
+    const gj=normalizeGeoJSON(data);
+    if(!gj){ onlineStatus('Unexpected response format.'); return; }
+    guardAndAdd(gj, 'NE '+NE_LABELS[layer]+' '+scale, {type:'natural-earth', url});
+  }).catch(err=>onlineStatus('Fetch failed: '+err.message));
 };
-document.getElementById('doExportBtn').onclick=()=>{
+
+/* ---------- OpenStreetMap (Overpass) ---------- */
+const OSM_PRESETS={
+  schools:{label:'Schools', f:'["amenity"="school"]', types:'nw', area:true},
+  hospitals:{label:'Hospitals & clinics', f:'["amenity"~"hospital|clinic|doctors"]', types:'nw', area:true},
+  parks:{label:'Parks', f:'["leisure"~"park|garden|nature_reserve"]', types:'nw', area:true},
+  supermarkets:{label:'Supermarkets', f:'["shop"~"supermarket|greengrocer|convenience"]', types:'nw', area:true},
+  foodplaces:{label:'Restaurants & cafés', f:'["amenity"~"restaurant|cafe|fast_food"]', types:'nw', area:true},
+  busstops:{label:'Bus stops', f:'["highway"="bus_stop"]', types:'n', area:false},
+  majorroads:{label:'Major roads', f:'["highway"~"motorway|trunk|primary|secondary"]', types:'w', area:false},
+  cycleways:{label:'Cycle paths', f:'["highway"="cycleway"]', types:'w', area:false},
+  waterways:{label:'Rivers & streams', f:'["waterway"~"river|stream|canal"]', types:'w', area:false},
+  buildings:{label:'Buildings', f:'["building"]', types:'w', area:true}
+};
+function osmToGeoJSON(elements, areaHint){
+  const feats=[];
+  elements.forEach(el=>{
+    const props=Object.assign({osm_id:el.type+'/'+el.id}, el.tags||{});
+    if(el.type==='node' && el.lat!=null){
+      feats.push({type:'Feature', properties:props, geometry:{type:'Point', coordinates:[el.lon, el.lat]}});
+    } else if(el.type==='way' && Array.isArray(el.geometry) && el.geometry.length>1){
+      const coords=el.geometry.map(p=>[p.lon, p.lat]);
+      const closed=coords.length>3 &&
+        coords[0][0]===coords[coords.length-1][0] && coords[0][1]===coords[coords.length-1][1];
+      if(closed && areaHint){
+        feats.push({type:'Feature', properties:props, geometry:{type:'Polygon', coordinates:[coords]}});
+      } else {
+        feats.push({type:'Feature', properties:props, geometry:{type:'LineString', coordinates:coords}});
+      }
+    }
+  });
+  return {type:'FeatureCollection', features:feats};
+}
+document.getElementById('osmAddBtn').onclick=()=>{
+  const preset=OSM_PRESETS[document.getElementById('osmPreset').value];
+  if(!preset) return;
+  const b=mkMap.getBounds();
+  const bbox=[b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map(v=>v.toFixed(5)).join(',');
+  const parts=[];
+  if(preset.types.includes('n')) parts.push('node'+preset.f+'('+bbox+');');
+  if(preset.types.includes('w')) parts.push('way'+preset.f+'('+bbox+');');
+  const query='[out:json][timeout:40];('+parts.join('')+');out geom 8000;';
+  onlineStatus('Querying OpenStreetMap for '+preset.label.toLowerCase()+'… (can take up to ~30 s)');
+  fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:'data='+encodeURIComponent(query)})
+    .then(r=>{ if(!r.ok) throw new Error('Overpass HTTP '+r.status+(r.status===429?' — server busy, try again in a minute':'')); return r.json(); })
+    .then(data=>{
+      const gj=osmToGeoJSON(data.elements||[], preset.area);
+      guardAndAdd(gj, 'OSM '+preset.label, {type:'osm', url:'overpass: '+preset.f});
+    })
+    .catch(err=>onlineStatus('Query failed: '+err.message));
+};
+
+/* ---------- open data portal search (Opendatasoft) ---------- */
+document.getElementById('portalDomain').addEventListener('change', e=>{
+  document.getElementById('portalCustomWrap').classList.toggle('hidden', e.target.value!=='__custom');
+});
+function portalHost(){
+  const v=document.getElementById('portalDomain').value;
+  if(v!=='__custom') return v;
+  return (document.getElementById('portalCustom').value||'').trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
+}
+function runPortalSearch(){
+  const host=portalHost();
+  const q=(document.getElementById('portalQ').value||'').trim();
+  if(!host){ onlineStatus('Enter a portal domain.'); return; }
+  if(!q){ onlineStatus('Enter a search term.'); return; }
+  onlineStatus('Searching '+host+'…');
+  const url='https://'+host+'/api/explore/v2.1/catalog/datasets?limit=20&search='+encodeURIComponent(q);
+  fetchJson(url).then(data=>{
+    const results=(data.results||[]).filter(r=>(r.features||[]).includes('geo'));
+    const el=document.getElementById('portalResults');
+    if(!results.length){
+      el.innerHTML='<div class="empty-hint">No mappable datasets found for that search'+((data.results||[]).length?' (some matches had no geometry)':'')+'.</div>';
+      onlineStatus('');
+      return;
+    }
+    el.innerHTML=results.map(r=>{
+      const m=(r.metas&&r.metas.default)||{};
+      const n=m.records_count!=null? m.records_count.toLocaleString()+' records' : '';
+      return `<div class="libpick-row" data-id="${esc(r.dataset_id)}" data-n="${m.records_count||0}" data-title="${esc(m.title||r.dataset_id)}">
+        <span class="nm" title="${esc(m.description? String(m.description).replace(/<[^>]+>/g,'').slice(0,300):'')}">${esc(m.title||r.dataset_id)}</span>
+        <span class="meta">${n}</span>
+        <button class="btn small">Add</button>
+      </div>`;
+    }).join('');
+    onlineStatus(results.length+' mappable dataset(s) found.');
+    el.querySelectorAll('.libpick-row').forEach(row=>{
+      row.querySelector('button').onclick=()=>{
+        const id=row.getAttribute('data-id');
+        const nRec=parseInt(row.getAttribute('data-n'),10)||0;
+        const title=row.getAttribute('data-title');
+        const dl=(limit)=>{
+          onlineStatus('Downloading "'+title+'"…');
+          const exUrl='https://'+host+'/api/explore/v2.1/catalog/datasets/'+encodeURIComponent(id)+'/exports/geojson?limit='+(limit||-1);
+          fetchJson(exUrl).then(data=>{
+            const gj=normalizeGeoJSON(data);
+            if(!gj){ onlineStatus('Unexpected response format.'); return; }
+            onlineFinish(gj, title+(limit?' (first '+limit+')':''), {type:'portal', url:exUrl});
+          }).catch(err=>onlineStatus('Download failed: '+err.message));
+        };
+        if(nRec>ONLINE_CAP){
+          onlinePending={custom:dl};
+          document.getElementById('onlinePendingMsg').textContent='"'+title+'" has '+nRec.toLocaleString()+' records — large datasets can slow the browser.';
+          document.getElementById('onlinePendingRow').classList.remove('hidden');
+          document.getElementById('onlineLoadAll').onclick=()=>{ hidePending(); dl(); resetPendingHandlers(); };
+          document.getElementById('onlineLoadSome').onclick=()=>{ hidePending(); dl(ONLINE_CAP); resetPendingHandlers(); };
+        } else dl();
+      };
+    });
+  }).catch(err=>onlineStatus('Search failed: '+err.message+' — check the portal domain.'));
+}
+function resetPendingHandlers(){
+  document.getElementById('onlineLoadAll').onclick=()=>{ if(onlinePending&&onlinePending.gj) onlineFinish(onlinePending.gj, onlinePending.name, onlinePending.source); };
+  document.getElementById('onlineLoadSome').onclick=()=>{ if(onlinePending&&onlinePending.gj) onlineFinish(onlinePending.gj, onlinePending.name, onlinePending.source, ONLINE_CAP); };
+}
+document.getElementById('portalSearchBtn').onclick=runPortalSearch;
+document.getElementById('portalQ').addEventListener('keydown', e=>{ if(e.key==='Enter') runPortalSearch(); });
+
+/* ---------- from URL ---------- */
+function csvTextToGeoJSON(text){
+  const parsed=Papa.parse(text,{header:true,dynamicTyping:true,skipEmptyLines:true});
+  const rows=parsed.data;
+  if(!rows.length) return null;
+  const cols=Object.keys(rows[0]);
+  const latCol=cols.find(c=>/^(lat|latitude|y)$/i.test(c))||cols.find(c=>/lat/i.test(c));
+  const lonCol=cols.find(c=>/^(lon|lng|long|longitude|x)$/i.test(c))||cols.find(c=>/(lon|lng)/i.test(c));
+  if(!latCol||!lonCol) return null;
+  const features=rows.filter(r=>r[latCol]!=null&&r[lonCol]!=null&&r[latCol]!==''&&r[lonCol]!=='')
+    .map(r=>({type:'Feature',properties:r,geometry:{type:'Point',coordinates:[+r[lonCol],+r[latCol]]}}));
+  return {type:'FeatureCollection',features};
+}
+document.getElementById('urlAddBtn').onclick=()=>{
+  let url=(document.getElementById('urlInput').value||'').trim();
+  if(!/^https:\/\//i.test(url)){ onlineStatus('Enter a full https:// URL.'); return; }
+  const nameGuess=decodeURIComponent(url.split('/').filter(Boolean).pop()||'web layer').replace(/\.[^.]+$/,'').replace(/\?.*$/,'').slice(0,60)||'web layer';
+  /* Esri Feature/Map Service layer endpoint */
+  if(/\/(FeatureServer|MapServer)\/\d+\/?$/.test(url.replace(/\?.*$/,''))){
+    url=url.replace(/\/?(\?.*)?$/,'')+'/query?where=1%3D1&outFields=*&f=geojson&resultRecordCount=5000';
+    onlineStatus('Querying feature service… (first 5,000 features max per request)');
+  } else {
+    onlineStatus('Fetching…');
+  }
+  fetch(url).then(r=>{
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.text();
+  }).then(text=>{
+    let gj=null;
+    try{
+      const data=JSON.parse(text);
+      if(data.error) throw new Error(data.error.message||'service returned an error');
+      gj=normalizeGeoJSON(data);
+    }catch(errJson){
+      gj=csvTextToGeoJSON(text);
+      if(!gj) throw (errJson instanceof SyntaxError ? new Error('response is neither GeoJSON nor a CSV with lat/long columns') : errJson);
+    }
+    if(!gj) throw new Error('no mappable content found');
+    guardAndAdd(gj, nameGuess, {type:'url', url});
+  }).catch(err=>{
+    onlineStatus('Failed: '+err.message+'. If this persists, the source may not allow cross-origin access — download the file and upload it with "+ Add data" instead.');
+  });
+};
+/* ================= PROJECT MANAGER (IndexedDB) ================= */
+const DB_NAME='cartoStudioDB', DB_VER=1;
+let db=null, currentProjectId=null, projectsCache=[], datasetsCache=[], dirtyTimer=null;
+
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains('projects')) d.createObjectStore('projects',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('datasets')) d.createObjectStore('datasets',{keyPath:'id'});
+    };
+    req.onsuccess=()=>{ db=req.result; res(db); };
+    req.onerror=()=>rej(req.error);
+  });
+}
+function idbPut(store,val){
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    tx.objectStore(store).put(val);
+    tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
+  });
+}
+function idbDel(store,key){
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(store,'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
+  });
+}
+function idbAll(store){
+  return new Promise((res,rej)=>{
+    const req=db.transaction(store,'readonly').objectStore(store).getAll();
+    req.onsuccess=()=>res(req.result||[]);
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+/* ---------- datasets ---------- */
+function datasetById(id){ return datasetsCache.find(d=>d.id===id)||null; }
+function uniqueDatasetName(name){
+  let n=name, i=2;
+  while(datasetsCache.some(d=>d.name===n)) n=name+' ('+(i++)+')';
+  return n;
+}
+function registerDataset(gj, name, geom, opts){
+  const fields=new Set();
+  (gj.features||[]).slice(0,80).forEach(f=>Object.keys(f.properties||{}).forEach(k=>fields.add(k)));
+  const ds={id:uid(), name:uniqueDatasetName(name), geom, geojson:gj,
+    featureCount:(gj.features||[]).length, fieldCount:fields.size,
+    derived:!!(opts&&opts.derived), added:Date.now()};
+  datasetsCache.push(ds);
+  if(db) idbPut('datasets', ds).catch(()=>toast('Warning: dataset could not be saved to browser storage (may be too large).', 4200));
+  return ds;
+}
+function persistDataset(id){
+  const ds=datasetById(id);
+  if(ds&&db) idbPut('datasets', ds).catch(()=>{});
+}
+function datasetUsedBy(dsId){
+  const names=[];
+  projectsCache.forEach(p=>{
+    if(p.id===currentProjectId) return;
+    if(((p.maker||{}).layers||[]).some(l=>l.datasetId===dsId)) names.push(p.name);
+  });
+  if(currentProjectId && mkLayers.some(l=>l.datasetId===dsId)){
+    const cur=projectsCache.find(p=>p.id===currentProjectId);
+    names.unshift((cur?cur.name:'current project')+' (open)');
+  }
+  return names;
+}
+
+/* ---------- project serialization ---------- */
+function serializeCurrentProject(){
+  const rec=projectsCache.find(p=>p.id===currentProjectId);
+  return {
+    id:currentProjectId,
+    name:rec?rec.name:'Untitled',
+    created:rec?rec.created:Date.now(),
+    modified:Date.now(),
+    thumbnail: canvas.getObjects().length ? canvas.toDataURL({format:'jpeg', quality:0.6, multiplier:0.12}) : (rec?rec.thumbnail:null),
+    page:{size:pageState.size, orientation:pageState.orientation},
+    canvasJSON:canvas.toJSON(['data']),
+    maker:{
+      basemap:document.getElementById('mkBasemap').value,
+      view: mkMap? {center:[mkMap.getCenter().lat, mkMap.getCenter().lng], zoom:mkMap.getZoom()} : null,
+      layers: mkLayers.map(l=>({name:l.name, geom:l.geom, visible:l.visible, opacity:l.opacity,
+        style:l.style, labels:l.labels, filter:l.filter, datasetId:l.datasetId}))
+    }
+  };
+}
+function saveCurrentProject(showToast){
+  if(!currentProjectId||!db) return Promise.resolve();
+  const rec=serializeCurrentProject();
+  const i=projectsCache.findIndex(p=>p.id===rec.id);
+  if(i>=0) projectsCache[i]=rec; else projectsCache.push(rec);
+  renderProjectSwitcher();
+  return idbPut('projects', rec).then(()=>{
+    if(showToast) toast('Project saved.');
+  }).catch(()=>toast('Could not save to browser storage — export a project file as backup.', 4200));
+}
+function markProjectDirty(){
+  clearTimeout(dirtyTimer);
+  dirtyTimer=setTimeout(()=>saveCurrentProject(false), 4000);
+}
+
+function applyProjectRecord(rec){
+  currentProjectId=rec.id;
+  let missing=0;
+  const layers=((rec.maker||{}).layers||[]).map(sl=>{
+    const ds=datasetById(sl.datasetId);
+    if(!ds){ missing++; return null; }
+    return Object.assign({}, sl, {geojson:ds.geojson});
+  }).filter(Boolean);
+  const data={page:rec.page, canvasJSON:rec.canvasJSON,
+    maker:Object.assign({}, rec.maker, {layers})};
+  loadProjectData(data);
+  history.stack=[]; history.idx=-1;
+  setTimeout(pushHistory, 400);
+  if(missing) toast(missing+' layer(s) skipped — their dataset is no longer in the library.', 4200);
+  renderProjectSwitcher();
+}
+function openProject(id, module){
+  const rec=projectsCache.find(p=>p.id===id);
+  if(!rec){ toast('Project not found.'); return; }
+  applyProjectRecord(rec);
+  switchModule(module||'maker');
+}
+function switchProject(id){
+  if(id===currentProjectId){ switchModule('maker'); return; }
+  const go=()=>openProject(id);
+  if(currentProjectId) saveCurrentProject(false).then(go); else go();
+}
+function requireProject(cb){
+  if(currentProjectId) cb();
+  else { toast('Open or create a project first.'); switchModule('home'); }
+}
+
+function createProject(name){
+  const rec={id:uid(), name:name||'Untitled project', created:Date.now(), modified:Date.now(),
+    thumbnail:null, page:{size:'letter', orientation:'portrait'},
+    canvasJSON:{version:'5.3.0', objects:[]}, maker:{basemap:'esri-gray', view:null, layers:[]}};
+  projectsCache.push(rec);
+  return idbPut('projects', rec).then(()=>rec).catch(()=>rec);
+}
+function deleteProject(id){
+  const rec=projectsCache.find(p=>p.id===id);
+  if(!rec) return;
+  if(!window.confirm('Delete project "'+rec.name+'"? This cannot be undone. (Datasets in the library are kept.)')) return;
+  projectsCache=projectsCache.filter(p=>p.id!==id);
+  idbDel('projects', id);
+  if(currentProjectId===id){ currentProjectId=null; }
+  renderHome(); renderProjectSwitcher();
+}
+function renameProject(id){
+  const rec=projectsCache.find(p=>p.id===id);
+  if(!rec) return;
+  const n=window.prompt('Project name:', rec.name);
+  if(!n) return;
+  rec.name=n; rec.modified=Date.now();
+  idbPut('projects', rec);
+  renderHome(); renderProjectSwitcher();
+}
+function duplicateProject(id){
+  const rec=projectsCache.find(p=>p.id===id);
+  if(!rec) return;
+  const copy=JSON.parse(JSON.stringify(rec));
+  copy.id=uid(); copy.name=rec.name+' copy'; copy.created=Date.now(); copy.modified=Date.now();
+  projectsCache.push(copy);
+  idbPut('projects', copy);
+  renderHome(); renderProjectSwitcher();
+}
+
+/* ---------- project file export / import ---------- */
+function downloadBlob(filename, blob){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 8000);
+}
+function exportProjectFile(id){
+  const rec=(id===currentProjectId)? serializeCurrentProject() : projectsCache.find(p=>p.id===id);
+  if(!rec) return;
+  const usedIds=Array.from(new Set(((rec.maker||{}).layers||[]).map(l=>l.datasetId).filter(Boolean)));
+  const payload={version:4, app:'carto-studio', project:rec,
+    datasets: usedIds.map(did=>{ const d=datasetById(did); return d? {id:d.id, name:d.name, geom:d.geom, geojson:d.geojson, derived:d.derived}:null; }).filter(Boolean)};
+  downloadBlob(rec.name.replace(/[^a-z0-9\-_]+/gi,'_')+'.cartoproj.json',
+    new Blob([JSON.stringify(payload)],{type:'application/json'}));
+  toast('Project file downloaded (datasets embedded — portable to any computer).');
+}
+function importProjectFile(file){
+  file.text().then(text=>{
+    let data;
+    try{ data=JSON.parse(text); }catch(_){ toast('Could not read that file.'); return; }
+    if(data.version===4 && data.project){
+      const idMap={};
+      (data.datasets||[]).forEach(d=>{
+        const ds=registerDataset(d.geojson, d.name, d.geom, {derived:d.derived});
+        idMap[d.id]=ds.id;
+      });
+      const rec=data.project;
+      rec.id=uid(); rec.name=uniqueProjectName(rec.name); rec.modified=Date.now();
+      ((rec.maker||{}).layers||[]).forEach(l=>{ l.datasetId=idMap[l.datasetId]||l.datasetId; });
+      projectsCache.push(rec);
+      idbPut('projects', rec);
+      renderHome(); renderProjectSwitcher();
+      toast('Project imported: '+rec.name);
+    } else if(data.canvasJSON || data.maker){
+      /* legacy v1/v2 file with embedded geojson */
+      const rec={id:uid(), name:uniqueProjectName(file.name.replace(/\.[^.]+$/,'')), created:Date.now(), modified:Date.now(),
+        thumbnail:null, page:data.page||{size:'letter',orientation:'portrait'},
+        canvasJSON:data.canvasJSON||{version:'5.3.0',objects:[]},
+        maker:{basemap:(data.maker||{}).basemap||'esri-gray', view:(data.maker||{}).view||null, layers:[]}};
+      ((data.maker||{}).layers||[]).forEach(sl=>{
+        if(!sl.geojson) return;
+        const ds=registerDataset(sl.geojson, sl.name||'layer', sl.geom||'point', {});
+        rec.maker.layers.push({name:sl.name, geom:sl.geom, visible:sl.visible, opacity:sl.opacity,
+          style:sl.style, labels:sl.labels, filter:sl.filter, datasetId:ds.id});
+      });
+      projectsCache.push(rec);
+      idbPut('projects', rec);
+      renderHome(); renderProjectSwitcher();
+      toast('Project imported (upgraded from older format): '+rec.name);
+    } else {
+      toast('That file is not a Carto Studio project.');
+    }
+  });
+}
+function uniqueProjectName(name){
+  let n=name, i=2;
+  while(projectsCache.some(p=>p.name===n)) n=name+' ('+(i++)+')';
+  return n;
+}
+
+/* ---------- home UI ---------- */
+function fmtDate(ts){
+  if(!ts) return '';
+  const d=new Date(ts);
+  return d.toLocaleDateString(undefined,{month:'short', day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit', minute:'2-digit'});
+}
+function renderHome(){
+  renderProjectsGrid();
+  renderLibrary();
+}
+function renderProjectsGrid(){
+  const el=document.getElementById('home-projects');
+  const cards=projectsCache.slice().sort((a,b)=>(b.modified||0)-(a.modified||0)).map(p=>{
+    const nLayers=((p.maker||{}).layers||[]).length;
+    const thumb=p.thumbnail? 'style="background-image:url('+p.thumbnail+')"' : '';
+    return `<div class="proj-card" data-id="${p.id}">
+      <div class="proj-thumb" ${thumb}>${p.thumbnail?'':'🗺️'}</div>
+      <div class="proj-body">
+        <div class="pname">${esc(p.name)}${p.id===currentProjectId?' <span style="color:var(--teal);font-size:10px;">● open</span>':''}</div>
+        <div class="pmeta">${nLayers} layer${nLayers===1?'':'s'} · edited ${fmtDate(p.modified)}</div>
+      </div>
+      <div class="proj-actions">
+        <button data-act="open">Open</button>
+        <button data-act="rename">Rename</button>
+        <button data-act="dup">Duplicate</button>
+        <button data-act="export">Export</button>
+        <button data-act="del" style="color:var(--danger);">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML=cards+`<div class="proj-card newcard" id="homeNewCard">+ New project</div>`;
+  el.querySelectorAll('.proj-card[data-id]').forEach(card=>{
+    const id=card.getAttribute('data-id');
+    card.querySelector('.proj-thumb').onclick=()=>switchProject(id);
+    card.querySelector('.proj-body').onclick=()=>switchProject(id);
+    card.querySelectorAll('.proj-actions button').forEach(btn=>{
+      btn.onclick=ev=>{
+        ev.stopPropagation();
+        const act=btn.getAttribute('data-act');
+        if(act==='open') switchProject(id);
+        if(act==='rename') renameProject(id);
+        if(act==='dup') duplicateProject(id);
+        if(act==='export') exportProjectFile(id);
+        if(act==='del') deleteProject(id);
+      };
+    });
+  });
+  const newCard=document.getElementById('homeNewCard');
+  if(newCard) newCard.onclick=newProjectFlow;
+}
+function newProjectFlow(){
+  const n=window.prompt('Name for the new project:', 'Untitled project');
+  if(n===null) return;
+  const go=()=>createProject(uniqueProjectName(n||'Untitled project')).then(rec=>{ openProject(rec.id); renderProjectSwitcher(); });
+  if(currentProjectId) saveCurrentProject(false).then(go); else go();
+}
+document.getElementById('homeNewBtn').onclick=newProjectFlow;
+document.getElementById('homeImportBtn').onclick=()=>document.getElementById('fileProject').click();
+document.getElementById('fileProject').addEventListener('change', function(e){
+  const f=e.target.files[0];
+  if(f) importProjectFile(f);
+  e.target.value='';
+});
+document.querySelectorAll('.home-tab').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.home-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const t=btn.getAttribute('data-t');
+    document.getElementById('home-projects').classList.toggle('hidden', t!=='projects');
+    document.getElementById('home-library').classList.toggle('hidden', t!=='library');
+  };
+});
+function renderLibrary(){
+  const el=document.getElementById('home-library');
+  if(!datasetsCache.length){
+    el.innerHTML='<div class="empty-hint">No datasets yet. Upload data inside a project — it lands here automatically and becomes reusable across all your projects.</div>';
+    return;
+  }
+  el.innerHTML=`<table id="lib-table"><tr><th>Dataset</th><th>Type</th><th>Features</th><th>Fields</th><th>Used by</th><th></th></tr>
+    ${datasetsCache.slice().sort((a,b)=>(b.added||0)-(a.added||0)).map(d=>{
+      const used=datasetUsedBy(d.id);
+      return `<tr data-id="${d.id}">
+        <td><b>${esc(d.name)}</b>${d.derived?' <span style="color:var(--muted);font-size:10px;">(derived)</span>':''}${d.source?' <span style="font-size:10px;" title="Fetched from: '+esc(d.source.url||d.source.type)+'">🌐</span>':''}</td>
+        <td>${d.geom}</td><td>${d.featureCount}</td><td>${d.fieldCount}</td>
+        <td>${used.length? esc(used.join(', ')) : '<span style="color:var(--muted)">—</span>'}</td>
+        <td class="lib-ops">
+          <button data-act="rename" title="Rename">✏️</button>
+          <button data-act="export" title="Download GeoJSON">⬇</button>
+          <button data-act="del" title="Delete" style="color:var(--danger);">✕</button>
+        </td>
+      </tr>`;
+    }).join('')}</table>`;
+  el.querySelectorAll('tr[data-id]').forEach(row=>{
+    const id=row.getAttribute('data-id');
+    row.querySelectorAll('button').forEach(btn=>{
+      btn.onclick=()=>{
+        const ds=datasetById(id); if(!ds) return;
+        const act=btn.getAttribute('data-act');
+        if(act==='rename'){
+          const n=window.prompt('Dataset name:', ds.name);
+          if(n){ ds.name=n; persistDataset(id); renderLibrary(); }
+        }
+        if(act==='export'){
+          downloadBlob(ds.name.replace(/[^a-z0-9\-_]+/gi,'_')+'.geojson',
+            new Blob([JSON.stringify(ds.geojson)],{type:'application/geo+json'}));
+        }
+        if(act==='del'){
+          const used=datasetUsedBy(id);
+          if(used.length){ window.alert('This dataset is used by: '+used.join(', ')+'.\n\nRemove those layers first (or delete those projects), then delete the dataset.'); return; }
+          if(!window.confirm('Delete dataset "'+ds.name+'" from the library?')) return;
+          datasetsCache=datasetsCache.filter(d=>d.id!==id);
+          idbDel('datasets', id);
+          renderLibrary();
+        }
+      };
+    });
+  });
+}
+
+/* ---------- library picker (inside Map Maker) ---------- */
+function openLibPick(){
+  const el=document.getElementById('libpickList');
+  if(!datasetsCache.length){
+    el.innerHTML='<div class="empty-hint">The library is empty — upload data with “+ Add data” first.</div>';
+  } else {
+    el.innerHTML=datasetsCache.slice().sort((a,b)=>(b.added||0)-(a.added||0)).map(d=>`
+      <div class="libpick-row" data-id="${d.id}">
+        <span class="nm">${esc(d.name)}</span>
+        <span class="meta">${d.geom} · ${d.featureCount} features</span>
+        <button class="btn small">Add</button>
+      </div>`).join('');
+    el.querySelectorAll('.libpick-row').forEach(row=>{
+      row.querySelector('button').onclick=()=>{
+        addLayerFromDataset(row.getAttribute('data-id'));
+        closeModal('modal-libpick');
+      };
+    });
+  }
+  openModal('modal-libpick');
+}
+function addLayerFromDataset(dsId){
+  const ds=datasetById(dsId); if(!ds) return;
+  const lyr={id:uid(), name:ds.name, datasetId:ds.id, geojson:ds.geojson, geom:ds.geom,
+    visible:true, opacity:1, style:defaultStyle(ds.geom), labels:defaultLabels(),
+    filter:{logic:'AND', conds:[]}, leaflet:null};
+  mkLayers.unshift(lyr);
+  mkSelectedId=lyr.id;
+  renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
+  try{ mkMap.fitBounds(L.geoJSON(ds.geojson).getBounds(), {maxZoom:14, padding:[20,20]}); }catch(_){}
+  markProjectDirty();
+  toast('Added "'+ds.name+'" from the library.');
+}
+
+/* ---------- topbar controls ---------- */
+document.getElementById('btnSave').onclick=()=>{
+  if(!currentProjectId){ toast('No project open.'); return; }
+  saveCurrentProject(true);
+};
+document.getElementById('btnHome').onclick=()=>{
+  if(currentProjectId) saveCurrentProject(false).then(()=>switchModule('home'));
+  else switchModule('home');
+};
+function renderProjectSwitcher(){
+  const sel=document.getElementById('projectSwitcher');
+  const sorted=projectsCache.slice().sort((a,b)=>(b.modified||0)-(a.modified||0));
+  sel.innerHTML='<option value="__home">🏠 Projects…</option>'+
+    sorted.map(p=>'<option value="'+p.id+'" '+(p.id===currentProjectId?'selected':'')+'>'+esc(p.name)+'</option>').join('');
+  if(!currentProjectId) sel.value='__home';
+}
+document.getElementById('projectSwitcher').addEventListener('change', e=>{
+  const v=e.target.value;
+  if(v==='__home'){
+    if(currentProjectId) saveCurrentProject(false).then(()=>switchModule('home'));
+    else switchModule('home');
+  } else switchProject(v);
+});
+
+/* ---------- unified export ---------- */
+document.getElementById('btnExportOpen').onclick=()=>{
+  requireProject(()=>{
+    const rec=projectsCache.find(p=>p.id===currentProjectId);
+    document.getElementById('exportName').value=(rec?rec.name:'my-map').replace(/[^a-z0-9\-_ ]+/gi,'').trim().replace(/\s+/g,'-')||'my-map';
+    updateExportUI();
+    openModal('modal-export');
+  });
+};
+function updateExportUI(){
+  const fmt=document.getElementById('exportFormat').value;
+  document.getElementById('exportDPIWrap').style.display=(fmt==='pdf'||fmt==='png'||fmt==='archive')?'block':'none';
+  const notes={
+    pdf:'Margin guides and live-embed previews are excluded automatically. Live embeds print as placeholders.',
+    png:'Margin guides and live-embed previews are excluded automatically. Live embeds print as placeholders.',
+    mapimg:'Captures the current Map Maker view at high resolution. In Web Mercator view it includes a world file (.pgw, EPSG:3857) so the PNG opens georeferenced in GIS software; in a projected view it exports as a plain image.',
+    layerszip:'Every layer in this project as a separate valid GeoJSON file, zipped. Calculated fields included.',
+    archive:'One zip with everything: layout PDF + PNG, all layers as GeoJSON, and the portable project file. Ideal for submission or backup.'
+  };
+  document.getElementById('exportNote').textContent=notes[fmt]||'';
+}
+document.getElementById('exportFormat').addEventListener('change', updateExportUI);
+
+function layoutDataURL(dpi){
   canvas.discardActiveObject();
   const hidden=[];
   canvas.getObjects().forEach(o=>{
     if(o.data&&(o.data.guide||o.data.type==='placeholder')){ hidden.push(o); o.visible=false; }
   });
   canvas.renderAll();
-  const name=(document.getElementById('exportName').value||'my-map-layout').replace(/[^a-z0-9\-_]+/gi,'-');
-  const format=document.getElementById('exportFormat').value;
-  const dpi=parseInt(document.getElementById('exportDPI').value,10);
-  const dataURL=canvas.toDataURL({format:'png', multiplier:dpi/EDIT_DPI});
+  const url=canvas.toDataURL({format:'png', multiplier:dpi/EDIT_DPI});
   hidden.forEach(o=>o.visible=true);
   canvas.renderAll();
-  if(format==='png'){
-    const a=document.createElement('a'); a.href=dataURL; a.download=name+'.png'; a.click();
-  } else {
-    const {jsPDF}=window.jspdf;
-    const {wIn,hIn}=currentPageDims();
-    const doc=new jsPDF({orientation:wIn>hIn?'landscape':'portrait', unit:'in', format:[wIn,hIn]});
-    doc.addImage(dataURL,'PNG',0,0,wIn,hIn);
-    doc.save(name+'.pdf');
-  }
-  closeModal('modal-export');
-  toast('Exported.');
-};
-
-/* ---------- module switching ---------- */
-function switchModule(which){
-  const maker=which==='maker';
-  document.getElementById('module-maker').classList.toggle('hidden', !maker);
-  document.getElementById('module-layout').classList.toggle('hidden', maker);
-  document.getElementById('modMakerBtn').classList.toggle('active', maker);
-  document.getElementById('modLayoutBtn').classList.toggle('active', !maker);
-  document.getElementById('grp-page').style.display=maker?'none':'flex';
-  if(maker && mkMap) setTimeout(()=>mkMap.invalidateSize(), 60);
-  if(!maker){ canvas.calcOffset(); canvas.renderAll(); }
-  positionEmbedFrames();
+  return url;
 }
-document.getElementById('modMakerBtn').onclick=()=>switchModule('maker');
-document.getElementById('modLayoutBtn').onclick=()=>switchModule('layout');
-document.getElementById('btnHelp').onclick=()=>openModal('modal-help');
+function layoutPdfBlob(dpi){
+  const {jsPDF}=window.jspdf;
+  const {wIn,hIn}=currentPageDims();
+  const doc=new jsPDF({orientation:wIn>hIn?'landscape':'portrait', unit:'in', format:[wIn,hIn]});
+  doc.addImage(layoutDataURL(dpi),'PNG',0,0,wIn,hIn);
+  return doc.output('blob');
+}
+function dataURLtoBlob(dataURL){
+  const parts=dataURL.split(',');
+  const bin=atob(parts[1]);
+  const arr=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:'image/png'});
+}
+function captureMakerMap(){
+  return new Promise((res,rej)=>{
+    const wasHidden=document.getElementById('module-maker').classList.contains('hidden');
+    if(wasHidden) switchModule('maker');
+    if(projActive){
+      /* projected view: capture the projection canvas; no world file (not a supported CRS) */
+      setTimeout(()=>{
+        res({dataURL:document.getElementById('projCanvas').toDataURL('image/png'), pgw:null});
+      }, wasHidden?350:80);
+      return;
+    }
+    setTimeout(()=>{
+      const mapEl=document.getElementById('mk-map');
+      mapEl.classList.add('capturing');
+      mkMap.closePopup();
+      const b=mkMap.getBounds();
+      const nw=L.CRS.EPSG3857.project(b.getNorthWest());
+      const se=L.CRS.EPSG3857.project(b.getSouthEast());
+      const size=mkMap.getSize();
+      html2canvas(mapEl,{useCORS:true, scale:2, logging:false}).then(snap=>{
+        mapEl.classList.remove('capturing');
+        const wpx=size.x*2, hpx=size.y*2;
+        const pxW=(se.x-nw.x)/wpx;
+        const pxH=(se.y-nw.y)/hpx; /* negative */
+        const pgw=[pxW,0,0,pxH, nw.x+pxW/2, nw.y+pxH/2].map(v=>String(v)).join('\n');
+        res({dataURL:snap.toDataURL('image/png'), pgw});
+      }).catch(err=>{ mapEl.classList.remove('capturing'); rej(err); });
+    }, wasHidden?350:80);
+  });
+}
+function layersToZip(zip, folder){
+  mkLayers.forEach(l=>{
+    const fc={type:'FeatureCollection', features:l.geojson.features.map(f=>({type:'Feature', properties:Object.assign({},f.properties||{}), geometry:f.geometry}))};
+    const fname=l.name.replace(/[^a-z0-9\-_]+/gi,'_')+'.geojson';
+    (folder||zip).file(fname, JSON.stringify(fc));
+  });
+}
+document.getElementById('doExportBtn').onclick=()=>{
+  const fmt=document.getElementById('exportFormat').value;
+  const name=(document.getElementById('exportName').value||'my-map').replace(/[^a-z0-9\-_]+/gi,'-');
+  const dpi=parseInt(document.getElementById('exportDPI').value,10)||300;
+  closeModal('modal-export');
+  if(fmt==='png'){
+    downloadBlob(name+'.png', dataURLtoBlob(layoutDataURL(dpi)));
+    toast('Exported.');
+  } else if(fmt==='pdf'){
+    downloadBlob(name+'.pdf', layoutPdfBlob(dpi));
+    toast('Exported.');
+  } else if(fmt==='mapimg'){
+    toast('Capturing map…');
+    captureMakerMap().then(({dataURL, pgw})=>{
+      if(!pgw){
+        downloadBlob(name+'_projected.png', dataURLtoBlob(dataURL));
+        toast('Projected map exported as PNG (world files only apply to the Web Mercator view).', 4500);
+        return;
+      }
+      const zip=new JSZip();
+      zip.file(name+'.png', dataURLtoBlob(dataURL));
+      zip.file(name+'.pgw', pgw);
+      zip.file(name+'_projection.txt','Georeferencing: world file ('+name+'.pgw), coordinates in Web Mercator (EPSG:3857).\nIn your GIS software, assign EPSG:3857 to the image when adding it.');
+      zip.generateAsync({type:'blob'}).then(blob=>{ downloadBlob(name+'_georef.zip', blob); toast('Georeferenced map exported.'); });
+    }).catch(err=>toast('Capture failed: '+err.message+'. Try a different basemap.', 4500));
+  } else if(fmt==='layerszip'){
+    if(!mkLayers.length){ toast('This project has no layers.'); return; }
+    const zip=new JSZip();
+    layersToZip(zip);
+    zip.generateAsync({type:'blob'}).then(blob=>{ downloadBlob(name+'_layers.zip', blob); toast(mkLayers.length+' layers exported.'); });
+  } else if(fmt==='archive'){
+    toast('Building archive…');
+    const zip=new JSZip();
+    zip.file(name+'_layout.pdf', layoutPdfBlob(dpi));
+    zip.file(name+'_layout.png', dataURLtoBlob(layoutDataURL(dpi)));
+    if(mkLayers.length) layersToZip(zip, zip.folder('layers'));
+    const rec=serializeCurrentProject();
+    const usedIds=Array.from(new Set(mkLayers.map(l=>l.datasetId).filter(Boolean)));
+    zip.file(name+'.cartoproj.json', JSON.stringify({version:4, app:'carto-studio', project:rec,
+      datasets: usedIds.map(did=>{ const d=datasetById(did); return d?{id:d.id, name:d.name, geom:d.geom, geojson:d.geojson, derived:d.derived}:null; }).filter(Boolean)}));
+    zip.generateAsync({type:'blob'}).then(blob=>{ downloadBlob(name+'_archive.zip', blob); toast('Project archive exported.'); });
+  }
+};
 
 /* ---------- boot ---------- */
 initCanvas();
 initMakerMap();
-switchModule('maker');
-setInterval(autosave, 30000);
-pushHistory();
 
-(function tryRestore(){
-  let saved=null;
-  try{ saved=localStorage.getItem(AUTOSAVE_KEY); }catch(_){}
-  if(saved){
+idbOpen().then(async ()=>{
+  projectsCache=await idbAll('projects');
+  datasetsCache=await idbAll('datasets');
+  /* migrate a legacy localStorage session, once */
+  let legacy=null;
+  try{ legacy=localStorage.getItem(AUTOSAVE_KEY); }catch(_){}
+  if(legacy){
     try{
-      const data=JSON.parse(saved);
-      const hasContent=(data.canvasJSON&&data.canvasJSON.objects&&data.canvasJSON.objects.length)||(data.maker&&data.maker.layers&&data.maker.layers.length);
-      if(hasContent && window.confirm('Restore your previous unsaved session?')) loadProjectData(data);
+      const data=JSON.parse(legacy);
+      const hasContent=(data.canvasJSON&&data.canvasJSON.objects&&data.canvasJSON.objects.length)||((data.maker||{}).layers||[]).length;
+      if(hasContent){
+        const rec={id:uid(), name:uniqueProjectName('Recovered session'), created:Date.now(), modified:Date.now(),
+          thumbnail:null, page:data.page||{size:'letter',orientation:'portrait'},
+          canvasJSON:data.canvasJSON||{version:'5.3.0',objects:[]},
+          maker:{basemap:(data.maker||{}).basemap||'esri-gray', view:(data.maker||{}).view||null, layers:[]}};
+        ((data.maker||{}).layers||[]).forEach(sl=>{
+          if(!sl.geojson) return;
+          const ds=registerDataset(sl.geojson, sl.name||'layer', sl.geom||'point', {});
+          rec.maker.layers.push({name:sl.name, geom:sl.geom, visible:sl.visible, opacity:sl.opacity,
+            style:sl.style, labels:sl.labels, filter:sl.filter, datasetId:ds.id});
+        });
+        projectsCache.push(rec);
+        idbPut('projects', rec);
+      }
     }catch(_){}
+    try{ localStorage.removeItem(AUTOSAVE_KEY); }catch(_){}
   }
-})();
+  renderProjectSwitcher();
+  if(projectsCache.length){
+    switchModule('home');
+  } else {
+    const rec=await createProject('My first project');
+    renderProjectSwitcher();
+    openProject(rec.id);
+  }
+}).catch(err=>{
+  console.error(err);
+  toast('Browser storage unavailable — you can still work, but save project files manually via Export.', 5000);
+  createProjectFallback();
+});
+function createProjectFallback(){
+  currentProjectId=uid();
+  projectsCache=[{id:currentProjectId, name:'Untitled project', created:Date.now(), modified:Date.now(),
+    thumbnail:null, page:{size:'letter',orientation:'portrait'}, canvasJSON:{objects:[]}, maker:{basemap:'esri-gray', view:null, layers:[]}}];
+  renderProjectSwitcher();
+  switchModule('maker');
+}
+
+setInterval(()=>{
+  if(currentProjectId && document.getElementById('module-home').classList.contains('hidden')){
+    saveCurrentProject(false);
+  }
+}, 20000);
+window.addEventListener('beforeunload', ()=>{ if(currentProjectId) saveCurrentProject(false); });
+
+/* mark edits dirty for quicker autosave */
+canvas.on('object:modified', markProjectDirty);
+canvas.on('object:added', ()=>{ if(!restoring) markProjectDirty(); });
+canvas.on('object:removed', ()=>{ if(!restoring) markProjectDirty(); });
 
 })();
 </script>
+<script data-goatcounter="https://jcinnamon.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </body>
 </html>
