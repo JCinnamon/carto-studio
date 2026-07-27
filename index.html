@@ -41,18 +41,32 @@
 
   /* ---------- Map Maker module ---------- */
   #module-maker{display:flex;}
-  #mk-left{width:250px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;}
+  #mk-left{width:250px;min-width:190px;max-width:480px;position:relative;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;}
   #mk-left .sec{padding:11px 12px;border-bottom:1px solid var(--line);}
   #mk-left h3, .rp h3, .tabcontent h3{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 7px;}
+  .panel-resize-handle{position:absolute;top:0;right:-3px;width:6px;height:100%;cursor:col-resize;z-index:25;}
+  .panel-resize-handle:hover,.panel-resize-handle.dragging{background:var(--teal);opacity:.5;}
   #mk-layerlist{flex:1;overflow-y:auto;padding:9px 10px;}
-  .mk-layer{border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:#fafbfd;padding:6px 7px;}
-  .mk-layer.sel{border-color:var(--teal);background:#eaf6f5;}
-  .mk-layer .top{display:flex;align-items:center;gap:5px;}
-  .mk-layer .nm{flex:1;font-size:12px;font-weight:600;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mk-layer{border:1px solid var(--line);border-radius:6px;margin-bottom:7px;background:#fafbfd;padding:7px 8px;}
+  .mk-layer.sel{border-color:var(--teal);background:#eaf6f5;box-shadow:0 0 0 1px var(--teal) inset;}
+  .mk-layer .top{display:flex;align-items:center;gap:6px;}
+  .mk-layer .nm{flex:1;font-size:12.5px;font-weight:700;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .mk-layer .geom{font-size:9.5px;color:var(--muted);background:#eceff5;border-radius:3px;padding:1px 4px;}
-  .mk-layer .ops{display:flex;gap:1px;margin-top:4px;flex-wrap:wrap;}
-  .mk-layer .ops button{border:none;background:none;font-size:11px;padding:2px 4px;color:var(--muted);border-radius:3px;}
+  .mk-layer .badge-active{font-size:8.5px;font-weight:800;letter-spacing:.04em;color:#fff;background:var(--teal);border-radius:3px;padding:2px 5px;}
+  .mk-layer .ops{display:flex;gap:2px;margin-top:6px;flex-wrap:wrap;}
+  .mk-layer .ops button{border:none;background:none;font-size:13px;padding:4px 6px;color:var(--muted);border-radius:4px;line-height:1;}
   .mk-layer .ops button:hover{background:#e4e9f2;color:var(--text);}
+  #fieldsList{max-height:52vh;overflow-y:auto;}
+  #fieldsList table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  #fieldsList th{background:var(--navy);color:#fff;text-align:left;padding:6px 9px;font-size:11.5px;position:sticky;top:0;}
+  #fieldsList td{padding:5px 9px;border-bottom:1px solid #eef1f6;}
+  #fieldsList td.ftype{color:var(--muted);font-size:11px;}
+  #geoSearchWrap{position:relative;}
+  #geoSearchInput{width:190px;padding:4px 7px;border:1px solid var(--line);border-radius:5px;font-size:12px;}
+  #geoResults{position:absolute;top:100%;left:0;width:290px;background:#fff;border:1px solid var(--line);border-radius:6px;
+    box-shadow:0 6px 20px rgba(20,30,60,.18);z-index:60;max-height:250px;overflow-y:auto;margin-top:3px;}
+  #geoResults button{display:block;width:100%;text-align:left;background:none;border:none;padding:7px 10px;font-size:12px;border-bottom:1px solid #f0f3f7;}
+  #geoResults button:hover{background:#eef4f3;}
   #mk-center{flex:1;display:flex;flex-direction:column;min-width:0;}
   #mk-toolbar{display:flex;gap:7px;align-items:center;padding:7px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap;}
   #mk-map{flex:1;background:#dde3ea;}
@@ -98,8 +112,8 @@
   .home-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px;}
   .home-head h2{margin:0;font-size:22px;color:var(--navy);}
   .home-tabs{display:flex;gap:4px;margin:16px 0 18px;border-bottom:1px solid var(--line);}
-  .home-tab{background:none;border:none;padding:9px 16px;font-size:13px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;}
-  .home-tab.active{color:var(--navy);border-bottom-color:var(--teal);}
+  .home-tab,.online-tab{background:none;border:none;padding:9px 16px;font-size:13px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;}
+  .home-tab.active,.online-tab.active{color:var(--navy);border-bottom-color:var(--teal);}
   .home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;}
   .proj-card{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;transition:box-shadow .15s;}
   .proj-card:hover{box-shadow:0 4px 16px rgba(20,30,60,.14);border-color:#b9c4d6;}
@@ -261,14 +275,13 @@
   <aside id="mk-left">
     <div class="sec">
       <div class="add-menu">
-        <button class="btn" id="mkAddMenuBtn" style="width:100%;justify-content:center;">+ Add data ▾</button>
+        <button class="btn" id="mkAddMenuBtn" style="width:100%;justify-content:center;" title="Upload GeoJSON, CSV, or a zipped shapefile — or fetch from online sources. Drag &amp; drop onto the map also works.">+ Add data ▾</button>
         <div class="add-menu-list hidden" id="mkAddMenuList">
           <button id="mkAddUpload">⬆ Upload files…</button>
           <button id="mkAddLibrary">▤ From my library…</button>
           <button id="mkAddOnline">🌐 Online sources…</button>
         </div>
       </div>
-      <div class="kv" style="margin-top:6px;">GeoJSON, CSV (lat/long), or zipped shapefile — or fetch from online sources. Drag &amp; drop onto the map also works. Everything you add lands in your data library for reuse across projects.</div>
     </div>
     <div class="sec">
       <h3>Basemap</h3>
@@ -321,23 +334,30 @@
         </div>
         <div class="checkline"><input type="checkbox" id="projGraticule" checked><label for="projGraticule" style="margin:0;color:var(--text);">Graticule</label></div>
         <div class="checkline"><input type="checkbox" id="projSphere" checked><label for="projSphere" style="margin:0;color:var(--text);">World land backdrop &amp; sphere outline</label></div>
-        <button class="btn small secondary" id="projFitBtn" style="width:100%;justify-content:center;">Fit to my data</button>
-        <div class="kv" style="margin-top:6px;">Projected view shows your vector layers only (raster basemaps can't be reprojected in the browser). Editing tools still work; switch back to Web Mercator for basemaps.</div>
+        <div class="row2">
+          <div class="field"><button class="btn small secondary" id="projFitBtn" style="width:100%;justify-content:center;">Fit to data</button></div>
+          <div class="field"><button class="btn small light" id="projFitWorldBtn" style="width:100%;justify-content:center;">Fit to world</button></div>
+        </div>
+        <div class="kv" style="margin-top:2px;">Scroll to zoom, drag to pan. On globe and azimuthal projections, dragging rotates the globe. Raster basemaps can't be reprojected in the browser, so they hide while a projection is active.</div>
       </div>
     </div>
     <div class="sec" style="border-bottom:none;padding-bottom:4px;"><h3>Layers</h3></div>
     <div id="mk-layerlist"><div class="empty-hint">No layers yet. Click “+ Add data” to upload a dataset.</div></div>
+    <div id="mkLeftResize" class="panel-resize-handle" title="Drag to resize"></div>
   </aside>
 
   <div id="mk-center">
     <div id="mk-toolbar">
-      <button class="btn light small" id="mkToggleLeft" title="Collapse/expand layers panel">⟨ Layers</button>
-      <button class="btn light small" id="mkTableBtn">▦ Attribute table</button>
+      <button class="btn light small" id="mkToggleLeft" title="Show or hide the layers panel">⟨ Hide Layers</button>
       <button class="btn light small" id="mkSpatialBtn">⬡ Spatial tools</button>
+      <span id="geoSearchWrap">
+        <input type="text" id="geoSearchInput" placeholder="🔍 Go to place…" autocomplete="off">
+        <div id="geoResults" class="hidden"></div>
+      </span>
       <span style="flex:1"></span>
       <span class="kv" id="mkStatus"></span>
       <button class="btn small" id="mkSendBtn">Send to Layout ▸</button>
-      <button class="btn light small" id="mkToggleRight" title="Collapse/expand style panel">Style ⟩</button>
+      <button class="btn light small" id="mkToggleRight" title="Show or hide the style panel">Hide Menu ⟩</button>
     </div>
     <div id="mk-map"></div>
     <div id="mk-proj" class="hidden">
@@ -389,7 +409,7 @@
   </main>
 
   <aside id="rightpanel">
-    <button id="loPanelToggle" title="Collapse/expand panel">⟩</button>
+    <button id="loPanelToggle" title="Hide menu">Hide Menu ⟩</button>
     <div class="tabs" id="lo-tabs">
       <button class="tab-btn active" data-tab="props">Properties</button>
       <button class="tab-btn" data-tab="layers">Layers</button>
@@ -489,6 +509,15 @@
     <div id="tblFilterWrap" class="hidden"></div>
     <div id="attr-table-wrap"><table id="attr-table"></table></div>
     <div class="modal-close-row"><button class="btn" onclick="closeModal('modal-table')">Close</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-fields">
+  <div class="modal">
+    <h2 id="fieldsTitle">Fields</h2>
+    <p class="kv" id="fieldsSummary"></p>
+    <div id="fieldsList"></div>
+    <div class="modal-close-row"><button class="btn" onclick="closeModal('modal-fields')">Close</button></div>
   </div>
 </div>
 
@@ -608,6 +637,7 @@
         <optgroup label="Layout page">
           <option value="pdf">Layout — PDF (print-ready)</option>
           <option value="png">Layout — PNG image</option>
+          <option value="svg">Layout — SVG (vector, editable in Illustrator/Inkscape)</option>
         </optgroup>
         <optgroup label="Map & data">
           <option value="mapimg">Map Maker view — georeferenced PNG + world file (zip)</option>
@@ -636,10 +666,10 @@
   <div class="modal wide">
     <h2>Add data from online sources</h2>
     <div class="home-tabs" style="margin:0 0 14px;">
-      <button class="online-tab home-tab active" data-t="ne">World base data</button>
-      <button class="online-tab home-tab" data-t="osm">OpenStreetMap</button>
-      <button class="online-tab home-tab" data-t="portal">Open data portals</button>
-      <button class="online-tab home-tab" data-t="url">From URL</button>
+      <button class="online-tab active" data-t="ne">World base data</button>
+      <button class="online-tab" data-t="osm">OpenStreetMap</button>
+      <button class="online-tab" data-t="portal">Open data portals</button>
+      <button class="online-tab" data-t="url">From URL</button>
     </div>
 
     <div id="online-ne">
@@ -822,6 +852,44 @@ function download(filename, text, mime){
 }
 function clone(o){ return JSON.parse(JSON.stringify(o)); }
 
+/* ---------- shared typography ---------- */
+const SYSTEM_FONTS=[
+  ['Georgia, serif','Georgia'],
+  ["'Times New Roman', Times, serif",'Times New Roman'],
+  ["Garamond, 'EB Garamond', serif",'Garamond'],
+  ["'Palatino Linotype', Palatino, serif",'Palatino'],
+  ['Arial, Helvetica, sans-serif','Arial'],
+  ["'Helvetica Neue', Helvetica, sans-serif",'Helvetica'],
+  ['Verdana, sans-serif','Verdana'],
+  ['Tahoma, sans-serif','Tahoma'],
+  ["'Trebuchet MS', sans-serif",'Trebuchet MS'],
+  ["'Courier New', Courier, monospace",'Courier New'],
+  ['Impact, sans-serif','Impact']
+];
+const GOOGLE_FONTS=[
+  ['Lato','Lato'],['Montserrat','Montserrat'],['Merriweather','Merriweather'],
+  ['Playfair Display','Playfair Display'],['Source Sans 3','Source Sans 3'],
+  ['Source Serif 4','Source Serif 4'],['Open Sans','Open Sans'],
+  ['Roboto Slab','Roboto Slab'],['Oswald','Oswald'],['Nunito','Nunito']
+];
+let googleFontsLoaded=false;
+function ensureGoogleFonts(){
+  if(googleFontsLoaded) return;
+  googleFontsLoaded=true;
+  const fams=GOOGLE_FONTS.map(f=>f[0].replace(/ /g,'+')+':wght@400;700').join('&family=');
+  const l=document.createElement('link');
+  l.rel='stylesheet';
+  l.href='https://fonts.googleapis.com/css2?family='+fams+'&display=swap';
+  document.head.appendChild(l);
+}
+function fontOptionsHtml(selected){
+  const sysOpts=SYSTEM_FONTS.map(f=>'<option value="'+esc(f[0])+'" '+(selected===f[0]?'selected':'')+'>'+esc(f[1])+'</option>').join('');
+  const gOpts=GOOGLE_FONTS.map(f=>'<option value="'+esc(f[0])+'" '+(selected===f[0]?'selected':'')+'>'+esc(f[1])+'</option>').join('');
+  return '<optgroup label="System fonts (always available)">'+sysOpts+'</optgroup>'+
+         '<optgroup label="Web fonts (need internet)">'+gOpts+'</optgroup>';
+}
+function isGoogleFont(f){ return GOOGLE_FONTS.some(g=>g[0]===f); }
+
 /* ================= MAP MAKER ================= */
 const RAMPS = {
   sequential: ['Blues','Greens','Oranges','Purples','Reds','YlOrRd','YlGnBu','PuBuGn','BuPu','Viridis'],
@@ -848,9 +916,10 @@ function defaultStyle(geom){
     color: geom==='polygon' ? '#7fb2d9' : geom==='line' ? '#3a4a72' : '#2f7d78',
     fillOpacity: geom==='polygon' ? 0.75 : 0.85,
     strokeColor:'#555555', strokeWeight: geom==='line' ? 2.5 : 1, dash:'',
-    radius:6, minR:4, maxR:22, sizeScale:'sqrt', catMap:{}};
+    radius:6, minR:4, maxR:22, sizeScale:'sqrt', catMap:{}, topN:12, otherColor:'#bdc3cc'};
 }
-function defaultLabels(){ return {enabled:false, field:null, size:11, color:'#22293a', halo:true}; }
+function defaultLabels(){ return {enabled:false, field:null, size:11, color:'#22293a', halo:true,
+  font:'Arial, Helvetica, sans-serif', bold:true, italic:false}; }
 
 function geomOf(gj){
   const f=(gj.features||[]).find(f=>f.geometry);
@@ -861,20 +930,40 @@ function geomOf(gj){
   return 'point';
 }
 function fieldsOf(lyr){
+  /* scan every feature so late-appearing fields are never missed */
+  if(lyr._fieldsCache && lyr._fieldsCacheN===(lyr.geojson.features||[]).length) return lyr._fieldsCache;
   const s=new Set();
-  (lyr.geojson.features||[]).slice(0,80).forEach(f=>Object.keys(f.properties||{}).forEach(k=>s.add(k)));
-  return Array.from(s);
+  (lyr.geojson.features||[]).forEach(f=>Object.keys(f.properties||{}).forEach(k=>s.add(k)));
+  lyr._fieldsCache=Array.from(s);
+  lyr._fieldsCacheN=(lyr.geojson.features||[]).length;
+  return lyr._fieldsCache;
 }
+function invalidateFieldCache(lyr){ lyr._fieldsCache=null; lyr._fieldsCacheN=-1; }
 function numericFieldsOf(lyr){
+  const feats=lyr.geojson.features||[];
+  const sample=feats.length>4000? feats.filter((_,i)=>i%Math.ceil(feats.length/4000)===0) : feats;
   return fieldsOf(lyr).filter(k=>{
     let n=0,ok=0;
-    for(const f of (lyr.geojson.features||[]).slice(0,60)){
+    for(const f of sample){
       const v=(f.properties||{})[k];
       if(v==null||v==='') continue;
       n++; if(typeof v==='number'||(!isNaN(parseFloat(v))&&isFinite(v))) ok++;
     }
     return n>0 && ok/n>0.8;
   });
+}
+function fieldTypeOf(lyr, k){
+  const feats=lyr.geojson.features||[];
+  const sample=feats.length>2000? feats.filter((_,i)=>i%Math.ceil(feats.length/2000)===0) : feats;
+  let n=0, num=0, filled=0;
+  sample.forEach(f=>{
+    const v=(f.properties||{})[k];
+    if(v==null||v==='') return;
+    filled++; n++;
+    if(typeof v==='number'||(!isNaN(parseFloat(v))&&isFinite(v))) num++;
+  });
+  const pct=sample.length? Math.round(filled/sample.length*100) : 0;
+  return {type: (n>0 && num/n>0.8)?'number':'text', filledPct:pct};
 }
 
 function initMakerMap(){
@@ -910,8 +999,8 @@ function togglePanel(id, btnId, openLabel, closedLabel){
   document.getElementById(btnId).textContent = p.classList.contains('collapsed') ? closedLabel : openLabel;
   setTimeout(()=>{ if(mkMap) mkMap.invalidateSize(); }, 220);
 }
-document.getElementById('mkToggleLeft').onclick=()=>togglePanel('mk-left','mkToggleLeft','⟨ Layers','⟩ Layers');
-document.getElementById('mkToggleRight').onclick=()=>togglePanel('mk-right','mkToggleRight','Style ⟩','Style ⟨');
+document.getElementById('mkToggleLeft').onclick=()=>togglePanel('mk-left','mkToggleLeft','⟨ Hide Layers','⟩ Show Layers');
+document.getElementById('mkToggleRight').onclick=()=>togglePanel('mk-right','mkToggleRight','Hide Menu ⟩','Show Menu ⟨');
 
 /* ---------- add-data menu ---------- */
 const addMenuList=document.getElementById('mkAddMenuList');
@@ -1087,24 +1176,39 @@ function classColor(lyr, v){
   for(let i=0;i<b.length-1;i++){ if(v<=b[i+1]) return lyr._colors[i]; }
   return lyr._colors[lyr._colors.length-1];
 }
+const OTHER_KEY='__other__';
 function computeCategories(lyr){
   const st=lyr.style;
-  const seen=[];
+  /* count every feature so nothing is missed, then colour the top N by frequency */
+  const counts=new Map();
   for(const f of visibleFeatures(lyr)){
     const v=(f.properties||{})[st.field];
-    if(v==null) continue;
+    if(v==null||v==='') continue;
     const key=String(v);
-    if(!seen.includes(key)) seen.push(key);
-    if(seen.length>30) break;
+    counts.set(key, (counts.get(key)||0)+1);
   }
-  seen.sort();
+  const all=Array.from(counts.entries()).sort((a,b)=> b[1]-a[1] || a[0].localeCompare(b[0]));
+  const topN=Math.max(1, Math.min(st.topN||12, all.length));
+  const top=all.slice(0,topN).map(e=>e[0]);
+  const rest=all.slice(topN);
+  const sortedTop=top.slice().sort((a,b)=>a.localeCompare(b));
   const ramp=chroma.brewer[st.ramp && RAMPS.qualitative.includes(st.ramp) ? st.ramp : 'Set2'];
-  seen.forEach((v,i)=>{ if(!st.catMap[v]) st.catMap[v]=ramp[i%ramp.length]; });
-  lyr._cats=seen;
+  sortedTop.forEach((v,i)=>{ if(!st.catMap[v]) st.catMap[v]=ramp[i%ramp.length]; });
+  if(!st.catMap[OTHER_KEY]) st.catMap[OTHER_KEY]=st.otherColor||'#bdc3cc';
+  lyr._cats=sortedTop;
+  lyr._catCounts=counts;
+  lyr._catTotal=all.length;
+  lyr._catOtherCount=rest.reduce((s,e)=>s+e[1],0);
+  lyr._catOtherN=rest.length;
 }
 function catColor(lyr, f){
-  const v=(f.properties||{})[lyr.style.field];
-  return (v!=null && lyr.style.catMap[String(v)]) || '#bbbbbb';
+  const st=lyr.style;
+  const v=(f.properties||{})[st.field];
+  if(v==null||v==='') return '#dddddd';
+  const key=String(v);
+  if(st.catMap[key] && (lyr._cats||[]).includes(key)) return st.catMap[key];
+  if(lyr._catOtherN) return st.catMap[OTHER_KEY]||'#bdc3cc';
+  return st.catMap[key]||'#bbbbbb';
 }
 function sizeRange(lyr){
   const vals=visibleFeatures(lyr).map(f=>valueOf(lyr,f)).filter(v=>isFinite(v));
@@ -1170,16 +1274,20 @@ function updateLabelCss(lyr){
   if(!el){ el=document.createElement('style'); el.id=id; document.head.appendChild(el); }
   const lb=lyr.labels;
   const halo = lb.halo ? 'text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;' : '';
-  el.textContent='.mk-label-'+lyr.id+'{background:none;border:none;box-shadow:none;font-size:'+lb.size+'px;color:'+lb.color+';font-weight:600;'+halo+'}';
+  const fam = lb.font ? 'font-family:'+lb.font+';' : '';
+  el.textContent='.mk-label-'+lyr.id+'{background:none;border:none;box-shadow:none;font-size:'+lb.size+'px;color:'+lb.color+';'
+    +'font-weight:'+(lb.bold?'700':'400')+';font-style:'+(lb.italic?'italic':'normal')+';'+fam+halo+'}';
+  if(isGoogleFont(lb.font)) ensureGoogleFonts();
 }
 function renderAllMakerLayers(){
   mkLayers.slice().reverse().forEach(l=>renderLayer(l));
 }
 function updateMkStatus(){
   const lyr=selectedLayer();
-  if(!lyr){ document.getElementById('mkStatus').textContent=''; return; }
+  const el=document.getElementById('mkStatus');
+  if(!lyr){ el.textContent=''; return; }
   const total=lyr.geojson.features.length, vis=visibleFeatures(lyr).length;
-  document.getElementById('mkStatus').textContent=lyr.name+': '+vis+' of '+total+' features shown';
+  el.innerHTML='<b>Current layer:</b> '+esc(lyr.name)+' — '+vis+' of '+total+' features shown';
 }
 
 /* ---------- layer list UI ---------- */
@@ -1191,13 +1299,15 @@ function renderMakerLayerList(){
       <div class="top">
         <input type="checkbox" ${l.visible?'checked':''} data-act="vis" title="Show/hide">
         <span class="nm" title="${esc(l.name)}">${esc(l.name)}</span>
-        <span class="geom">${l.geom}</span>
+        ${l.id===mkSelectedId?'<span class="badge-active">ACTIVE</span>':'<span class="geom">'+l.geom+'</span>'}
       </div>
       <div class="ops">
-        <button data-act="zoom" title="Zoom to layer">🔍</button>
-        <button data-act="rename" title="Rename">✏️</button>
+        <button data-act="table" title="Open the attribute table for this layer">▦</button>
+        <button data-act="fields" title="List this layer's fields">≡</button>
         <button data-act="up" title="Move up">↑</button>
         <button data-act="down" title="Move down">↓</button>
+        <button data-act="zoom" title="Zoom to layer">🔍</button>
+        <button data-act="rename" title="Rename">✏️</button>
         <button data-act="dup" title="Duplicate">⧉</button>
         <button data-act="exp" title="Export layer (GeoJSON/CSV)">⬇</button>
         <button data-act="del" title="Remove">✕</button>
@@ -1207,13 +1317,23 @@ function renderMakerLayerList(){
     const id=item.getAttribute('data-id');
     item.querySelector('.nm').onclick=()=>{ mkSelectedId=id; renderMakerLayerList(); renderMakerPanels(); updateMkStatus(); };
     item.querySelector('[data-act=vis]').onchange=(ev)=>{
-      const l=mkLayers.find(x=>x.id===id); l.visible=ev.target.checked; renderLayer(l);
+      const l=mkLayers.find(x=>x.id===id);
+      l.visible=ev.target.checked;
+      renderLayer(l);
+      if(projActive) renderProjection();
     };
     item.querySelectorAll('button').forEach(btn=>{
       btn.onclick=()=>{
         const i=mkLayers.findIndex(x=>x.id===id); const l=mkLayers[i];
         const act=btn.getAttribute('data-act');
-        if(act==='zoom'){ try{ mkMap.fitBounds(L.geoJSON(l.geojson).getBounds(),{padding:[20,20]}); }catch(_){}}
+        if(act==='table'){ mkSelectedId=id; renderMakerLayerList(); renderMakerPanels(); updateMkStatus(); openAttrTable(); }
+        if(act==='fields'){ mkSelectedId=id; renderMakerLayerList(); renderMakerPanels(); updateMkStatus(); openFieldsModal(l); }
+        if(act==='zoom'){
+          try{
+            if(projActive){ projFitToData(); }
+            else mkMap.fitBounds(L.geoJSON(l.geojson).getBounds(),{padding:[20,20]});
+          }catch(_){}
+        }
         if(act==='rename'){ const n=window.prompt('Layer name:', l.name); if(n){ l.name=n; renderMakerLayerList(); renderMakerPanels(); } }
         if(act==='up'&&i>0){ mkLayers.splice(i,1); mkLayers.splice(i-1,0,l); reorderAll(); }
         if(act==='down'&&i<mkLayers.length-1){ mkLayers.splice(i,1); mkLayers.splice(i+1,0,l); reorderAll(); }
@@ -1238,6 +1358,37 @@ function reorderAll(){
   mkLayers.forEach(l=>{ if(l.leaflet){ mkMap.removeLayer(l.leaflet); l.leaflet=null; } });
   renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
 }
+
+/* ---------- resizable Layers panel ---------- */
+(function(){
+  const MK_LEFT_W_KEY='cartoStudio_mkLeftWidth';
+  const left=document.getElementById('mk-left');
+  const handle=document.getElementById('mkLeftResize');
+  if(!left||!handle) return;
+  const saved=parseInt(localStorage.getItem(MK_LEFT_W_KEY),10);
+  if(saved && saved>=190 && saved<=480) left.style.width=saved+'px';
+  let dragging=false, startX=0, startW=0;
+  handle.addEventListener('mousedown', e=>{
+    dragging=true; startX=e.clientX; startW=left.getBoundingClientRect().width;
+    handle.classList.add('dragging');
+    document.body.style.userSelect='none';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const w=Math.max(190, Math.min(480, startW + (e.clientX-startX)));
+    left.style.width=w+'px';
+    if(mkMap) mkMap.invalidateSize();
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(!dragging) return;
+    dragging=false;
+    handle.classList.remove('dragging');
+    document.body.style.userSelect='';
+    localStorage.setItem(MK_LEFT_W_KEY, Math.round(left.getBoundingClientRect().width));
+    if(mkMap) mkMap.invalidateSize();
+  });
+})();
 
 /* ---------- layer export (valid GeoJSON / CSV) ---------- */
 function openExportLayer(preselectId){
@@ -1328,8 +1479,12 @@ function renderStyleTab(){
   if(st.mode==='cat'){
     html+=`<div class="field"><label>Category field</label>
       <select id="stField"><option value="">— choose —</option>${fields.map(f=>'<option '+(st.field===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>
-      <div class="field"><label>Colour scheme</label><select id="stRamp">${rampOptions(st.ramp,lyr.geom,'cat')}</select></div>
-      <div id="stCatList"></div>
+      <div class="row2">
+        <div class="field"><label>Colour scheme</label><select id="stRamp">${rampOptions(st.ramp,lyr.geom,'cat')}</select></div>
+        <div class="field" style="max-width:96px;"><label>Show top</label><input type="number" id="stTopN" min="1" max="40" value="${st.topN||12}"></div>
+      </div>
+      <div class="kv" id="stCatInfo"></div>
+      <div id="stCatList" style="max-height:280px;overflow-y:auto;margin-top:6px;"></div>
       <button class="btn small secondary" id="stCatReset">Re-assign colours</button>`;
   }
   if(st.mode==='grad'||st.mode==='gradSize'){
@@ -1408,12 +1563,25 @@ function renderStyleTab(){
   g('stFillOp').oninput=()=>{ st.fillOpacity=+g('stFillOp').value; g('stOpVal').textContent=Math.round(st.fillOpacity*100)+'%'; rerender(); };
   g('stLayerOp').oninput=()=>{ lyr.opacity=+g('stLayerOp').value; g('stLOpVal').textContent=Math.round(lyr.opacity*100)+'%'; rerender(); };
 
+  if(g('stTopN')) g('stTopN').onchange=()=>{ st.topN=Math.max(1,Math.min(40,parseInt(g('stTopN').value)||12)); st.catMap={}; renderStyleTab(); rerender(); };
   if(st.mode==='cat' && st.field){
     computeCategories(lyr);
     const list=g('stCatList');
-    list.innerHTML=(lyr._cats||[]).map(v=>`<div class="cat-row"><input type="color" data-v="${esc(v)}" value="${st.catMap[v]}"><span title="${esc(v)}">${esc(v)}</span></div>`).join('');
+    const counts=lyr._catCounts||new Map();
+    let rows=(lyr._cats||[]).map(v=>`<div class="cat-row"><input type="color" data-v="${esc(v)}" value="${st.catMap[v]}"><span title="${esc(v)}">${esc(v)}</span><span class="kv" style="margin:0;">${counts.get(v)||0}</span></div>`).join('');
+    if(lyr._catOtherN){
+      rows+=`<div class="cat-row"><input type="color" data-v="${OTHER_KEY}" value="${st.catMap[OTHER_KEY]}"><span><i>Other (${lyr._catOtherN} values)</i></span><span class="kv" style="margin:0;">${lyr._catOtherCount}</span></div>`;
+    }
+    list.innerHTML=rows;
+    g('stCatInfo').innerHTML='<b>'+(lyr._catTotal||0)+'</b> unique value'+((lyr._catTotal===1)?'':'s')+' in this field'+
+      (lyr._catOtherN? ' — showing the '+(lyr._cats||[]).length+' most common, rest grouped as “Other”.' : ' — all shown.');
     list.querySelectorAll('input[type=color]').forEach(inp=>{
-      inp.oninput=()=>{ st.catMap[inp.getAttribute('data-v')]=inp.value; rerender(); };
+      inp.oninput=()=>{
+        const k=inp.getAttribute('data-v');
+        st.catMap[k]=inp.value;
+        if(k===OTHER_KEY) st.otherColor=inp.value;
+        rerender();
+      };
     });
     g('stCatReset').onclick=()=>{ st.catMap={}; renderStyleTab(); rerender(); };
   }
@@ -1443,9 +1611,14 @@ function renderLabelsTab(){
     <div class="checkline"><input type="checkbox" id="lbOn" ${lb.enabled?'checked':''}><label for="lbOn" style="margin:0;color:var(--text);">Show labels</label></div>
     <div class="field"><label>Label field</label>
       <select id="lbField"><option value="">— choose —</option>${fields.map(f=>'<option '+(lb.field===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>
+    <div class="field"><label>Typeface</label><select id="lbFont">${fontOptionsHtml(lb.font)}</select></div>
     <div class="row2">
-      <div class="field"><label>Size (px)</label><input type="number" id="lbSize" value="${lb.size}" min="7" max="36"></div>
+      <div class="field"><label>Size (px)</label><input type="number" id="lbSize" value="${lb.size}" min="7" max="48"></div>
       <div class="field"><label>Colour</label><input type="color" id="lbColor" value="${lb.color}"></div>
+    </div>
+    <div class="checkline">
+      <input type="checkbox" id="lbBold" ${lb.bold?'checked':''}><label for="lbBold" style="margin:0;color:var(--text);"><b>Bold</b></label>
+      <input type="checkbox" id="lbItalic" ${lb.italic?'checked':''} style="margin-left:14px;"><label for="lbItalic" style="margin:0;color:var(--text);"><i>Italic</i></label>
     </div>
     <div class="checkline"><input type="checkbox" id="lbHalo" ${lb.halo?'checked':''}><label for="lbHalo" style="margin:0;color:var(--text);">White halo (improves readability)</label></div>
     <div class="kv">Tip: labels work best on a small number of features — filter first if the map gets crowded.</div>`;
@@ -1453,21 +1626,38 @@ function renderLabelsTab(){
   const rl=()=>renderLayer(lyr);
   g('lbOn').onchange=()=>{ lb.enabled=g('lbOn').checked; rl(); };
   g('lbField').onchange=()=>{ lb.field=g('lbField').value||null; rl(); };
+  g('lbFont').onchange=()=>{ lb.font=g('lbFont').value; if(isGoogleFont(lb.font)) ensureGoogleFonts(); rl(); };
   g('lbSize').onchange=()=>{ lb.size=+g('lbSize').value||11; rl(); };
   g('lbColor').oninput=()=>{ lb.color=g('lbColor').value; rl(); };
+  g('lbBold').onchange=()=>{ lb.bold=g('lbBold').checked; rl(); };
+  g('lbItalic').onchange=()=>{ lb.italic=g('lbItalic').checked; rl(); };
   g('lbHalo').onchange=()=>{ lb.halo=g('lbHalo').checked; rl(); };
 }
 
 /* ---------- attribute table (with filter + field calculator) ---------- */
 let attrSort={col:null, asc:true};
-document.getElementById('mkTableBtn').onclick=()=>{
+function openAttrTable(){
   const lyr=selectedLayer();
   if(!lyr){ toast('Select a layer first.'); return; }
   attrSort={col:null, asc:true};
   document.getElementById('tblFilterWrap').classList.add('hidden');
   openModal('modal-table');
   renderAttrTable();
-};
+}
+function openFieldsModal(lyr){
+  if(!lyr) return;
+  const fields=fieldsOf(lyr);
+  document.getElementById('fieldsTitle').textContent='Fields — '+lyr.name;
+  document.getElementById('fieldsSummary').innerHTML='<b>'+fields.length+'</b> field'+(fields.length===1?'':'s')+
+    ' · <b>'+lyr.geojson.features.length.toLocaleString()+'</b> features · geometry: '+lyr.geom;
+  document.getElementById('fieldsList').innerHTML=
+    '<table><tr><th>Field</th><th>Type</th><th>Populated</th></tr>'+
+    fields.map(f=>{
+      const t=fieldTypeOf(lyr,f);
+      return '<tr><td><b>'+esc(f)+'</b></td><td class="ftype">'+t.type+'</td><td class="ftype">'+t.filledPct+'%</td></tr>';
+    }).join('')+'</table>';
+  openModal('modal-fields');
+}
 document.getElementById('attrRespectFilter').onchange=renderAttrTable;
 document.getElementById('tblFilterBtn').onclick=()=>{
   const wrap=document.getElementById('tblFilterWrap');
@@ -1542,6 +1732,7 @@ document.getElementById('calcApplyBtn').onclick=()=>{
       f.properties[name]= (typeof v==='number'&&isFinite(v)) ? +v.toFixed(6) : v;
     }catch(_){ errs++; f.properties[name]=null; }
   });
+  invalidateFieldCache(lyr);
   closeModal('modal-calc');
   renderLayer(lyr); renderMakerPanels();
   if(!document.getElementById('modal-table').classList.contains('hidden')) renderAttrTable();
@@ -1951,6 +2142,7 @@ function legendSpecForLayer(lyr){
   } else if(st.mode==='cat'){
     computeCategories(lyr);
     (lyr._cats||[]).forEach(v=>items.push({color:st.catMap[v], label:v, shape:shp_}));
+    if(lyr._catOtherN) items.push({color:st.catMap[OTHER_KEY], label:'Other', shape:shp_});
   } else if(st.mode==='grad'){
     computeClassification(lyr);
     if(lyr._breaks){
@@ -1969,6 +2161,67 @@ function legendSpecForLayer(lyr){
   let title=lyr.name;
   if(st.field && st.mode!=='single'){ title=lyr.name+' — '+st.field + (st.normField? ' / '+st.normField : ''); }
   return {title, items};
+}
+
+/* ---------- go to location (Nominatim) ---------- */
+const geoInput=document.getElementById('geoSearchInput');
+const geoResults=document.getElementById('geoResults');
+let geoTimer=null;
+function hideGeoResults(){ geoResults.classList.add('hidden'); }
+geoInput.addEventListener('input', ()=>{
+  clearTimeout(geoTimer);
+  const q=geoInput.value.trim();
+  if(q.length<3){ hideGeoResults(); return; }
+  geoTimer=setTimeout(()=>runGeoSearch(q), 450);
+});
+geoInput.addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ clearTimeout(geoTimer); const q=geoInput.value.trim(); if(q.length>=2) runGeoSearch(q); }
+  if(e.key==='Escape') hideGeoResults();
+});
+document.addEventListener('click', e=>{
+  if(!document.getElementById('geoSearchWrap').contains(e.target)) hideGeoResults();
+});
+function runGeoSearch(q){
+  geoResults.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--muted);">Searching…</div>';
+  geoResults.classList.remove('hidden');
+  fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&q='+encodeURIComponent(q))
+    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(list=>{
+      if(!list.length){ geoResults.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--muted);">No places found.</div>'; return; }
+      geoResults.innerHTML=list.map((r,i)=>'<button data-i="'+i+'">'+esc(r.display_name)+'</button>').join('');
+      geoResults.querySelectorAll('button').forEach(btn=>{
+        btn.onclick=()=>{
+          const r=list[+btn.getAttribute('data-i')];
+          goToPlace(r);
+          hideGeoResults();
+        };
+      });
+    })
+    .catch(err=>{
+      geoResults.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--danger);">Search failed: '+esc(err.message)+'</div>';
+    });
+}
+function goToPlace(r){
+  const lat=parseFloat(r.lat), lon=parseFloat(r.lon);
+  if(projActive){
+    document.getElementById('projLon').value=lon.toFixed(3);
+    const def=PROJ_DEFS[projKey];
+    if(def && def.kind!=='world') document.getElementById('projLat').value=lat.toFixed(3);
+    if(r.boundingbox){
+      const bb=r.boundingbox.map(Number);
+      projFitToBounds([lon-Math.max(0.5,(bb[3]-bb[2])/2), lat-Math.max(0.5,(bb[1]-bb[0])/2),
+                       lon+Math.max(0.5,(bb[3]-bb[2])/2), lat+Math.max(0.5,(bb[1]-bb[0])/2)]);
+    } else renderProjection();
+    toast('Centred on '+String(r.display_name).split(',')[0]+'.');
+    return;
+  }
+  if(r.boundingbox){
+    const bb=r.boundingbox.map(Number);
+    mkMap.fitBounds([[bb[0],bb[2]],[bb[1],bb[3]]], {maxZoom:15, padding:[20,20]});
+  } else {
+    mkMap.setView([lat,lon], 12);
+  }
+  toast('Moved to '+String(r.display_name).split(',')[0]+'.');
 }
 
 /* ---------- send to layout ---------- */
@@ -2009,6 +2262,9 @@ document.getElementById('sendGoBtn').onclick=()=>{
 };
 /* ================= PROJECTED PREVIEW (d3-geo) ================= */
 let projActive=false, projKey='mercator-edit', projTimer=null, worldLand=null, worldLandLoading=false;
+/* view state: k = zoom multiplier on the fitted scale, tx/ty = pan offset in px */
+let projView={k:1, tx:0, ty:0, fitTo:'auto'};
+let projLastProjection=null;
 
 const PROJ_DEFS={
   equalEarth:   {label:'Equal Earth',            make:()=>d3.geoEqualEarth(),             kind:'world'},
@@ -2016,15 +2272,22 @@ const PROJ_DEFS={
   winkel3:      {label:'Winkel Tripel',          make:()=>d3.geoWinkel3(),                kind:'world'},
   mollweide:    {label:'Mollweide',              make:()=>d3.geoMollweide(),              kind:'world'},
   mercatorS:    {label:'Mercator',               make:()=>d3.geoMercator(),               kind:'world'},
-  orthographic: {label:'Orthographic',           make:()=>d3.geoOrthographic(),           kind:'rotate'},
+  orthographic: {label:'Orthographic',           make:()=>d3.geoOrthographic().clipAngle(90), kind:'rotate'},
   albersConic:  {label:'Albers Equal-Area',      make:()=>d3.geoConicEqualArea(),         kind:'conic'},
   lambertConic: {label:'Lambert Conformal',      make:()=>d3.geoConicConformal(),         kind:'conic'},
   azimuthalEq:  {label:'Azimuthal Equidistant',  make:()=>d3.geoAzimuthalEquidistant(),   kind:'rotate'},
-  stereographic:{label:'Stereographic',          make:()=>d3.geoStereographic(),          kind:'rotate'},
+  stereographic:{label:'Stereographic',          make:()=>d3.geoStereographic().clipAngle(150), kind:'rotate'},
   gallPeters:   {label:'Gall–Peters',            make:()=>d3.geoCylindricalEqualArea().parallel(45), kind:'world'},
-  goode:        {label:'Goode Homolosine',       make:()=>d3.geoInterruptedHomolosine(),  kind:'world'},
+  goode:        {label:'Goode Homolosine',       make:()=>d3.geoInterruptedHomolosine(),  kind:'world', interrupted:true},
   bonne:        {label:'Bonne',                  make:()=>d3.geoBonne(),                  kind:'world'}
 };
+
+/* Interrupted projections tear polygons that cross a lobe boundary unless the
+   geometry is cut along the antimeridian/interruptions first. d3.geoStitch plus
+   the projection's own preclip handles most of it; we also densify long spans. */
+function prepForInterrupted(geo){
+  try{ return d3.geoStitch(geo); }catch(_){ return geo; }
+}
 
 function projDataFC(){
   const feats=[];
@@ -2067,22 +2330,29 @@ function buildProjection(w, h){
   } else {
     proj.rotate([-lon,0,0]);
   }
-  /* fit */
+
+  /* base fit */
   const pad=18;
   const extent=[[pad,pad],[w-pad,h-pad]];
-  const fc=projDataFC();
   const showSphere=document.getElementById('projSphere').checked;
-  try{
-    if(def.kind==='world' || (def.kind==='rotate' && showSphere && !fc.features.length)){
-      proj.fitExtent(extent, {type:'Sphere'});
-    } else if(fc.features.length){
-      proj.fitExtent(extent, fc);
-    } else {
-      proj.fitExtent(extent, {type:'Sphere'});
-    }
-  }catch(_){
-    try{ proj.fitExtent(extent, {type:'Sphere'}); }catch(__){}
-  }
+  const fc=projDataFC();
+  let fitObj=null;
+  if(projView.fitTo==='world') fitObj={type:'Sphere'};
+  else if(projView.fitTo==='data' && fc.features.length) fitObj=fc;
+  else if(projView.fitBox) fitObj={type:'Polygon', coordinates:[[
+      [projView.fitBox[0],projView.fitBox[1]],[projView.fitBox[2],projView.fitBox[1]],
+      [projView.fitBox[2],projView.fitBox[3]],[projView.fitBox[0],projView.fitBox[3]],
+      [projView.fitBox[0],projView.fitBox[1]]]]};
+  else fitObj = (def.kind==='world' || !fc.features.length) ? {type:'Sphere'} : fc;
+
+  try{ proj.fitExtent(extent, fitObj); }
+  catch(_){ try{ proj.fitExtent(extent, {type:'Sphere'}); }catch(__){} }
+
+  /* apply user zoom/pan on top of the fit */
+  const s=proj.scale(), t=proj.translate();
+  proj.scale(s*projView.k);
+  proj.translate([t[0]*projView.k + (w/2)*(1-projView.k) + projView.tx,
+                  t[1]*projView.k + (h/2)*(1-projView.k) + projView.ty]);
   return proj;
 }
 
@@ -2099,7 +2369,9 @@ function renderProjection(){
   ctx.fillStyle='#ffffff';
   ctx.fillRect(0,0,w,h);
   const proj=buildProjection(w,h);
-  if(!proj){ return; }
+  if(!proj) return;
+  projLastProjection=proj;
+  const def=PROJ_DEFS[projKey];
   const path=d3.geoPath(proj, ctx);
   const showSphere=document.getElementById('projSphere').checked;
   const showGrat=document.getElementById('projGraticule').checked;
@@ -2108,7 +2380,8 @@ function renderProjection(){
     ctx.beginPath(); path({type:'Sphere'});
     ctx.fillStyle='#f2f6fa'; ctx.fill();
     if(worldLand){
-      ctx.beginPath(); path(worldLand);
+      const land=def.interrupted? prepForInterrupted(worldLand) : worldLand;
+      ctx.beginPath(); path(land);
       ctx.fillStyle='#e4e7dd'; ctx.fill();
       ctx.strokeStyle='#cdd2c4'; ctx.lineWidth=0.5; ctx.stroke();
     } else ensureWorldLand();
@@ -2128,16 +2401,17 @@ function renderProjection(){
     const st=lyr.style;
     if(st.mode==='grad'||st.mode==='gradSize'){ computeClassification(lyr); sizeRange(lyr); }
     if(st.mode==='cat') computeCategories(lyr);
-    visibleFeatures(lyr).forEach(f=>{
-      if(!f.geometry) return;
+    visibleFeatures(lyr).forEach(f0=>{
+      if(!f0.geometry) return;
+      const f = def.interrupted && !/Point/.test(f0.geometry.type) ? prepForInterrupted(f0) : f0;
       let color=st.color;
-      if(st.mode==='cat') color=catColor(lyr,f);
-      else if(st.mode==='grad') color=classColor(lyr, valueOf(lyr,f));
-      const gt=f.geometry.type;
+      if(st.mode==='cat') color=catColor(lyr,f0);
+      else if(st.mode==='grad') color=classColor(lyr, valueOf(lyr,f0));
+      const gt=f0.geometry.type;
       try{
         if(/Point/.test(gt)){
           let r=st.radius;
-          if(st.mode==='gradSize') r=gradRadius(lyr, valueOf(lyr,f));
+          if(st.mode==='gradSize') r=gradRadius(lyr, valueOf(lyr,f0));
           path.pointRadius(r);
           ctx.beginPath(); path(f);
           ctx.fillStyle=chroma(color).alpha(st.fillOpacity*lyr.opacity).css();
@@ -2166,26 +2440,54 @@ function renderProjection(){
     });
     /* labels */
     if(lyr.labels.enabled && lyr.labels.field){
-      ctx.font='600 '+lyr.labels.size+'px Arial';
+      const lb=lyr.labels;
+      if(isGoogleFont(lb.font)) ensureGoogleFonts();
+      ctx.font=(lb.italic?'italic ':'')+(lb.bold?'700 ':'400 ')+lb.size+'px '+(lb.font||'Arial');
       ctx.textAlign='center';
       visibleFeatures(lyr).forEach(f=>{
-        const v=(f.properties||{})[lyr.labels.field];
+        const v=(f.properties||{})[lb.field];
         if(v==null) return;
         try{
           const c=turf.center(f).geometry.coordinates;
           const pt=proj(c);
-          if(!pt) return;
-          if(lyr.labels.halo){
+          if(!pt||!isFinite(pt[0])||!isFinite(pt[1])) return;
+          if(pt[0]<-50||pt[1]<-50||pt[0]>w+50||pt[1]>h+50) return;
+          if(lb.halo){
             ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=3;
             ctx.strokeText(String(v), pt[0], pt[1]);
           }
-          ctx.fillStyle=lyr.labels.color;
+          ctx.fillStyle=lb.color;
           ctx.fillText(String(v), pt[0], pt[1]);
         }catch(_){}
       });
     }
   });
-  document.getElementById('projMsg').textContent=PROJ_DEFS[projKey].label+' projection · vector layers only';
+  const zoomPct=Math.round(projView.k*100);
+  document.getElementById('projMsg').textContent=def.label+' · '+zoomPct+'% · scroll to zoom, drag to '+(def.kind==='rotate'?'rotate':'pan');
+}
+
+/* ---------- fit helpers ---------- */
+function projFitToData(){
+  const fc=projDataFC();
+  if(!fc.features.length){ toast('No visible layers to fit to.'); return; }
+  const def=PROJ_DEFS[projKey];
+  if(def && def.kind!=='world'){
+    try{
+      const c=turf.center(fc).geometry.coordinates;
+      document.getElementById('projLon').value=c[0].toFixed(2);
+      document.getElementById('projLat').value=c[1].toFixed(2);
+    }catch(_){}
+  }
+  projView={k:1, tx:0, ty:0, fitTo:'data'};
+  renderProjection();
+}
+function projFitToWorld(){
+  projView={k:1, tx:0, ty:0, fitTo:'world'};
+  renderProjection();
+}
+function projFitToBounds(bbox){
+  projView={k:1, tx:0, ty:0, fitTo:'box', fitBox:bbox};
+  renderProjection();
 }
 
 function setProjectionMode(key){
@@ -2216,6 +2518,7 @@ function setProjectionMode(key){
       }catch(_){}
     }
   }
+  projView={k:1, tx:0, ty:0, fitTo:'auto'};
   renderProjection();
 }
 document.getElementById('mkProjection').addEventListener('change', e=>setProjectionMode(e.target.value));
@@ -2225,11 +2528,60 @@ document.getElementById('mkProjection').addEventListener('change', e=>setProject
 ['projGraticule','projSphere'].forEach(id=>{
   document.getElementById(id).addEventListener('change', scheduleProjRender);
 });
-document.getElementById('projFitBtn').onclick=()=>{
-  /* re-fit is implicit in renderProjection (fitExtent to data) — force data fit by nudging */
-  scheduleProjRender();
-};
+document.getElementById('projFitBtn').onclick=projFitToData;
+document.getElementById('projFitWorldBtn').onclick=projFitToWorld;
 window.addEventListener('resize', ()=>{ if(projActive) scheduleProjRender(); });
+
+/* ---------- pan / zoom / rotate interaction ---------- */
+(function projInteraction(){
+  const el=document.getElementById('mk-proj');
+  let dragging=false, lastX=0, lastY=0;
+
+  el.addEventListener('wheel', e=>{
+    if(!projActive) return;
+    e.preventDefault();
+    /* screen = k*(base - centre) + centre + t   →   keep the point under the
+       cursor fixed:  t' = d - F*(d - t)   where d = cursor - centre, F = k'/k */
+    const rect=el.getBoundingClientRect();
+    const cx=el.clientWidth/2, cy=el.clientHeight/2;
+    const dx=(e.clientX-rect.left)-cx, dy=(e.clientY-rect.top)-cy;
+    const target=Math.max(0.2, Math.min(400, projView.k*(e.deltaY<0?1.15:1/1.15)));
+    const F=target/projView.k;
+    projView.tx = dx - F*(dx - projView.tx);
+    projView.ty = dy - F*(dy - projView.ty);
+    projView.k = target;
+    renderProjection();
+  }, {passive:false});
+
+  el.addEventListener('mousedown', e=>{
+    if(!projActive) return;
+    dragging=true; lastX=e.clientX; lastY=e.clientY;
+    el.style.cursor='grabbing';
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging||!projActive) return;
+    const dx=e.clientX-lastX, dy=e.clientY-lastY;
+    lastX=e.clientX; lastY=e.clientY;
+    const def=PROJ_DEFS[projKey];
+    if(def && def.kind==='rotate'){
+      /* rotate the globe: scale sensitivity with zoom */
+      const lonEl=document.getElementById('projLon'), latEl=document.getElementById('projLat');
+      const sens=0.35/Math.sqrt(projView.k);
+      let lon=(parseFloat(lonEl.value)||0)+dx*sens;
+      let lat=(parseFloat(latEl.value)||0)-dy*sens;
+      lon=((lon+180)%360+360)%360-180;
+      lat=Math.max(-90, Math.min(90, lat));
+      lonEl.value=lon.toFixed(2); latEl.value=lat.toFixed(2);
+    } else {
+      projView.tx+=dx; projView.ty+=dy;
+    }
+    renderProjection();
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(dragging){ dragging=false; document.getElementById('mk-proj').style.cursor='grab'; }
+  });
+  el.style.cursor='grab';
+})();
 /* ================= MAP LAYOUT ================= */
 let canvas, pageState={size:'letter', orientation:'portrait', wIn:8.5, hIn:11};
 let insetMap=null, insetLayers=[], insetDrawState=null, insetLocatorLayer=null;
@@ -2277,7 +2629,9 @@ function initCanvas(){
   canvas.on('selection:created', showPropertiesForSelection);
   canvas.on('selection:updated', showPropertiesForSelection);
   canvas.on('selection:cleared', clearProperties);
-  canvas.on('object:modified', e=>{ onObjectModified(e); pushHistory(); });
+  canvas.on('object:modified', e=>{ onObjectModified(e); if(e.target&&e.target.data&&e.target.data.border) applyElementBorder(e.target); pushHistory(); });
+  canvas.on('object:moving', e=>{ if(e.target&&e.target.data&&e.target.data.border&&e.target.data.border.on) applyElementBorder(e.target); });
+  canvas.on('object:scaling', e=>{ if(e.target&&e.target.data&&e.target.data.border&&e.target.data.border.on) applyElementBorder(e.target); });
   canvas.on('object:added', ()=>{ refreshLayersTab(); pushHistory(); syncEmbedFrames(); });
   canvas.on('object:removed', ()=>{ refreshLayersTab(); pushHistory(); syncEmbedFrames(); });
   canvas.on('object:scaling', onObjectScaling);
@@ -2331,7 +2685,11 @@ function findById(id){ return canvas.getObjects().find(o=>o.data&&o.data.id===id
 function deleteSelected(){
   const act=canvas.getActiveObjects();
   if(!act.length) return;
-  act.forEach(o=>canvas.remove(o));
+  act.forEach(o=>{
+    const bd=findBorderOf(o);
+    if(bd) canvas.remove(bd);
+    canvas.remove(o);
+  });
   canvas.discardActiveObject(); canvas.renderAll();
 }
 function duplicateSelected(){
@@ -2825,6 +3183,31 @@ function applyTemplate(name){
   pushHistory();
 }
 
+/* ---------- per-element borders ---------- */
+function borderIdFor(obj){ return 'bd_'+obj.data.id; }
+function findBorderOf(obj){
+  return canvas.getObjects().find(o=>o.data&&o.data.type==='elementBorder'&&o.data.ownerId===obj.data.id);
+}
+function applyElementBorder(obj){
+  const existing=findBorderOf(obj);
+  if(existing) canvas.remove(existing);
+  const bd=obj.data.border;
+  if(!bd||!bd.on){ canvas.renderAll(); return; }
+  const b=obj.getBoundingRect(true,true);
+  const pad=bd.pad||0;
+  const r=new fabric.Rect({
+    left:b.left-pad, top:b.top-pad, width:b.width+pad*2, height:b.height+pad*2,
+    fill:'transparent', stroke:bd.color||'#1b2a4a', strokeWidth:bd.width||1.5,
+    selectable:false, evented:false
+  });
+  r.data={id:uid(), type:'elementBorder', ownerId:obj.data.id};
+  canvas.add(r);
+  canvas.renderAll();
+}
+function refreshAllBorders(){
+  canvas.getObjects().filter(o=>o.data&&o.data.border&&o.data.border.on).forEach(applyElementBorder);
+}
+
 /* ---------- layers tab ---------- */
 function typeLabel(t){
   return {mapFrame:'🖼️ Map Frame', insetFrame:'📍 Inset Map', title:'T Title', text:'t Text', legend:'▤ Legend',
@@ -2837,7 +3220,7 @@ function refreshLayersTab(){
 }
 function renderLayersTab(){
   const el=document.getElementById('tab-layers');
-  const objs=canvas.getObjects().filter(o=>!(o.data&&o.data.guide)).slice().reverse();
+  const objs=canvas.getObjects().filter(o=>!(o.data&&(o.data.guide||o.data.type==='elementBorder'))).slice().reverse();
   if(!objs.length){ el.innerHTML='<div class="empty-hint">Nothing on the page yet.</div>'; return; }
   const active=canvas.getActiveObject();
   el.innerHTML=objs.map(o=>`
@@ -2900,23 +3283,31 @@ function showPropertiesForSelection(e){
         <div class="field"><label>Colour</label><input type="color" id="pColor" value="${toHex(obj.fill)}"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Font</label>
-          <select id="pFont">
-            <option value="Georgia, serif" ${/Georgia/.test(obj.fontFamily)?'selected':''}>Georgia (serif)</option>
-            <option value="Arial" ${obj.fontFamily==='Arial'?'selected':''}>Arial</option>
-            <option value="'Times New Roman', serif" ${/Times/.test(obj.fontFamily)?'selected':''}>Times</option>
-            <option value="Verdana" ${obj.fontFamily==='Verdana'?'selected':''}>Verdana</option>
-            <option value="'Courier New', monospace" ${/Courier/.test(obj.fontFamily)?'selected':''}>Courier</option>
-          </select></div>
+        <div class="field"><label>Typeface</label>
+          <select id="pFont">${fontOptionsHtml(obj.fontFamily)}</select></div>
         <div class="field"><label>Rotation°</label><input type="number" id="pAngle" value="${Math.round(obj.angle||0)}" step="5"></div>
       </div>
-      <div class="checkline"><input type="checkbox" id="pBold" ${obj.fontWeight==='700'||obj.fontWeight==='bold'?'checked':''}><label for="pBold" style="margin:0;color:var(--text);">Bold</label></div>`;
+      <div class="checkline">
+        <input type="checkbox" id="pBold" ${obj.fontWeight==='700'||obj.fontWeight==='bold'?'checked':''}><label for="pBold" style="margin:0;color:var(--text);"><b>Bold</b></label>
+        <input type="checkbox" id="pItalic" ${obj.fontStyle==='italic'?'checked':''} style="margin-left:14px;"><label for="pItalic" style="margin:0;color:var(--text);"><i>Italic</i></label>
+        <input type="checkbox" id="pUnder" ${obj.underline?'checked':''} style="margin-left:14px;"><label for="pUnder" style="margin:0;color:var(--text);"><u>Underline</u></label>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Align</label>
+          <select id="pAlign">
+            <option value="left" ${obj.textAlign==='left'?'selected':''}>Left</option>
+            <option value="center" ${obj.textAlign==='center'?'selected':''}>Centre</option>
+            <option value="right" ${obj.textAlign==='right'?'selected':''}>Right</option>
+          </select></div>
+        <div class="field"><label>Letter spacing</label><input type="number" id="pCharSp" value="${Math.round(obj.charSpacing||0)}" step="10"></div>
+      </div>
+      <div class="field"><label>Line height</label><input type="number" id="pLineH" value="${(obj.lineHeight||1.16).toFixed(2)}" step="0.05" min="0.6" max="3"></div>`;
   }
   if(obj.data.type==='legend'){
     html+=`<div class="field"><label>Legend title</label><input type="text" id="pLegendTitle" value="${esc(obj.data.title)}"></div>
       <div id="legendRows"></div>
       <div class="legend-add-row">
-        <button class="btn small secondary" id="pLegAddBox">+ Box</button>
+        <button class="btn small secondary" id="pLegAddBox">+ Area</button>
         <button class="btn small secondary" id="pLegAddPt">+ Point</button>
         <button class="btn small secondary" id="pLegAddLn">+ Line</button>
         <button class="btn small secondary" id="pLegAddHd">+ Heading</button>
@@ -2957,6 +3348,16 @@ function showPropertiesForSelection(e){
     html+=`<div class="kv">Template placeholder — double-click it on the page (or use the button below) to fill it with the real element.</div>
       <div class="field" style="margin-top:8px;"><button class="btn small" id="pFillPh">Fill placeholder now</button></div>`;
   }
+  if(obj.data.type!=='neatline' && obj.data.type!=='marginGuide'){
+    const bd=obj.data.border||{};
+    html+=`<div class="divider"></div><h3>Border</h3>
+      <div class="checkline"><input type="checkbox" id="pBorderOn" ${bd.on?'checked':''}><label for="pBorderOn" style="margin:0;color:var(--text);">Draw a border around this element</label></div>
+      <div class="row2" id="pBorderOpts" ${bd.on?'':'style="display:none;"'}>
+        <div class="field"><label>Width</label><input type="number" id="pBorderW" value="${bd.width||1.5}" min="0.5" step="0.5"></div>
+        <div class="field"><label>Colour</label><input type="color" id="pBorderColor" value="${toHex(bd.color||'#1b2a4a')}"></div>
+      </div>
+      <div class="field" id="pBorderPadWrap" ${bd.on?'':'style="display:none;"'}><label>Padding (px)</label><input type="number" id="pBorderPad" value="${bd.pad==null?4:bd.pad}" min="0" step="1"></div>`;
+  }
   html+=`<div class="divider"></div><h3>Arrange</h3>
     <div class="row2">
       <button class="btn small secondary" id="pFront">Bring front</button>
@@ -2974,7 +3375,16 @@ function showPropertiesForSelection(e){
   if(g('pText')) g('pText').oninput=()=>{ obj.set('text', g('pText').value); canvas.renderAll(); };
   if(g('pSize')) g('pSize').oninput=()=>{ obj.set('fontSize', parseInt(g('pSize').value||14,10)); canvas.renderAll(); };
   if(g('pColor')) g('pColor').oninput=()=>{ obj.set('fill', g('pColor').value); canvas.renderAll(); };
-  if(g('pFont')) g('pFont').onchange=()=>{ obj.set('fontFamily', g('pFont').value); canvas.renderAll(); };
+  if(g('pFont')) g('pFont').onchange=()=>{
+    const f=g('pFont').value;
+    if(isGoogleFont(f)){ ensureGoogleFonts(); setTimeout(()=>canvas.renderAll(), 700); }
+    obj.set('fontFamily', f); canvas.renderAll();
+  };
+  if(g('pItalic')) g('pItalic').onchange=()=>{ obj.set('fontStyle', g('pItalic').checked?'italic':'normal'); canvas.renderAll(); };
+  if(g('pUnder')) g('pUnder').onchange=()=>{ obj.set('underline', g('pUnder').checked); canvas.renderAll(); };
+  if(g('pAlign')) g('pAlign').onchange=()=>{ obj.set('textAlign', g('pAlign').value); canvas.renderAll(); };
+  if(g('pCharSp')) g('pCharSp').onchange=()=>{ obj.set('charSpacing', parseInt(g('pCharSp').value)||0); canvas.renderAll(); };
+  if(g('pLineH')) g('pLineH').onchange=()=>{ obj.set('lineHeight', parseFloat(g('pLineH').value)||1.16); canvas.renderAll(); };
   if(g('pAngle')) g('pAngle').onchange=()=>{ obj.rotate(parseFloat(g('pAngle').value)||0); canvas.renderAll(); };
   if(g('pBold')) g('pBold').onchange=()=>{ obj.set('fontWeight', g('pBold').checked?'700':'400'); canvas.renderAll(); };
   if(g('pNaStyle')) g('pNaStyle').onchange=()=>{ const ng=rebuildNorthArrow(obj, g('pNaStyle').value); showPropertiesForSelection({selected:[ng]}); };
@@ -3003,6 +3413,24 @@ function showPropertiesForSelection(e){
     g('pStrokeColor').oninput=()=>{ obj.data.strokeColor=g('pStrokeColor').value; const ng=rebuildNeatline(obj); showPropertiesForSelection({selected:[ng]}); };
     g('pTicks').onchange=()=>{ obj.data.ticks=g('pTicks').checked; const ng=rebuildNeatline(obj); showPropertiesForSelection({selected:[ng]}); };
   }
+  if(g('pBorderOn')){
+    const syncBorder=()=>{
+      obj.data.border={
+        on: g('pBorderOn').checked,
+        width: parseFloat(g('pBorderW').value)||1.5,
+        color: g('pBorderColor').value,
+        pad: parseFloat(g('pBorderPad').value)||0
+      };
+      const show=obj.data.border.on?'flex':'none';
+      g('pBorderOpts').style.display=show;
+      g('pBorderPadWrap').style.display=obj.data.border.on?'block':'none';
+      applyElementBorder(obj);
+    };
+    g('pBorderOn').onchange=syncBorder;
+    g('pBorderW').onchange=syncBorder;
+    g('pBorderColor').oninput=syncBorder;
+    g('pBorderPad').onchange=syncBorder;
+  }
   g('pFront').onclick=()=>{ obj.bringToFront(); canvas.renderAll(); renderLayersTab(); };
   g('pBack').onclick=()=>{ obj.sendToBack(); canvas.renderAll(); renderLayersTab(); };
   g('pDup').onclick=duplicateSelected;
@@ -3014,7 +3442,7 @@ function renderLegendRows(obj){
   wrap.innerHTML=obj.data.items.map((it,i)=>{
     const shapeSel=`<select class="shape-sel">
       <option value="header" ${it.header?'selected':''}>Head</option>
-      <option value="rect" ${!it.header&&it.shape==='rect'?'selected':''}>Box</option>
+      <option value="rect" ${!it.header&&it.shape==='rect'?'selected':''}>Area</option>
       <option value="circle" ${!it.header&&it.shape==='circle'?'selected':''}>Point</option>
       <option value="line" ${!it.header&&it.shape==='line'?'selected':''}>Line</option>
     </select>`;
@@ -3022,7 +3450,9 @@ function renderLegendRows(obj){
     return `<div class="legend-row" data-i="${i}">
       ${shapeSel}${colorInp}
       <input type="text" value="${esc(it.label)}" ${it.header?'style="font-weight:700;"':''}>
-      <button title="Remove">✕</button>
+      <button data-act="up" title="Move up">↑</button>
+      <button data-act="down" title="Move down">↓</button>
+      <button data-act="del" title="Remove">✕</button>
     </div>`;
   }).join('');
   wrap.querySelectorAll('.legend-row').forEach(row=>{
@@ -3038,7 +3468,16 @@ function renderLegendRows(obj){
     const ci=row.querySelector('input[type=color]');
     if(ci){ ci.oninput=ev=>{ obj.data.items[i].color=ev.target.value; }; ci.onchange=rebuild; }
     row.querySelector('input[type=text]').onchange=ev=>{ obj.data.items[i].label=ev.target.value; rebuild(); };
-    row.querySelector('button').onclick=()=>{ obj.data.items.splice(i,1); rebuild(); };
+    row.querySelectorAll('button').forEach(b=>{
+      b.onclick=()=>{
+        const act=b.getAttribute('data-act');
+        const items=obj.data.items;
+        if(act==='del') items.splice(i,1);
+        if(act==='up' && i>0){ const t=items[i]; items[i]=items[i-1]; items[i-1]=t; }
+        if(act==='down' && i<items.length-1){ const t=items[i]; items[i]=items[i+1]; items[i+1]=t; }
+        rebuild();
+      };
+    });
   });
 }
 
@@ -3259,7 +3698,10 @@ document.getElementById('btnHelp').onclick=()=>openModal('modal-help');
 document.getElementById('loPanelToggle').onclick=()=>{
   const rp=document.getElementById('rightpanel');
   rp.classList.toggle('collapsed');
-  document.getElementById('loPanelToggle').textContent=rp.classList.contains('collapsed')?'⟨':'⟩';
+  const col=rp.classList.contains('collapsed');
+  const b=document.getElementById('loPanelToggle');
+  b.textContent = col ? '⟨' : 'Hide Menu ⟩';
+  b.title = col ? 'Show menu' : 'Hide menu';
   setTimeout(()=>{ canvas.calcOffset(); canvas.renderAll(); positionEmbedFrames(); }, 180);
 };
 /* ================= ONLINE DATA SOURCES ================= */
@@ -3937,6 +4379,7 @@ function updateExportUI(){
   const fmt=document.getElementById('exportFormat').value;
   document.getElementById('exportDPIWrap').style.display=(fmt==='pdf'||fmt==='png'||fmt==='archive')?'block':'none';
   const notes={
+    svg:'Vector SVG — text stays editable text and shapes stay vector paths, ready to refine in Illustrator, Inkscape, or Affinity Designer. Map frames and inset maps embed as raster images inside the file.',
     pdf:'Margin guides and live-embed previews are excluded automatically. Live embeds print as placeholders.',
     png:'Margin guides and live-embed previews are excluded automatically. Live embeds print as placeholders.',
     mapimg:'Captures the current Map Maker view at high resolution. In Web Mercator view it includes a world file (.pgw, EPSG:3857) so the PNG opens georeferenced in GIS software; in a projected view it exports as a plain image.',
@@ -4018,6 +4461,21 @@ document.getElementById('doExportBtn').onclick=()=>{
   if(fmt==='png'){
     downloadBlob(name+'.png', dataURLtoBlob(layoutDataURL(dpi)));
     toast('Exported.');
+  } else if(fmt==='svg'){
+    canvas.discardActiveObject();
+    const hidden=[];
+    canvas.getObjects().forEach(o=>{
+      if(o.data&&(o.data.guide||o.data.type==='placeholder')){ hidden.push(o); o.visible=false; }
+    });
+    canvas.renderAll();
+    const svg=canvas.toSVG({
+      width: pageState.wIn+'in', height: pageState.hIn+'in',
+      viewBox:{x:0, y:0, width:canvas.getWidth(), height:canvas.getHeight()}
+    });
+    hidden.forEach(o=>o.visible=true);
+    canvas.renderAll();
+    downloadBlob(name+'.svg', new Blob([svg],{type:'image/svg+xml'}));
+    toast('SVG exported — text and shapes remain editable.');
   } else if(fmt==='pdf'){
     downloadBlob(name+'.pdf', layoutPdfBlob(dpi));
     toast('Exported.');
