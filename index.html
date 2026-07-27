@@ -230,6 +230,14 @@
   /* zoom scales the stage visually; Fabric keeps working in page coordinates */
   #stage{background:#fff;box-shadow:0 2px 18px rgba(20,30,60,.25);position:relative;transform-origin:top center;}
   .grp-div{width:1px;height:20px;background:rgba(255,255,255,.28);margin:0 3px;}
+  #btnSync.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+  #btnSync.unsupported{opacity:.45;}
+  .sync-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
+  .sync-list{margin-top:6px;}
+  .sync-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--line);
+    border-radius:6px;margin-bottom:6px;background:#fafbfd;font-size:12.5px;}
+  .sync-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sync-row .when{color:var(--muted);font-size:11px;white-space:nowrap;}
   #zoomLevel{font-size:11.5px;color:#c9d2e6;min-width:40px;text-align:center;}
   .zoom-menu{position:relative;display:inline-flex;}
   .zoom-menu .tools-menu{position:absolute;top:100%;right:0;min-width:170px;z-index:1200;}
@@ -363,6 +371,7 @@
     <button class="btn ghost small" id="btnHome" title="Projects home">🏠</button>
     <select id="projectSwitcher" title="Switch project"></select>
     <button class="btn secondary small" id="btnSave" title="Save this project to browser storage">Save</button>
+    <button class="btn ghost small" id="btnSync" title="Save projects to a synced folder as well as this browser">☁ <span id="syncState">Sync off</span></button>
   </div>
   <div class="grp">
     <button class="btn small" id="btnExportOpen">Export ▸</button>
@@ -385,6 +394,7 @@
       <button class="home-tab" data-t="library">Data library</button>
     </div>
     <div id="home-projects" class="home-grid"></div>
+    <div id="home-sync"></div>
     <div id="home-library" class="hidden"></div>
     <p class="kv home-note"><b>Where your work lives:</b> projects and datasets are stored in this browser on this computer — nothing is uploaded to a server. On a shared or lab computer, always download a project file (card menu → Export) or a project archive as your backup, and take it with you.</p>
   </div>
@@ -658,6 +668,14 @@
     <div id="attr-table-wrap"><table id="attr-table"></table></div>
   </div>
   <div id="tableWinResize" title="Drag to resize"></div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-sync">
+  <div class="modal">
+    <h2>☁ Sync projects to a folder</h2>
+    <div id="syncBody"></div>
+    <div class="modal-close-row"><button class="btn light" onclick="closeModal('modal-sync')">Close</button></div>
+  </div>
 </div>
 
 <div class="modal-overlay hidden" id="modal-fields">
@@ -5732,8 +5750,293 @@ document.getElementById('urlAddBtn').onclick=()=>{
     onlineStatus('Failed: '+err.message+'. If this persists, the source may not allow cross-origin access — download the file and upload it with "+ Add data" instead.');
   });
 };
+/* ================= FOLDER SYNC (optional) =================
+   Points the app at a folder the student already syncs — OneDrive, Google Drive,
+   Dropbox, anything. Projects are written there as ordinary files whenever they
+   save, so the same work opens on another computer. Entirely opt-in: until a
+   folder is chosen nothing leaves the browser, which is still the default.
+
+   Uses the File System Access API, so it needs Chrome or Edge. The handle is
+   kept in IndexedDB and survives reloads (the browser re-asks for permission). */
+const SYNC_EXT='.cartostudio.json';
+let syncDir=null;               /* FileSystemDirectoryHandle */
+let syncWriteTimer=null, syncBusy=false, lastSyncAt=0;
+const syncSeen={};              /* projectId -> lastModified we last read/wrote */
+
+function syncSupported(){
+  return typeof window.showDirectoryPicker === 'function';
+}
+function syncActive(){ return !!syncDir; }
+
+async function syncLoadSavedFolder(){
+  if(!syncSupported()||!db) return;
+  try{
+    const rec=await idbGet('settings','syncFolder');
+    if(rec && rec.handle){
+      syncDir=rec.handle;
+      /* don't prompt on load — check quietly and ask only when they save */
+      const perm=await syncDir.queryPermission({mode:'readwrite'});
+      if(perm!=='granted') syncDir.__needsPermission=true;
+    }
+  }catch(_){}
+  updateSyncUI();
+}
+async function syncEnsurePermission(interactive){
+  if(!syncDir) return false;
+  try{
+    let perm=await syncDir.queryPermission({mode:'readwrite'});
+    if(perm==='granted'){ syncDir.__needsPermission=false; return true; }
+    if(!interactive) return false;
+    perm=await syncDir.requestPermission({mode:'readwrite'});
+    syncDir.__needsPermission=(perm!=='granted');
+    return perm==='granted';
+  }catch(_){ return false; }
+}
+async function syncChooseFolder(){
+  if(!syncSupported()){
+    toast('Folder sync needs Chrome or Edge. In other browsers use Export → Project file.', 5200);
+    return;
+  }
+  let dir;
+  try{
+    dir=await window.showDirectoryPicker({mode:'readwrite', id:'cartoStudioProjects'});
+  }catch(err){
+    if(err && err.name==='AbortError') return;   /* they cancelled the picker */
+    toast('Could not open that folder: '+(err&&err.message||'unknown error'), 4200);
+    return;
+  }
+  syncDir=dir;
+  updateSyncUI();
+  /* remembering the folder is a bonus — if the browser won't store the handle
+     (private window, quota) syncing should still work for this session */
+  let remembered=true;
+  try{ await idbPut('settings',{key:'syncFolder', handle:dir}); }
+  catch(_){ remembered=false; }
+  toast(remembered
+    ? 'Projects will now be saved to “'+dir.name+'” as well as this browser.'
+    : 'Syncing to “'+dir.name+'” for this session — this browser wouldn’t remember the folder, so you’ll need to pick it again next time.',
+    remembered?4200:6000);
+  try{
+    await syncWriteProject(true);
+    await syncScanFolder();
+    renderHome();
+  }catch(err){
+    toast('Could not write to that folder: '+(err&&err.message||'unknown error'), 4200);
+  }
+  updateSyncUI();
+}
+async function syncStopFolder(){
+  syncDir=null;
+  try{ await idbDel('settings','syncFolder'); }catch(_){}
+  updateSyncUI();
+  renderHome();
+  toast('Folder sync turned off. Projects stay in this browser.');
+}
+
+function syncFileName(rec){
+  const base=(rec.name||'project').replace(/[^a-z0-9\-_ ]+/gi,'_').trim().replace(/\s+/g,'-');
+  return base+'--'+rec.id+SYNC_EXT;
+}
+function syncPayload(rec){
+  const usedIds=Array.from(new Set(((rec.maker||{}).layers||[]).map(l=>l.datasetId).filter(Boolean)));
+  return {version:4, app:'carto-studio', savedAt:Date.now(), project:rec,
+    datasets: usedIds.map(did=>{
+      const d=datasetById(did);
+      return d? {id:d.id, name:d.name, geom:d.geom, geojson:d.geojson, derived:d.derived} : null;
+    }).filter(Boolean)};
+}
+
+/* Writes are debounced — a project with a few basemap layers can be tens of
+   megabytes, and autosave fires every few seconds. */
+function syncQueueWrite(){
+  if(!syncActive()) return;
+  clearTimeout(syncWriteTimer);
+  syncWriteTimer=setTimeout(()=>syncWriteProject(false), 2500);
+}
+async function syncWriteProject(interactive){
+  if(!syncActive()||!currentProjectId) return;
+  if(syncBusy) { syncQueueWrite(); return; }
+  const ok=await syncEnsurePermission(!!interactive);
+  if(!ok){ updateSyncUI(); return; }
+  syncBusy=true; updateSyncUI('saving');
+  try{
+    const rec=serializeCurrentProject();
+    const name=syncFileName(rec);
+    /* has someone else written this file since we opened it? */
+    const conflict=await syncCheckConflict(name, rec.id);
+    if(conflict){ syncBusy=false; updateSyncUI(); return; }
+    const fh=await syncDir.getFileHandle(name,{create:true});
+    const w=await fh.createWritable();
+    await w.write(new Blob([JSON.stringify(syncPayload(rec))],{type:'application/json'}));
+    await w.close();
+    const f=await fh.getFile();
+    syncSeen[rec.id]=f.lastModified;
+    lastSyncAt=Date.now();
+    updateSyncUI('saved');
+  }catch(err){
+    updateSyncUI('error');
+    toast('Could not write to the sync folder: '+(err&&err.message||'unknown error'), 4600);
+  }finally{
+    syncBusy=false;
+  }
+}
+/* Returns true when we stopped to ask the user what to do. */
+async function syncCheckConflict(name, projectId){
+  let f;
+  try{
+    const fh=await syncDir.getFileHandle(name,{create:false});
+    f=await fh.getFile();
+  }catch(_){ return false; }              /* no file yet — nothing to clash with */
+  const seen=syncSeen[projectId];
+  if(seen==null || f.lastModified<=seen) return false;
+  const when=new Date(f.lastModified).toLocaleString();
+  const msg='“'+name+'” in your sync folder was changed elsewhere ('+when+').\n\n'+
+    'OK — open that newer version instead (your unsaved changes here are lost).\n'+
+    'Cancel — keep working here and save as a separate copy.';
+  if(window.confirm(msg)){
+    await syncOpenFile(f, true);
+  } else {
+    /* branch off into a new project, leaving the original record (and the file
+       it belongs to) alone — otherwise the folder copy would be orphaned */
+    const original=projectsCache.find(p=>p.id===projectId);
+    if(original){
+      const copy=Object.assign({}, serializeCurrentProject(), {
+        id:uid(),
+        name:uniqueProjectName(original.name+' (this computer)'),
+        created:Date.now(), modified:Date.now()
+      });
+      projectsCache.push(copy);
+      currentProjectId=copy.id;
+      await idbPut('projects', copy);
+      syncSeen[copy.id]=0;
+      renderProjectSwitcher();
+      toast('Saved as a separate copy: '+copy.name, 4200);
+      syncQueueWrite();
+    }
+  }
+  return true;
+}
+
+/* ---------- reading the folder ---------- */
+let syncFolderProjects=[];      /* {id,name,modified,fileName} found in the folder */
+async function syncScanFolder(){
+  syncFolderProjects=[];
+  if(!syncActive()) return syncFolderProjects;
+  const ok=await syncEnsurePermission(false);
+  if(!ok) return syncFolderProjects;
+  try{
+    for await (const [name, handle] of syncDir.entries()){
+      if(handle.kind!=='file' || !name.endsWith(SYNC_EXT)) continue;
+      const f=await handle.getFile();
+      const m=name.match(/--([a-z0-9]+)\.cartostudio\.json$/i);
+      syncFolderProjects.push({
+        fileName:name, handle, modified:f.lastModified, size:f.size,
+        id:m?m[1]:null,
+        name:name.replace(/--[a-z0-9]+\.cartostudio\.json$/i,'').replace(/-/g,' ')
+      });
+    }
+  }catch(_){}
+  syncFolderProjects.sort((a,b)=>b.modified-a.modified);
+  return syncFolderProjects;
+}
+async function syncOpenFile(file, replaceCurrent){
+  const text=await file.text();
+  let data;
+  try{ data=JSON.parse(text); }catch(_){ toast('That file could not be read.'); return; }
+  if(!data.project){ toast('That is not a Carto Studio project file.'); return; }
+  const idMap={};
+  (data.datasets||[]).forEach(d=>{
+    const existing=datasetById(d.id);
+    const ds=existing||registerDataset(d.geojson, d.name, d.geom, {derived:d.derived, id:d.id});
+    idMap[d.id]=ds.id;
+  });
+  const rec=data.project;
+  ((rec.maker||{}).layers||[]).forEach(l=>{ l.datasetId=idMap[l.datasetId]||l.datasetId; });
+  const i=projectsCache.findIndex(p=>p.id===rec.id);
+  if(i>=0) projectsCache[i]=rec; else projectsCache.push(rec);
+  await idbPut('projects', rec);
+  syncSeen[rec.id]=file.lastModified;
+  renderProjectSwitcher();
+  if(replaceCurrent!==false) openProject(rec.id);
+  return rec;
+}
+async function syncOpenFolderProject(fileName){
+  const entry=syncFolderProjects.find(p=>p.fileName===fileName);
+  if(!entry) return;
+  const ok=await syncEnsurePermission(true);
+  if(!ok){ toast('Permission to read the folder was declined.'); return; }
+  const f=await entry.handle.getFile();
+  await syncOpenFile(f, true);
+}
+
+/* ---------- UI ---------- */
+function updateSyncUI(state){
+  const btn=document.getElementById('btnSync');
+  const lbl=document.getElementById('syncState');
+  if(!btn) return;
+  if(!syncSupported()){
+    btn.classList.add('unsupported');
+    btn.title='Folder sync needs Chrome or Edge. In this browser, use Export → Project file to move work between computers.';
+    if(lbl) lbl.textContent='Sync n/a';
+    return;
+  }
+  btn.classList.toggle('on', syncActive());
+  if(!lbl) return;
+  if(!syncActive()){ lbl.textContent='Sync off'; btn.title='Save projects to a synced folder as well as this browser'; return; }
+  if(syncDir.__needsPermission){ lbl.textContent='Sync — allow'; btn.title='Click to re-allow access to “'+syncDir.name+'”'; return; }
+  btn.title='Syncing to “'+syncDir.name+'”';
+  lbl.textContent = state==='saving' ? 'Saving…'
+                  : state==='error'  ? 'Sync error'
+                  : 'Synced';
+}
+async function openSyncDialog(){
+  /* check permission afresh — it can be withdrawn while the tab is open */
+  if(syncActive()){
+    try{
+      const p=await syncDir.queryPermission({mode:'readwrite'});
+      syncDir.__needsPermission=(p!=='granted');
+      updateSyncUI();
+    }catch(_){}
+  }
+  const body=document.getElementById('syncBody');
+  const unsupported=!syncSupported();
+  body.innerHTML =
+    (unsupported
+      ? '<p class="kv">Folder sync needs <b>Chrome</b> or <b>Edge</b> — this browser doesn\'t support writing to a folder. '+
+        'You can still move work between computers with <b>Export → Project file</b>, then Import it on the other machine.</p>'
+      : !syncActive()
+        ? '<p class="kv">Choose a folder that already syncs to the cloud — your OneDrive, Google Drive or Dropbox folder. '+
+          'Projects will be written there as files whenever they save, so you can carry on from another computer.</p>'+
+          '<p class="kv"><b>Nothing is sent to us.</b> The files go to your own storage, and everything keeps working in this browser as before.</p>'
+        : '<p class="kv">Syncing to <b>'+esc(syncDir.name)+'</b>. Projects are written there when they save.</p>'+
+          (syncDir.__needsPermission? '<p class="kv" style="color:var(--danger)">The browser needs permission again before it can write. Click “Re-allow access”.</p>':'')
+    )+
+    '<div class="sync-actions">'+
+      (unsupported? '' :
+        !syncActive()
+          ? '<button class="btn" id="syncPick">Choose a folder…</button>'
+          : '<button class="btn secondary" id="syncPick">Change folder…</button>'+
+            (syncDir.__needsPermission? '<button class="btn" id="syncAllow">Re-allow access</button>':
+             '<button class="btn light" id="syncNow">Save to folder now</button>')+
+            '<button class="btn light" id="syncOff">Turn sync off</button>')+
+    '</div>';
+  const pick=document.getElementById('syncPick');
+  if(pick) pick.onclick=()=>{ closeModal('modal-sync'); syncChooseFolder(); };
+  const allow=document.getElementById('syncAllow');
+  if(allow) allow.onclick=async()=>{
+    const ok=await syncEnsurePermission(true);
+    updateSyncUI();
+    if(ok){ closeModal('modal-sync'); syncWriteProject(true); await syncScanFolder(); renderHome(); }
+  };
+  const now=document.getElementById('syncNow');
+  if(now) now.onclick=()=>{ closeModal('modal-sync'); syncWriteProject(true); };
+  const off=document.getElementById('syncOff');
+  if(off) off.onclick=()=>{ closeModal('modal-sync'); syncStopFolder(); };
+  openModal('modal-sync');
+}
+document.getElementById('btnSync').onclick=openSyncDialog;
 /* ================= PROJECT MANAGER (IndexedDB) ================= */
-const DB_NAME='cartoStudioDB', DB_VER=1;
+const DB_NAME='cartoStudioDB', DB_VER=2;
 let db=null, currentProjectId=null, projectsCache=[], datasetsCache=[], dirtyTimer=null;
 
 function idbOpen(){
@@ -5743,8 +6046,17 @@ function idbOpen(){
       const d=e.target.result;
       if(!d.objectStoreNames.contains('projects')) d.createObjectStore('projects',{keyPath:'id'});
       if(!d.objectStoreNames.contains('datasets')) d.createObjectStore('datasets',{keyPath:'id'});
+      /* v2: somewhere to keep the synced-folder handle */
+      if(!d.objectStoreNames.contains('settings')) d.createObjectStore('settings',{keyPath:'key'});
     };
     req.onsuccess=()=>{ db=req.result; res(db); };
+    req.onerror=()=>rej(req.error);
+  });
+}
+function idbGet(store,key){
+  return new Promise((res,rej)=>{
+    const req=db.transaction(store,'readonly').objectStore(store).get(key);
+    req.onsuccess=()=>res(req.result||null);
     req.onerror=()=>rej(req.error);
   });
 }
@@ -5780,7 +6092,9 @@ function uniqueDatasetName(name){
 function registerDataset(gj, name, geom, opts){
   const fields=new Set();
   (gj.features||[]).slice(0,80).forEach(f=>Object.keys(f.properties||{}).forEach(k=>fields.add(k)));
-  const ds={id:uid(), name:uniqueDatasetName(name), geom, geojson:gj,
+  /* an id can be supplied so a project arriving from the sync folder keeps its
+     dataset references intact */
+  const ds={id:(opts&&opts.id)||uid(), name:uniqueDatasetName(name), geom, geojson:gj,
     featureCount:(gj.features||[]).length, fieldCount:fields.size,
     derived:!!(opts&&opts.derived), added:Date.now()};
   datasetsCache.push(ds);
@@ -5831,6 +6145,8 @@ function saveCurrentProject(showToast){
   renderProjectSwitcher();
   return idbPut('projects', rec).then(()=>{
     if(showToast) toast('Project saved.');
+    /* mirror into the synced folder when one is set up (debounced inside) */
+    if(typeof syncQueueWrite==='function') syncQueueWrite();
   }).catch(()=>toast('Could not save to browser storage — export a project file as backup.', 4200));
 }
 function markProjectDirty(){
@@ -5978,6 +6294,29 @@ function fmtDate(ts){
 function renderHome(){
   renderProjectsGrid();
   renderLibrary();
+  renderSyncSection();
+}
+/* projects sitting in the synced folder that aren't in this browser yet */
+function renderSyncSection(){
+  const host=document.getElementById('home-sync');
+  if(!host) return;
+  if(typeof syncActive!=='function' || !syncActive()){ host.innerHTML=''; return; }
+  Promise.resolve(syncScanFolder()).then(list=>{
+    const here=new Set(projectsCache.map(p=>p.id));
+    const elsewhere=list.filter(p=>!p.id || !here.has(p.id));
+    if(!elsewhere.length){
+      host.innerHTML='<p class="kv">☁ Synced with <b>'+esc(syncDir.name)+'</b> — every project here is in that folder too.</p>';
+      return;
+    }
+    host.innerHTML='<h3 style="margin:18px 0 6px;font-size:13px;color:var(--navy);">☁ In your sync folder, not on this computer</h3>'+
+      '<div class="sync-list">'+elsewhere.map(p=>
+        '<div class="sync-row"><span class="nm">'+esc(p.name)+'</span>'+
+        '<span class="when">'+fmtDate(p.modified)+'</span>'+
+        '<button class="btn small" data-file="'+esc(p.fileName)+'">Open here</button></div>').join('')+'</div>';
+    host.querySelectorAll('button[data-file]').forEach(b=>{
+      b.onclick=()=>syncOpenFolderProject(b.getAttribute('data-file'));
+    });
+  }).catch(()=>{ host.innerHTML=''; });
 }
 function renderProjectsGrid(){
   const el=document.getElementById('home-projects');
@@ -6356,6 +6695,13 @@ function createProjectFallback(){
   renderProjectSwitcher();
   switchModule('maker');
 }
+
+/* restore a previously chosen sync folder (permission is re-requested on save) */
+if(typeof syncLoadSavedFolder==='function'){
+  Promise.resolve().then(()=>syncLoadSavedFolder()).then(()=>{
+    if(typeof syncActive==='function' && syncActive()) renderHome();
+  }).catch(()=>{});
+} else if(typeof updateSyncUI==='function'){ updateSyncUI(); }
 
 setInterval(()=>{
   if(currentProjectId && document.getElementById('module-home').classList.contains('hidden')){
