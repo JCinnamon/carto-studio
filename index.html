@@ -136,8 +136,10 @@
   .cat-row[data-cat]:hover{background:#eef4f3;}
   .cat-row input[type=color],.legend-row input[type=color]{width:28px;height:24px;border:1px solid var(--line);border-radius:3px;padding:0;flex-shrink:0;}
   .cat-row span{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .legend-row input[type=text]{flex:1;padding:4px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;}
-  .legend-row button{border:none;background:#f1e3e0;color:var(--danger);border-radius:3px;width:22px;height:22px;font-size:12px;flex-shrink:0;}
+  /* min-width:0 lets the label field shrink so the ↑ ↓ ✕ buttons stay in the panel */
+  .legend-row input[type=text]{flex:1;min-width:0;padding:4px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;}
+  .legend-row button{border:none;background:#f1e3e0;color:var(--danger);border-radius:3px;width:22px;height:22px;font-size:12px;flex-shrink:0;padding:0;}
+  .legend-row{flex-wrap:nowrap;}
 
   .filt-row{display:flex;gap:4px;margin-bottom:5px;align-items:center;}
   .filt-row select,.filt-row input{padding:4px 5px;border:1px solid var(--line);border-radius:4px;font-size:11.5px;min-width:0;}
@@ -274,7 +276,29 @@
   .tmpl-card .thumb{height:92px;background:#f0f3f8;border:1px solid var(--line);border-radius:4px;margin-bottom:7px;position:relative;}
   .tmpl-card p{margin:0;font-size:11.5px;color:var(--muted);line-height:1.4;}
 
-  #attr-table-wrap{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:5px;}
+  /* ---------- attribute table window ---------- */
+  #tableWin{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-height:0;}
+  #tableWin.float{position:fixed;left:120px;top:120px;width:760px;height:420px;z-index:880;
+    border-radius:9px;box-shadow:0 14px 44px rgba(15,22,40,.32);overflow:hidden;}
+  #tableWin.dock-bottom{position:relative;height:300px;width:auto;border-radius:0;border-left:none;border-right:none;
+    border-bottom:none;flex-shrink:0;box-shadow:0 -4px 14px rgba(15,22,40,.10);}
+  #tableWin.dock-right{position:relative;width:420px;height:auto;border-radius:0;border-top:none;border-bottom:none;
+    border-right:none;flex-shrink:0;box-shadow:-4px 0 14px rgba(15,22,40,.10);}
+  #tableWinBar{display:flex;align-items:center;gap:5px;padding:6px 8px;background:var(--navy);color:#fff;
+    font-size:12.5px;font-weight:700;flex-shrink:0;}
+  #tableWin.float #tableWinBar{cursor:move;}
+  #tableWinBar .twb{background:transparent;border:1px solid rgba(255,255,255,.28);color:#dbe3f2;border-radius:4px;
+    font-size:11px;line-height:1;padding:3px 6px;}
+  #tableWinBar .twb:hover{background:rgba(255,255,255,.16);color:#fff;}
+  #tableWinBar .twb.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+  #tableWinBody{flex:1;min-height:0;overflow:auto;padding:10px;display:flex;flex-direction:column;}
+  #tableWinResize{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;
+    background:linear-gradient(135deg,transparent 50%,var(--line) 50%,var(--line) 60%,transparent 60%,transparent 75%,var(--line) 75%);}
+  #tableWin.dock-bottom #tableWinResize{left:0;right:0;top:0;bottom:auto;width:auto;height:6px;cursor:row-resize;background:none;}
+  #tableWin.dock-bottom #tableWinResize:hover{background:var(--teal);opacity:.5;}
+  #tableWin.dock-right #tableWinResize{left:0;right:auto;top:0;bottom:0;width:6px;height:auto;cursor:col-resize;background:none;}
+  #tableWin.dock-right #tableWinResize:hover{background:var(--teal);opacity:.5;}
+  #attr-table-wrap{flex:1;min-height:120px;overflow:auto;border:1px solid var(--line);border-radius:5px;}
   #attr-table{border-collapse:collapse;font-size:11.5px;width:100%;}
   #attr-table th{position:sticky;top:0;background:var(--navy);color:#fff;padding:5px 8px;text-align:left;cursor:pointer;white-space:nowrap;}
   #attr-table th .arrow{font-size:9px;margin-left:3px;}
@@ -613,9 +637,17 @@
   </div>
 </div>
 
-<div class="modal-overlay hidden" id="modal-table">
-  <div class="modal wide">
-    <h2 id="attrTableTitle">Attribute table</h2>
+<!-- attribute table: a floating window by default, dockable to the bottom or right -->
+<div id="tableWin" class="hidden float">
+  <div id="tableWinBar">
+    <span id="attrTableTitle">Attribute table</span>
+    <span style="flex:1"></span>
+    <button class="twb" id="tblDockFloat" title="Float this window">❐</button>
+    <button class="twb" id="tblDockBottom" title="Dock to the bottom">▁</button>
+    <button class="twb" id="tblDockRight" title="Dock to the right">▐</button>
+    <button class="twb" id="tblClose" title="Close">✕</button>
+  </div>
+  <div id="tableWinBody">
     <div class="tbl-toolbar">
       <button class="btn small secondary" id="tblCalcBtn">ƒx Field calculator</button>
       <button class="btn small light" id="tblFilterBtn">▾ Filter</button>
@@ -624,8 +656,8 @@
     </div>
     <div id="tblFilterWrap" class="hidden"></div>
     <div id="attr-table-wrap"><table id="attr-table"></table></div>
-    <div class="modal-close-row"><button class="btn" onclick="closeModal('modal-table')">Close</button></div>
   </div>
+  <div id="tableWinResize" title="Drag to resize"></div>
 </div>
 
 <div class="modal-overlay hidden" id="modal-fields">
@@ -1524,7 +1556,7 @@ function renderMakerLayerList(){
     </div>`).join('');
   el.querySelectorAll('.mk-layer').forEach(item=>{
     const id=item.getAttribute('data-id');
-    item.querySelector('.nm').onclick=()=>{ mkSelectedId=id; renderMakerLayerList(); renderMakerPanels(); updateMkStatus(); };
+    item.querySelector('.nm').onclick=()=>{ mkSelectedId=id; renderMakerLayerList(); renderMakerPanels(); updateMkStatus(); if(tableWinOpen()) renderAttrTable(); };
     item.querySelector('[data-act=vis]').onchange=(ev)=>{
       const l=mkLayers.find(x=>x.id===id);
       l.visible=ev.target.checked;
@@ -2056,16 +2088,124 @@ function renderLabelsTab(){
   g('lbHalo').onchange=()=>{ lb.halo=g('lbHalo').checked; rl(); };
 }
 
-/* ---------- attribute table (with filter + field calculator) ---------- */
+/* ================= attribute table window =================
+   A floating window by default so the map stays live underneath, dockable to the
+   bottom or the right when you want map and table side by side. */
 let attrSort={col:null, asc:true};
+const TBL_KEY='cartoStudio_tableWin';
+const tableWinState={mode:'float', w:760, h:420, left:120, top:120, dockH:300, dockW:420};
+(function(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(TBL_KEY)||'null');
+    if(saved) Object.assign(tableWinState, saved);
+  }catch(_){}
+})();
+function saveTableWin(){
+  try{ localStorage.setItem(TBL_KEY, JSON.stringify(tableWinState)); }catch(_){}
+}
+function tableWinOpen(){ return !document.getElementById('tableWin').classList.contains('hidden'); }
+function placeTableWin(){
+  const win=document.getElementById('tableWin');
+  const mode=tableWinState.mode;
+  win.classList.remove('float','dock-bottom','dock-right');
+  win.classList.add(mode==='bottom'?'dock-bottom':mode==='right'?'dock-right':'float');
+  win.style.left=win.style.top=win.style.width=win.style.height='';
+  if(mode==='float'){
+    document.body.appendChild(win);
+    win.style.left=tableWinState.left+'px';
+    win.style.top=tableWinState.top+'px';
+    win.style.width=tableWinState.w+'px';
+    win.style.height=tableWinState.h+'px';
+  } else if(mode==='bottom'){
+    document.getElementById('mk-center').appendChild(win);
+    win.style.height=tableWinState.dockH+'px';
+  } else {
+    const mod=document.getElementById('module-maker');
+    mod.insertBefore(win, document.getElementById('mk-right'));
+    win.style.width=tableWinState.dockW+'px';
+  }
+  ['tblDockFloat','tblDockBottom','tblDockRight'].forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('on', ['float','bottom','right'][i]===mode);
+  });
+  setTimeout(()=>{ if(mkMap) mkMap.invalidateSize(); if(projActive) scheduleProjRender(); }, 60);
+}
 function openAttrTable(){
   const lyr=selectedLayer();
   if(!lyr){ toast('Select a layer first.'); return; }
   attrSort={col:null, asc:true};
   document.getElementById('tblFilterWrap').classList.add('hidden');
-  openModal('modal-table');
+  document.getElementById('tableWin').classList.remove('hidden');
+  placeTableWin();
   renderAttrTable();
 }
+function closeAttrTable(){
+  document.getElementById('tableWin').classList.add('hidden');
+  setTimeout(()=>{ if(mkMap) mkMap.invalidateSize(); }, 60);
+}
+(function(){
+  const win=document.getElementById('tableWin');
+  const bar=document.getElementById('tableWinBar');
+  const grip=document.getElementById('tableWinResize');
+  document.getElementById('tblClose').onclick=closeAttrTable;
+  document.getElementById('tblDockFloat').onclick=()=>{ tableWinState.mode='float'; placeTableWin(); saveTableWin(); };
+  document.getElementById('tblDockBottom').onclick=()=>{ tableWinState.mode='bottom'; placeTableWin(); saveTableWin(); };
+  document.getElementById('tblDockRight').onclick=()=>{ tableWinState.mode='right'; placeTableWin(); saveTableWin(); };
+
+  /* drag the title bar (floating only) */
+  let dragging=false, dx=0, dy=0;
+  bar.addEventListener('mousedown', e=>{
+    if(tableWinState.mode!=='float') return;
+    if(e.target.classList.contains('twb')) return;
+    dragging=true;
+    const r=win.getBoundingClientRect();
+    dx=e.clientX-r.left; dy=e.clientY-r.top;
+    document.body.style.userSelect='none';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const maxL=window.innerWidth-120, maxT=window.innerHeight-60;
+    tableWinState.left=Math.max(0, Math.min(maxL, e.clientX-dx));
+    tableWinState.top =Math.max(46, Math.min(maxT, e.clientY-dy));
+    win.style.left=tableWinState.left+'px';
+    win.style.top=tableWinState.top+'px';
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(dragging){ dragging=false; document.body.style.userSelect=''; saveTableWin(); }
+  });
+
+  /* resize: corner grip when floating, edge divider when docked */
+  let sizing=false, sx=0, sy=0, sw=0, sh=0;
+  grip.addEventListener('mousedown', e=>{
+    sizing=true; sx=e.clientX; sy=e.clientY;
+    const r=win.getBoundingClientRect(); sw=r.width; sh=r.height;
+    document.body.style.userSelect='none';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!sizing) return;
+    if(tableWinState.mode==='float'){
+      tableWinState.w=Math.max(360, sw+(e.clientX-sx));
+      tableWinState.h=Math.max(200, sh+(e.clientY-sy));
+      win.style.width=tableWinState.w+'px';
+      win.style.height=tableWinState.h+'px';
+    } else if(tableWinState.mode==='bottom'){
+      tableWinState.dockH=Math.max(140, Math.min(window.innerHeight-200, sh-(e.clientY-sy)));
+      win.style.height=tableWinState.dockH+'px';
+    } else {
+      tableWinState.dockW=Math.max(280, Math.min(window.innerWidth-420, sw-(e.clientX-sx)));
+      win.style.width=tableWinState.dockW+'px';
+    }
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(!sizing) return;
+    sizing=false;
+    document.body.style.userSelect='';
+    saveTableWin();
+    if(mkMap) mkMap.invalidateSize();
+    if(projActive) scheduleProjRender();
+  });
+})();
 function openFieldsModal(lyr){
   if(!lyr) return;
   const fields=fieldsOf(lyr);
@@ -2156,7 +2296,7 @@ function panToFeature(lyr, i){
 }
 function scrollTableToFeature(i){
   const tbl=document.getElementById('attr-table');
-  if(!tbl || document.getElementById('modal-table').classList.contains('hidden')) return;
+  if(!tbl || !tableWinOpen()) return;
   const tr=tbl.querySelector('tr[data-i="'+i+'"]');
   if(tr) tr.scrollIntoView({block:'nearest'});
 }
@@ -2193,7 +2333,7 @@ document.getElementById('calcApplyBtn').onclick=()=>{
   invalidateFieldCache(lyr);
   closeModal('modal-calc');
   renderLayer(lyr); renderMakerPanels();
-  if(!document.getElementById('modal-table').classList.contains('hidden')) renderAttrTable();
+  if(tableWinOpen()) renderAttrTable();
   persistDataset(lyr.datasetId);
   toast('Field "'+name+'" added'+(errs?' ('+errs+' features errored → null)':'')+'.');
 };
@@ -3487,21 +3627,45 @@ function rebuildNorthArrow(obj, style){
 
 /* ---------- legend (headings + rect / circle / line swatches) ---------- */
 const LEGEND_FRAME_DEFAULT={border:false, borderColor:'#8f97a8', borderWidth:1, bg:true, bgColor:'#ffffff', bgOpacity:0.92};
+/* three independently styled text roles: the title, layer heading rows, item labels */
+const LEGEND_TEXT_DEFAULT={
+  title:  {font:'Arial', size:14, color:'#1b2a4a', bold:true,  italic:false},
+  heading:{font:'Arial', size:12, color:'#3a4a72', bold:true,  italic:false},
+  label:  {font:'Arial', size:12, color:'#22293a', bold:false, italic:false},
+  rowSpacing:0, swatch:14
+};
 function legendFrameOf(data){ return Object.assign({}, LEGEND_FRAME_DEFAULT, (data&&data.frame)||{}); }
-function buildLegendGroup(title, items, frame){
+function legendTextOf(data){
+  const t=(data&&data.text)||{};
+  return {
+    title:Object.assign({}, LEGEND_TEXT_DEFAULT.title, t.title||{}),
+    heading:Object.assign({}, LEGEND_TEXT_DEFAULT.heading, t.heading||{}),
+    label:Object.assign({}, LEGEND_TEXT_DEFAULT.label, t.label||{}),
+    rowSpacing: t.rowSpacing==null?LEGEND_TEXT_DEFAULT.rowSpacing:t.rowSpacing,
+    swatch: t.swatch==null?LEGEND_TEXT_DEFAULT.swatch:t.swatch
+  };
+}
+function legendFontOpts(role){
+  return {fontFamily:role.font||'Arial', fontSize:role.size,
+    fill:role.color, fontWeight:role.bold?'700':'400', fontStyle:role.italic?'italic':'normal'};
+}
+function buildLegendGroup(title, items, frame, text){
   const fr=Object.assign({}, LEGEND_FRAME_DEFAULT, frame||{});
-  const padding=10, swW=14, width=210;
-  let y=padding+26;
+  const tx=legendTextOf({text:text});
+  if(isGoogleFont(tx.title.font)||isGoogleFont(tx.heading.font)||isGoogleFont(tx.label.font)) ensureGoogleFonts();
+  const padding=10, swW=tx.swatch, width=Math.max(150, 210+(swW-14));
+  const gap=tx.rowSpacing;
+  let y=padding+tx.title.size+12;
   const parts=[];
   const rows=[];
   items.forEach((it,idx)=>{
     if(it.header){
-      const rowH= idx===0 ? 22 : 28;
+      const rowH=(idx===0 ? tx.heading.size+8 : tx.heading.size+14)+gap;
       rows.push({it, y, rowH, size:0});
       y+=rowH;
     } else {
-      const size=it.size||14;
-      const rowH=Math.max(20, size+6);
+      const size=it.size||swW;
+      const rowH=Math.max(tx.label.size+6, size+6)+gap;
       rows.push({it, y, rowH, size});
       y+=rowH;
     }
@@ -3521,11 +3685,13 @@ function buildLegendGroup(title, items, frame){
     bg.set({shadow:new fabric.Shadow({color:'rgba(20,30,60,0.35)', blur:8, offsetX:2, offsetY:2})});
   }
   parts.push(bg);
-  parts.push(new fabric.Text(title||'Legend',{left:padding, top:padding, fontSize:14, fontWeight:'700', fill:'#1b2a4a', fontFamily:'Arial'}));
+  parts.push(new fabric.Text(title||'Legend',
+    Object.assign({left:padding, top:padding}, legendFontOpts(tx.title))));
   rows.forEach(({it,y,rowH,size})=>{
     const cy=y+rowH/2;
     if(it.header){
-      parts.push(new fabric.Text(String(it.label),{left:padding, top:cy-1, fontSize:12, fontWeight:'700', fill:'#3a4a72', fontFamily:'Arial'}));
+      parts.push(new fabric.Text(String(it.label),
+        Object.assign({left:padding, top:cy-tx.heading.size/2}, legendFontOpts(tx.heading))));
       return;
     }
     if(it.shape==='circle'){
@@ -3535,7 +3701,8 @@ function buildLegendGroup(title, items, frame){
     } else {
       parts.push(new fabric.Rect({left:padding, top:cy-swW/2, width:swW, height:swW, fill:it.color, stroke:'#555', strokeWidth:0.7}));
     }
-    parts.push(new fabric.Text(String(it.label),{left:padding+swW+10, top:cy-6, fontSize:12, fill:'#22293a', fontFamily:'Arial'}));
+    parts.push(new fabric.Text(String(it.label),
+      Object.assign({left:padding+swW+10, top:cy-tx.label.size/2}, legendFontOpts(tx.label))));
   });
   return new fabric.Group(parts,{left:600, top:40});
 }
@@ -3543,7 +3710,7 @@ function rebuildLegendOnCanvas(obj){
   const {left,top,scaleX,scaleY,angle}=obj;
   const idx=canvas.getObjects().indexOf(obj);
   canvas.remove(obj);
-  const g=buildLegendGroup(obj.data.title, obj.data.items, obj.data.frame);
+  const g=buildLegendGroup(obj.data.title, obj.data.items, obj.data.frame, obj.data.text);
   g.set({left,top,scaleX,scaleY,angle});
   g.data=obj.data;
   g.set({cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
@@ -4157,6 +4324,30 @@ function showPropertiesForSelection(e){
         <button class="btn small secondary" id="pLegAddLn">+ Line</button>
         <button class="btn small secondary" id="pLegAddHd">+ Heading</button>
       </div>
+      <div class="divider"></div><h3>Legend text</h3>`
+      + ['title','heading','label'].map(role=>{
+          const r=legendTextOf(obj.data)[role];
+          const nm={title:'Title', heading:'Layer headings', label:'Item labels'}[role];
+          const p='pLegT_'+role;
+          return `<div class="acc ${role==='title'?'open':''}">
+            <button class="acc-h">${nm}<span class="chev">▾</span></button>
+            <div class="acc-b">
+              <div class="field"><label>Typeface</label>
+                <select id="${p}Font">${fontOptionsHtml(r.font)}</select></div>
+              <div class="row2">
+                <div class="field"><label>Size</label><input type="number" id="${p}Size" value="${r.size}" min="6" max="48" step="0.5"></div>
+                <div class="field"><label>Colour</label><input type="color" id="${p}Color" value="${toHex(r.color)}"></div>
+              </div>
+              <div class="checkline">
+                <input type="checkbox" id="${p}Bold" ${r.bold?'checked':''}><label for="${p}Bold" style="margin:0;color:var(--text);">Bold</label>
+                <input type="checkbox" id="${p}Italic" ${r.italic?'checked':''} style="margin-left:10px;"><label for="${p}Italic" style="margin:0;color:var(--text);">Italic</label>
+              </div>
+            </div></div>`;
+        }).join('')
+      + `<div class="row2">
+          <div class="field"><label>Row spacing</label><input type="number" id="pLegRowSpacing" value="${legendTextOf(obj.data).rowSpacing}" min="0" max="24" step="1"></div>
+          <div class="field"><label>Swatch size</label><input type="number" id="pLegSwatch" value="${legendTextOf(obj.data).swatch}" min="6" max="40" step="1"></div>
+        </div>
       <div class="divider"></div><h3>Legend panel</h3>
       <div class="checkline"><input type="checkbox" id="pLegBg" ${fr.bg?'checked':''}><label for="pLegBg" style="margin:0;color:var(--text);">Background fill</label></div>
       <div class="row2" id="pLegBgRow" ${fr.bg?'':'style="display:none"'}>
@@ -4212,12 +4403,16 @@ function showPropertiesForSelection(e){
       <div class="kv" style="margin-top:6px;">${isRF? 'The ratio updates automatically when the map frame is resized.' : 'Drag the side handles to change the bar’s length — the distance it represents follows.'}</div>`;
   }
   if(obj.data.type==='sketch'){
-    const isPen=(obj.data.sketch==='pen'||obj.data.sketch==='highlight');
-    const isGroup=obj.type==='group';
-    const strokeSrc=isGroup ? (obj.getObjects()[0]||{}) : obj;
+    const kind=obj.data.sketch;
+    const isPen=(kind==='pen'||kind==='highlight');
+    const lineish=(kind==='line'||kind==='arrow');
+    const d=obj.data;
+    const strokeSrc = lineish ? {stroke:d.stroke, strokeWidth:d.width, strokeLineCap:d.cap}
+                     : (obj.type==='group' ? (obj.getObjects()[0]||{}) : obj);
     const hasFill=obj.fill && obj.fill!=='rgba(0,0,0,0)' && obj.fill!=='transparent';
-    const dashArr=strokeSrc.strokeDashArray;
-    const curDash = !dashArr ? 'solid' : (dashArr[0]<1 ? 'dotted' : 'dashed');
+    let curDash;
+    if(lineish) curDash=d.dash||'solid';
+    else { const a=strokeSrc.strokeDashArray; curDash = !a ? 'solid' : (a[0]<1 ? 'dotted' : 'dashed'); }
     html+=`<div class="row2">
         <div class="field"><label>${isPen?'Ink colour':'Stroke colour'}</label><input type="color" id="pSkStroke" value="${toHex(strokeSrc.stroke||sketchStyle.stroke)}"></div>
         <div class="field"><label>Stroke width</label><input type="number" id="pSkW" value="${strokeSrc.strokeWidth||2}" min="0.5" step="0.5"></div>
@@ -4236,7 +4431,27 @@ function showPropertiesForSelection(e){
             <option value="square" ${strokeSrc.strokeLineCap==='square'?'selected':''}>Square</option>
           </select></div>
       </div>`;
-    if(!isPen && obj.data.sketch!=='line' && obj.data.sketch!=='arrow'){
+    if(kind==='arrow'){
+      const ends = (d.headStart&&d.headEnd)?'both' : d.headStart?'start' : d.headEnd?'end' : 'none';
+      html+=`<div class="divider"></div><h3>Arrowheads</h3>
+        <div class="row2">
+          <div class="field"><label>Style</label>
+            <select id="pSkHeadStyle">${HEAD_STYLES.map(h=>`<option value="${h[0]}" ${(d.headStyle||'triangle')===h[0]?'selected':''}>${h[1]}</option>`).join('')}</select></div>
+          <div class="field"><label>Size</label><input type="number" id="pSkHeadSize" value="${d.headSize||4}" min="2" max="12" step="0.5"></div>
+        </div>
+        <div class="field"><label>Heads on</label>
+          <select id="pSkHeadEnds">
+            <option value="end" ${ends==='end'?'selected':''}>End only</option>
+            <option value="start" ${ends==='start'?'selected':''}>Start only</option>
+            <option value="both" ${ends==='both'?'selected':''}>Both ends</option>
+            <option value="none" ${ends==='none'?'selected':''}>Neither</option>
+          </select></div>
+        <div class="kv">Drag either round handle on the page to re-aim this arrow.</div>`;
+    }
+    if(kind==='line'){
+      html+=`<div class="kv">Drag either round handle on the page to re-aim this line.</div>`;
+    }
+    if(!isPen && !lineish){
       html+=`<div class="checkline"><input type="checkbox" id="pSkFillOn" ${hasFill?'checked':''}>
           <label for="pSkFillOn" style="margin:0;color:var(--text);">Fill</label></div>
         <div class="field" id="pSkFillRow" ${hasFill?'':'style="display:none"'}>
@@ -4325,6 +4540,30 @@ function showPropertiesForSelection(e){
     g('pLegBgOp').onchange=applyFrame;
     g('pLegBgOp').oninput=()=>{ g('pLegBgOpVal').textContent=Math.round(parseFloat(g('pLegBgOp').value)*100)+'%'; };
     bindBorderControls('pLegB', applyFrame);
+
+    /* legend typography — title, headings and item labels styled independently */
+    const applyText=()=>{
+      const read=role=>{
+        const p='pLegT_'+role;
+        return {font:g(p+'Font').value, size:parseFloat(g(p+'Size').value)||12,
+                color:g(p+'Color').value, bold:g(p+'Bold').checked, italic:g(p+'Italic').checked};
+      };
+      obj.data.text={
+        title:read('title'), heading:read('heading'), label:read('label'),
+        rowSpacing:Math.max(0, parseFloat(g('pLegRowSpacing').value)||0),
+        swatch:Math.max(6, parseFloat(g('pLegSwatch').value)||14)
+      };
+      const ng=rebuildLegendOnCanvas(obj);
+      showPropertiesForSelection({selected:[ng]});
+    };
+    ['title','heading','label'].forEach(role=>{
+      const p='pLegT_'+role;
+      [p+'Font',p+'Size',p+'Color',p+'Bold',p+'Italic'].forEach(id=>{
+        const e=g(id); if(e) e.onchange=applyText;
+      });
+    });
+    if(g('pLegRowSpacing')) g('pLegRowSpacing').onchange=applyText;
+    if(g('pLegSwatch')) g('pLegSwatch').onchange=applyText;
   }
   if(obj.data.type==='scaleBar'){
     const applyScale=()=>{
@@ -4352,20 +4591,30 @@ function showPropertiesForSelection(e){
     if(g('pScaleRfMode')) g('pScaleRfMode').onchange=applyScale;
   }
   if(obj.data.type==='sketch'){
-    const isGroup = obj.type==='group';
+    const kind=obj.data.sketch;
+    const lineish=(kind==='line'||kind==='arrow');
     const applyStroke=()=>{
       const c=g('pSkStroke').value, w=parseFloat(g('pSkW').value)||2;
-      const dash=sketchDash(g('pSkDash').value, w), cap=g('pSkCap').value;
-      if(isGroup){
-        obj.getObjects().forEach(o=>{
-          if(o.type==='triangle') o.set({fill:c});
-          else o.set({stroke:c, strokeWidth:w, strokeDashArray:dash, strokeLineCap:cap});
-        });
-      } else if(obj.data.sketch==='highlight'){
-        obj.set({stroke:hexToRgba(c,0.35), strokeWidth:w, strokeDashArray:dash, strokeLineCap:cap});
-      } else {
-        obj.set({stroke:c, strokeWidth:w, strokeDashArray:dash, strokeLineCap:cap});
+      const dashName=g('pSkDash').value, cap=g('pSkCap').value;
+      if(lineish){
+        /* rebuild from the stored geometry so heads stay in proportion */
+        const d=obj.data;
+        d.stroke=c; d.width=w; d.dash=dashName; d.cap=cap;
+        if(g('pSkHeadStyle')){
+          d.headStyle=g('pSkHeadStyle').value;
+          d.headSize=parseFloat(g('pSkHeadSize').value)||4;
+          const ends=g('pSkHeadEnds').value;
+          d.headStart=(ends==='start'||ends==='both');
+          d.headEnd=(ends==='end'||ends==='both');
+        }
+        const ng=rebuildLineObject(obj);
+        pushHistory();
+        showPropertiesForSelection({selected:[ng]});
+        return;
       }
+      const dash=sketchDash(dashName, w);
+      if(kind==='highlight') obj.set({stroke:hexToRgba(c,0.35), strokeWidth:w, strokeDashArray:dash, strokeLineCap:cap});
+      else obj.set({stroke:c, strokeWidth:w, strokeDashArray:dash, strokeLineCap:cap});
       obj.set({dirty:true});
       canvas.renderAll(); pushHistory();
     };
@@ -4373,6 +4622,9 @@ function showPropertiesForSelection(e){
     g('pSkW').onchange=applyStroke;
     g('pSkDash').onchange=applyStroke;
     g('pSkCap').onchange=applyStroke;
+    if(g('pSkHeadStyle')) g('pSkHeadStyle').onchange=applyStroke;
+    if(g('pSkHeadSize')) g('pSkHeadSize').onchange=applyStroke;
+    if(g('pSkHeadEnds')) g('pSkHeadEnds').onchange=applyStroke;
     if(g('pSkFillOn')){
       const applyFill=()=>{
         const on=g('pSkFillOn').checked;
@@ -4717,24 +4969,30 @@ document.getElementById('loPanelToggle').onclick=()=>{
 })();
 
 /* ================= SKETCH / DRAWING TOOLS =================
-   Freehand pen, highlighter, straight line, arrow, rectangle, ellipse and
-   polygon. Everything lands on the same Fabric canvas as a normal element, so it
-   drags, scales, layers and exports like anything else. Double-clicking a drawn
-   shape switches it into vertex-editing mode. */
-let sketchMode=null, sketchDraft=null, sketchStart=null, polyPts=[], polyPreview=null, vertexEditor=null;
+   Behaves like a simple graphics program: pick a tool, draw one shape, and the
+   tool hands straight back to the pointer with the new shape selected. Shapes
+   are ordinary canvas elements — they move, scale, layer and export like the
+   rest. Lines and arrows keep their endpoints in data so they can be re-aimed
+   and their heads restyled long after they were drawn. */
+let sketchMode=null, sketchDraft=null, sketchStart=null, polyPts=[], polyPreview=null;
+let vertexEditor=null, endpointEditor=null;
 const sketchStyle={stroke:'#b3452f', width:2, opacity:1,
   fillOn:false, fill:'#3a9a93', fillOpacity:0.35,
-  dash:'solid', cap:'round', arrowSize:4.5, arrowStyle:'filled'};
+  dash:'solid', cap:'round',
+  headSize:4, headStyle:'triangle', headStart:false, headEnd:true};
 
 const SKETCH_MODES=[
-  ['pen','✎','Freehand pen'],
-  ['highlight','▬','Highlighter'],
   ['line','╱','Straight line'],
   ['arrow','↗','Arrow'],
   ['rect','▭','Rectangle'],
   ['ellipse','◯','Ellipse'],
-  ['poly','⬠','Polygon — click points, double-click to finish']
+  ['poly','⬠','Polygon — click each corner, double-click or Enter to finish'],
+  ['pen','✎','Freehand pen'],
+  ['highlight','▬','Highlighter']
 ];
+const HEAD_STYLES=[['triangle','Filled triangle'],['open','Open V'],['barb','Barb'],
+                   ['circle','Circle'],['square','Square'],['none','None']];
+
 function sketchDash(style, width){
   const w=Math.max(1,width||1);
   if(style==='dashed') return [w*4, w*3];
@@ -4744,9 +5002,126 @@ function sketchDash(style, width){
 function sketchFillValue(){
   return sketchStyle.fillOn ? hexToRgba(sketchStyle.fill, sketchStyle.fillOpacity) : 'rgba(0,0,0,0)';
 }
+function isLineish(o){ return o&&o.data&&o.data.type==='sketch'&&(o.data.sketch==='line'||o.data.sketch==='arrow'); }
+
+/* ---------- line / arrow geometry ----------
+   Heads are built from explicit points rather than a rotated primitive, which is
+   what made the old arrows sit crooked. The shaft stops short of each head so
+   nothing pokes through the tip. */
+function headGeometry(width, sizeFactor){
+  const L=Math.max(7, (width||2)*(sizeFactor||4));   /* head length */
+  return {L, W:L*0.42};
+}
+/* How far the shaft must stop short of the tip so the join is clean:
+   a solid triangle is met at its base; an open V and the round/square markers
+   are met dead centre, so the shaft runs all the way to the point. */
+function headInset(style, width, sizeFactor){
+  const {L}=headGeometry(width, sizeFactor);
+  if(style==='triangle') return L*0.92;   /* stop at the triangle's base */
+  return 0;                               /* V, circle, square: meet dead centre */
+}
+function buildHead(d, x, y, ang, atStart){
+  const st=d.headStyle||'triangle';
+  if(st==='none') return null;
+  const {L,W}=headGeometry(d.width, d.headSize);
+  const dir=atStart ? ang+Math.PI : ang;      /* direction the head points */
+  const cos=Math.cos(dir), sin=Math.sin(dir);
+  const px=-sin, py=cos;                      /* perpendicular */
+  if(st==='triangle'){
+    /* a Triangle placed at its own centre — half a head-length back from the
+       tip — lands exactly on the line's axis at any angle */
+    return new fabric.Triangle({
+      left:x-cos*L/2, top:y-sin*L/2, originX:'center', originY:'center',
+      width:W*2, height:L, fill:d.stroke, angle:dir*180/Math.PI+90, objectCaching:false});
+  }
+  if(st==='open'||st==='barb'){
+    /* returned as path segments so they can be drawn in the same path as the
+       shaft — separate Line objects get nudged around inside a group */
+    const spread=(st==='barb'?W*1.4:W);
+    const back=(st==='barb'?L*0.9:L);
+    return {segments:
+      'M '+(x-cos*back+px*spread)+' '+(y-sin*back+py*spread)+
+      ' L '+x+' '+y+
+      ' L '+(x-cos*back-px*spread)+' '+(y-sin*back-py*spread)};
+  }
+  if(st==='circle'){
+    /* centred on the endpoint so the shaft disappears under it — never a gap */
+    return new fabric.Circle({left:x, top:y, radius:L*0.36, fill:d.stroke,
+      originX:'center', originY:'center', objectCaching:false});
+  }
+  return new fabric.Rect({left:x, top:y, width:L*0.62, height:L*0.62, fill:d.stroke,
+    originX:'center', originY:'center', angle:dir*180/Math.PI+45, objectCaching:false});
+}
+function buildLineObject(d){
+  const ang=Math.atan2(d.y2-d.y1, d.x2-d.x1);
+  const isArrow=(d.sketch==='arrow');
+  const wantStart=isArrow && d.headStart && d.headStyle!=='none';
+  const wantEnd=isArrow && d.headEnd && d.headStyle!=='none';
+  const inset=headInset(d.headStyle, d.width, d.headSize);
+  const sx=d.x1 + (wantStart? Math.cos(ang)*inset : 0);
+  const sy=d.y1 + (wantStart? Math.sin(ang)*inset : 0);
+  const ex=d.x2 - (wantEnd? Math.cos(ang)*inset : 0);
+  const ey=d.y2 - (wantEnd? Math.sin(ang)*inset : 0);
+  /* The shaft (and any stroked V heads) are one path, so every coordinate lands
+     exactly where it was computed. Solid heads are separate filled shapes. */
+  let shaftPath='M '+sx+' '+sy+' L '+ex+' '+ey;
+  const solids=[];
+  const addHead=h=>{
+    if(!h) return;
+    if(h.segments) shaftPath+=' '+h.segments;
+    else solids.push(h);
+  };
+  if(wantEnd) addHead(buildHead(d, d.x2, d.y2, ang, false));
+  if(wantStart) addHead(buildHead(d, d.x1, d.y1, ang, true));
+  const parts=[new fabric.Path(shaftPath,{
+    fill:'', stroke:d.stroke, strokeWidth:d.width, strokeLineCap:d.cap||'round',
+    strokeLineJoin:'round', strokeDashArray:sketchDash(d.dash,d.width), objectCaching:false})];
+  parts.push.apply(parts, solids);
+  const g=new fabric.Group(parts,{opacity:d.opacity==null?1:d.opacity, objectCaching:false});
+  /* lines and arrows are re-aimed by their endpoints, so they show those handles
+     instead of a selection box */
+  g.set({hasControls:false, hasBorders:false, cornerColor:'#2f7d78', borderColor:'#2f7d78'});
+  return g;
+}
+function rebuildLineObject(obj){
+  const idx=canvas.getObjects().indexOf(obj);
+  const wasActive=canvas.getActiveObject()===obj;
+  canvas.remove(obj);
+  const g=buildLineObject(obj.data);
+  g.data=obj.data;
+  canvas.insertAt(g, idx, false);
+  if(wasActive){ canvas.setActiveObject(g); showEndpointHandles(g); }
+  canvas.renderAll();
+  return g;
+}
+
+/* ---------- endpoint handles (lines + arrows) ---------- */
+function clearEndpointHandles(){
+  if(!endpointEditor) return;
+  endpointEditor.handles.forEach(h=>canvas.remove(h));
+  endpointEditor=null;
+  canvas.renderAll();
+}
+function showEndpointHandles(obj){
+  clearEndpointHandles();
+  if(!isLineish(obj) || sketchMode) return;
+  const d=obj.data;
+  const mk=(x,y,which)=>{
+    const h=new fabric.Circle({left:x, top:y, radius:5.5, fill:'#ffffff', stroke:'#2f7d78',
+      strokeWidth:2, originX:'center', originY:'center',
+      hasControls:false, hasBorders:false, objectCaching:false, hoverCursor:'crosshair'});
+    h.data={id:uid(), type:'endpointHandle', guide:true, which, ownerId:d.id};
+    canvas.add(h);
+    return h;
+  };
+  endpointEditor={obj, handles:[mk(d.x1,d.y1,'start'), mk(d.x2,d.y2,'end')]};
+  canvas.renderAll();
+}
+
+/* ---------- tool state ---------- */
 function setSketchMode(mode){
   if(mode==='off') mode=null;
-  finishPolygon(true);
+  if(polyPts.length) finishPolygon(true);
   sketchMode=mode;
   document.getElementById('toolSketch').classList.toggle('on', !!mode);
   document.getElementById('stage').classList.toggle('sketching', !!mode);
@@ -4758,15 +5133,17 @@ function setSketchMode(mode){
       ? hexToRgba(sketchStyle.stroke, 0.35) : hexToRgba(sketchStyle.stroke, sketchStyle.opacity);
     canvas.freeDrawingBrush.width = mode==='highlight' ? Math.max(10, sketchStyle.width*6) : sketchStyle.width;
   }
+  if(mode){ clearEndpointHandles(); exitVertexEdit(); }
   canvas.forEachObject(o=>{ if(!(o.data&&o.data.guide)) o.selectable = !mode; });
-  showVertexHint(mode==='poly' ? 'Click to add points · double-click or Enter to finish · Esc cancels' : null);
-  if(mode){
-    /* keep the panel in place across mode switches — rebuilding it would destroy
-       the very button being clicked */
-    if(document.getElementById('skModes')) updateSketchPanelState();
-    else renderSketchPanel();
-  }
+  showVertexHint(mode==='poly' ? 'Click each corner · double-click or Enter to finish · Esc cancels' : null);
+  if(mode) ensureSketchPanel();
   canvas.renderAll();
+}
+/* the panel and the highlighted tool button must never disagree */
+function ensureSketchPanel(){
+  if(!sketchMode) return;
+  if(document.getElementById('skModes')) updateSketchPanelState();
+  else renderSketchPanel();
 }
 function updateSketchPanelState(){
   document.querySelectorAll('#skModes .sk-btn').forEach(b=>
@@ -4776,9 +5153,15 @@ function updateSketchPanelState(){
   const arrow=document.getElementById('skArrowSec');
   if(fill) fill.style.display = closed ? '' : 'none';
   if(arrow) arrow.style.display = (sketchMode==='arrow') ? '' : 'none';
+  const hint=document.getElementById('skHint');
+  if(hint){
+    hint.textContent = sketchMode
+      ? (sketchMode==='poly' ? 'Click each corner on the page, then double-click or press Enter to finish.'
+        : sketchMode==='pen'||sketchMode==='highlight' ? 'Drag on the page to draw freehand.'
+        : 'Drag on the page to draw. The pointer comes back automatically when you let go.')
+      : 'Pick a tool above, then draw on the page.';
+  }
 }
-
-/* Sketch settings live in the right panel alongside every other tool's options. */
 function renderSketchPanel(){
   const el=document.getElementById('tab-props');
   if(!el) return;
@@ -4789,6 +5172,7 @@ function renderSketchPanel(){
       <div id="skModes">${SKETCH_MODES.map(m=>
         `<button class="sk-btn ${sketchMode===m[0]?'on':''}" data-sk="${m[0]}" title="${esc(m[2])}">${m[1]}</button>`).join('')}</div>
     </div>
+    <div class="kv" id="skHint"></div>
     <div class="divider"></div><h3>Stroke</h3>
     <div class="row2">
       <div class="field"><label>Colour</label><input type="color" id="skStroke" value="${s.stroke}"></div>
@@ -4818,25 +5202,26 @@ function renderSketchPanel(){
         <div class="field"><label>Fill opacity: <span id="skFillOpVal">${Math.round(s.fillOpacity*100)}%</span></label>
           <input type="range" id="skFillOpacity" min="0.05" max="1" step="0.05" value="${s.fillOpacity}"></div>
       </div></div>
-    <div id="skArrowSec"><div class="divider"></div><h3>Arrowhead</h3>
+    <div id="skArrowSec"><div class="divider"></div><h3>Arrowheads</h3>
       <div class="row2">
-        <div class="field"><label>Size</label><input type="number" id="skArrowSize" value="${s.arrowSize}" min="2" max="12" step="0.5"></div>
         <div class="field"><label>Style</label>
-          <select id="skArrowStyle">
-            <option value="filled" ${s.arrowStyle==='filled'?'selected':''}>Filled</option>
-            <option value="open" ${s.arrowStyle==='open'?'selected':''}>Open (line)</option>
-          </select></div>
-      </div></div>
+          <select id="skHeadStyle">${HEAD_STYLES.map(h=>`<option value="${h[0]}" ${s.headStyle===h[0]?'selected':''}>${h[1]}</option>`).join('')}</select></div>
+        <div class="field"><label>Size</label><input type="number" id="skHeadSize" value="${s.headSize}" min="2" max="12" step="0.5"></div>
+      </div>
+      <div class="field"><label>Heads on</label>
+        <select id="skHeadEnds">
+          <option value="end" ${(!s.headStart&&s.headEnd)?'selected':''}>End only</option>
+          <option value="start" ${(s.headStart&&!s.headEnd)?'selected':''}>Start only</option>
+          <option value="both" ${(s.headStart&&s.headEnd)?'selected':''}>Both ends</option>
+          <option value="none" ${(!s.headStart&&!s.headEnd)?'selected':''}>Neither</option>
+        </select></div>
+    </div>
     <div class="divider"></div>
-    <div class="kv">These settings apply to what you draw next. To change something already drawn, click it and edit it here.</div>
-    <button class="btn small light" id="skDone" style="margin-top:8px;">Done drawing</button>`;
+    <button class="btn small light" id="skDone">Done — back to pointer</button>`;
 
   el.querySelectorAll('#skModes .sk-btn').forEach(b=>{
-    b.onclick=()=>{
-      const m=b.getAttribute('data-sk');
-      setSketchMode(sketchMode===m ? null : m);
-      if(!sketchMode) clearProperties();
-    };
+    /* clicking the tool you're already on keeps it — leaving is Done or Esc */
+    b.onclick=()=>setSketchMode(b.getAttribute('data-sk'));
   });
   const g=id=>document.getElementById(id);
   const sync=()=>{
@@ -4845,30 +5230,27 @@ function renderSketchPanel(){
     s.dash=g('skDash').value;
     s.cap=g('skCap').value;
     s.opacity=parseFloat(g('skOpacity').value);
-    if(g('skFillOn')){
-      s.fillOn=g('skFillOn').checked;
-      g('skFillRow').style.display=s.fillOn?'':'none';
-      s.fill=g('skFill').value;
-      s.fillOpacity=parseFloat(g('skFillOpacity').value);
-    }
-    if(g('skArrowSize')){
-      s.arrowSize=parseFloat(g('skArrowSize').value)||4.5;
-      s.arrowStyle=g('skArrowStyle').value;
-    }
+    s.fillOn=g('skFillOn').checked;
+    g('skFillRow').style.display=s.fillOn?'':'none';
+    s.fill=g('skFill').value;
+    s.fillOpacity=parseFloat(g('skFillOpacity').value);
+    s.headStyle=g('skHeadStyle').value;
+    s.headSize=parseFloat(g('skHeadSize').value)||4;
+    const ends=g('skHeadEnds').value;
+    s.headStart=(ends==='start'||ends==='both');
+    s.headEnd=(ends==='end'||ends==='both');
     if(canvas.isDrawingMode){
       canvas.freeDrawingBrush.color = sketchMode==='highlight'
         ? hexToRgba(s.stroke, 0.35) : hexToRgba(s.stroke, s.opacity);
       canvas.freeDrawingBrush.width = sketchMode==='highlight' ? Math.max(10, s.width*6) : s.width;
     }
   };
-  ['skStroke','skWidth','skDash','skCap','skFillOn','skFill','skArrowSize','skArrowStyle'].forEach(id=>{
+  ['skStroke','skWidth','skDash','skCap','skFillOn','skFill','skHeadStyle','skHeadSize','skHeadEnds'].forEach(id=>{
     const e=g(id); if(!e) return;
     e.onchange=sync; if(e.type==='color') e.oninput=sync;
   });
   g('skOpacity').oninput=()=>{ g('skOpVal').textContent=Math.round(parseFloat(g('skOpacity').value)*100)+'%'; sync(); };
-  if(g('skFillOpacity')) g('skFillOpacity').oninput=()=>{
-    g('skFillOpVal').textContent=Math.round(parseFloat(g('skFillOpacity').value)*100)+'%'; sync();
-  };
+  g('skFillOpacity').oninput=()=>{ g('skFillOpVal').textContent=Math.round(parseFloat(g('skFillOpacity').value)*100)+'%'; sync(); };
   g('skDone').onclick=()=>{ setSketchMode(null); clearProperties(); };
   updateSketchPanelState();
 }
@@ -4884,7 +5266,13 @@ function showVertexHint(text){
 }
 document.getElementById('toolSketch').onclick=()=>{
   if(sketchMode){ setSketchMode(null); clearProperties(); }
-  else { canvas.discardActiveObject(); setSketchMode('pen'); }
+  else {
+    canvas.discardActiveObject();
+    clearEndpointHandles();
+    canvas.renderAll();
+    renderSketchPanel();          /* panel first, so it can never be missing */
+    setSketchMode('line');
+  }
 };
 
 /* The canvas doesn't exist until initCanvas() runs, so sketch listeners are
@@ -4893,53 +5281,32 @@ const sketchCanvasHooks=[];
 function onSketchCanvas(evt, fn){ sketchCanvasHooks.push([evt,fn]); }
 function initSketchTools(){ sketchCanvasHooks.forEach(h=>canvas.on(h[0],h[1])); }
 
-/* freehand strokes come from Fabric's own brush — tag them so they behave like our elements */
+/* one drawing gesture, then back to the pointer with the shape selected */
+function finishSketchObject(obj, kind){
+  obj.set({selectable:true, evented:true,
+    cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
+  if(!obj.data) obj.data={id:uid(), type:'sketch', sketch:kind};
+  setSketchMode(null);
+  canvas.setActiveObject(obj);
+  if(isLineish(obj)) showEndpointHandles(obj);
+  canvas.renderAll();
+  pushHistory();
+  showPropertiesForSelection({selected:[obj]});
+}
+
 onSketchCanvas('path:created', e=>{
   const p=e.path;
   p.data={id:uid(), type:'sketch', sketch:(sketchMode==='highlight'?'highlight':'pen')};
-  p.set({cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78',
-         selectable:true, opacity:sketchStyle.opacity});
-  pushHistory();
-  refreshLayersTab();
+  p.set({opacity:sketchStyle.opacity, objectCaching:true});
+  finishSketchObject(p, p.data.sketch);
 });
-
-function arrowGroup(x1,y1,x2,y2,style){
-  const dx=x2-x1, dy=y2-y1;
-  const ang=Math.atan2(dy,dx);
-  const head=Math.max(9, (style.width||2)*(style.arrowSize||4.5));
-  const line=new fabric.Line([x1,y1,x2-Math.cos(ang)*head*0.7, y2-Math.sin(ang)*head*0.7],
-    {stroke:style.stroke, strokeWidth:style.width, strokeLineCap:style.cap||'round',
-     strokeDashArray:sketchDash(style.dash, style.width)});
-  let tip;
-  if(style.arrowStyle==='open'){
-    /* two strokes forming a V rather than a solid triangle */
-    const back=head, spread=Math.PI/7;
-    tip=new fabric.Polyline([
-      {x:x2-Math.cos(ang-spread)*back, y:y2-Math.sin(ang-spread)*back},
-      {x:x2, y:y2},
-      {x:x2-Math.cos(ang+spread)*back, y:y2-Math.sin(ang+spread)*back}
-    ],{stroke:style.stroke, strokeWidth:style.width, fill:'rgba(0,0,0,0)',
-       strokeLineCap:style.cap||'round', strokeLineJoin:'round'});
-  } else {
-    tip=new fabric.Triangle({
-      left:x2, top:y2, originX:'center', originY:'center',
-      width:head, height:head, fill:style.stroke,
-      angle:(ang*180/Math.PI)+90
-    });
-  }
-  return new fabric.Group([line,tip],{opacity:style.opacity});
-}
 
 onSketchCanvas('mouse:down', opt=>{
   if(!sketchMode || sketchMode==='pen' || sketchMode==='highlight') return;
   const p=canvas.getPointer(opt.e);
   if(sketchMode==='poly'){
     polyPts.push({x:p.x,y:p.y});
-    if(polyPreview) canvas.remove(polyPreview);
-    polyPreview=new fabric.Polyline(polyPts.concat([{x:p.x,y:p.y}]),{
-      stroke:sketchStyle.stroke, strokeWidth:sketchStyle.width, fill:'rgba(0,0,0,0)',
-      selectable:false, evented:false, objectCaching:false});
-    canvas.add(polyPreview); canvas.renderAll();
+    drawPolyPreview(p);
     return;
   }
   sketchStart={x:p.x,y:p.y};
@@ -4950,23 +5317,30 @@ onSketchCanvas('mouse:down', opt=>{
     sketchDraft=new fabric.Rect(Object.assign({left:p.x, top:p.y, width:1, height:1, fill:sketchFillValue()}, common));
   } else if(sketchMode==='ellipse'){
     sketchDraft=new fabric.Ellipse(Object.assign({left:p.x, top:p.y, rx:1, ry:1, fill:sketchFillValue()}, common));
-  } else if(sketchMode==='line'){
-    sketchDraft=new fabric.Line([p.x,p.y,p.x,p.y], common);
-  } else if(sketchMode==='arrow'){
-    sketchDraft=arrowGroup(p.x,p.y,p.x+1,p.y+1,s);
+  } else if(sketchMode==='line'||sketchMode==='arrow'){
+    sketchDraft=buildLineObject(lineDataFrom(p.x,p.y,p.x+1,p.y+1, sketchMode));
   }
   if(sketchDraft){ sketchDraft.set({selectable:false, evented:false}); canvas.add(sketchDraft); }
 });
+function lineDataFrom(x1,y1,x2,y2,kind){
+  const s=sketchStyle;
+  return {id:uid(), type:'sketch', sketch:kind, x1,y1,x2,y2,
+    stroke:s.stroke, width:s.width, dash:s.dash, cap:s.cap, opacity:s.opacity,
+    headStyle:s.headStyle, headSize:s.headSize,
+    headStart:(kind==='arrow'? s.headStart : false),
+    headEnd:(kind==='arrow'? s.headEnd : false)};
+}
+function drawPolyPreview(p){
+  if(polyPreview) canvas.remove(polyPreview);
+  polyPreview=new fabric.Polyline(polyPts.concat([{x:p.x,y:p.y}]),{
+    stroke:sketchStyle.stroke, strokeWidth:sketchStyle.width, fill:'',
+    strokeDashArray:[4,3], selectable:false, evented:false, objectCaching:false});
+  canvas.add(polyPreview);
+  canvas.renderAll();
+}
 onSketchCanvas('mouse:move', opt=>{
   const p=canvas.getPointer(opt.e);
-  if(sketchMode==='poly' && polyPts.length && polyPreview){
-    canvas.remove(polyPreview);
-    polyPreview=new fabric.Polyline(polyPts.concat([{x:p.x,y:p.y}]),{
-      stroke:sketchStyle.stroke, strokeWidth:sketchStyle.width, fill:'rgba(0,0,0,0)',
-      selectable:false, evented:false, objectCaching:false});
-    canvas.add(polyPreview); canvas.renderAll();
-    return;
-  }
+  if(sketchMode==='poly' && polyPts.length){ drawPolyPreview(p); return; }
   if(!sketchDraft||!sketchStart) return;
   const x0=sketchStart.x, y0=sketchStart.y;
   if(sketchMode==='rect'){
@@ -4975,11 +5349,12 @@ onSketchCanvas('mouse:move', opt=>{
   } else if(sketchMode==='ellipse'){
     sketchDraft.set({left:Math.min(x0,p.x), top:Math.min(y0,p.y),
       rx:Math.abs(p.x-x0)/2, ry:Math.abs(p.y-y0)/2});
-  } else if(sketchMode==='line'){
-    sketchDraft.set({x2:p.x, y2:p.y});
-  } else if(sketchMode==='arrow'){
+  } else if(sketchMode==='line'||sketchMode==='arrow'){
+    const d=sketchDraft.data||lineDataFrom(x0,y0,p.x,p.y,sketchMode);
+    d.x1=x0; d.y1=y0; d.x2=p.x; d.y2=p.y;
     canvas.remove(sketchDraft);
-    sketchDraft=arrowGroup(x0,y0,p.x,p.y,sketchStyle);
+    sketchDraft=buildLineObject(d);
+    sketchDraft.data=d;
     sketchDraft.set({selectable:false, evented:false});
     canvas.add(sketchDraft);
   }
@@ -4987,16 +5362,15 @@ onSketchCanvas('mouse:move', opt=>{
 });
 onSketchCanvas('mouse:up', ()=>{
   if(!sketchDraft||!sketchStart) return;
-  const d=sketchDraft; sketchDraft=null; sketchStart=null;
+  const d=sketchDraft, kind=sketchMode;
+  sketchDraft=null; sketchStart=null;
   const b=d.getBoundingRect(true,true);
-  if(b.width<3 && b.height<3){ canvas.remove(d); canvas.renderAll(); return; }
-  d.set({selectable:true, evented:true, objectCaching:true,
-    cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
-  d.data={id:uid(), type:'sketch', sketch:sketchMode};
-  canvas.setActiveObject(d);
-  canvas.renderAll();
-  pushHistory();
-  refreshLayersTab();
+  if(b.width<4 && b.height<4){ canvas.remove(d); canvas.renderAll(); return; }
+  if(kind==='rect'||kind==='ellipse'){
+    d.set({objectCaching:true});
+    d.data={id:uid(), type:'sketch', sketch:kind};
+  }
+  finishSketchObject(d, kind);
 });
 onSketchCanvas('mouse:dblclick', ()=>{ if(sketchMode==='poly') finishPolygon(false); });
 
@@ -5007,17 +5381,13 @@ function finishPolygon(cancel){
   const poly=new fabric.Polygon(pts,{
     fill:sketchFillValue(), stroke:sketchStyle.stroke, strokeWidth:sketchStyle.width,
     strokeDashArray:sketchDash(sketchStyle.dash,sketchStyle.width), strokeLineCap:sketchStyle.cap,
-    opacity:sketchStyle.opacity, objectCaching:false,
-    cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
+    opacity:sketchStyle.opacity, objectCaching:false});
   poly.data={id:uid(), type:'sketch', sketch:'poly'};
   canvas.add(poly);
-  canvas.setActiveObject(poly);
-  canvas.renderAll();
-  pushHistory();
-  refreshLayersTab();
+  finishSketchObject(poly, 'poly');
 }
 
-/* ---------- vertex editing ---------- */
+/* ---------- vertex editing (polygons) ---------- */
 function polyPointsAbsolute(obj){
   const m=obj.calcTransformMatrix();
   return obj.points.map(pt=>{
@@ -5050,14 +5420,31 @@ function enterVertexEdit(obj){
 }
 onSketchCanvas('object:moving', e=>{
   const h=e.target;
-  if(!vertexEditor || !h.data || h.data.type!=='vertexHandle') return;
-  const obj=vertexEditor.obj;
-  const inv=fabric.util.invertTransform(obj.calcTransformMatrix());
-  const local=fabric.util.transformPoint(new fabric.Point(h.left, h.top), inv);
-  obj.points[h.data.idx].x = local.x + obj.pathOffset.x;
-  obj.points[h.data.idx].y = local.y + obj.pathOffset.y;
-  obj.set({dirty:true});
-  canvas.renderAll();
+  if(!h||!h.data) return;
+  if(h.data.type==='vertexHandle' && vertexEditor){
+    const obj=vertexEditor.obj;
+    const inv=fabric.util.invertTransform(obj.calcTransformMatrix());
+    const local=fabric.util.transformPoint(new fabric.Point(h.left, h.top), inv);
+    obj.points[h.data.idx].x = local.x + obj.pathOffset.x;
+    obj.points[h.data.idx].y = local.y + obj.pathOffset.y;
+    obj.set({dirty:true});
+    canvas.renderAll();
+    return;
+  }
+  if(h.data.type==='endpointHandle' && endpointEditor){
+    const d=endpointEditor.obj.data;
+    if(h.data.which==='start'){ d.x1=h.left; d.y1=h.top; } else { d.x2=h.left; d.y2=h.top; }
+    const idx=canvas.getObjects().indexOf(endpointEditor.obj);
+    canvas.remove(endpointEditor.obj);
+    const g=buildLineObject(d);
+    g.data=d;
+    canvas.insertAt(g, idx, false);
+    endpointEditor.obj=g;
+    canvas.renderAll();
+    return;
+  }
+  /* dragging the line itself moves both endpoints with it */
+  if(isLineish(h) && endpointEditor && endpointEditor.obj===h) clearEndpointHandles();
 });
 onSketchCanvas('mouse:dblclick', opt=>{
   const t=opt.target;
@@ -5065,6 +5452,25 @@ onSketchCanvas('mouse:dblclick', opt=>{
   if(vertexEditor && (!t || t===vertexEditor.obj)){ exitVertexEdit(); pushHistory(); return; }
   if(t && t.data && t.data.type==='sketch' && t.points) enterVertexEdit(t);
 });
+
+/* a dragged line carries its stored endpoints along with it */
+onSketchCanvas('object:modified', e=>{
+  const o=e.target;
+  if(!isLineish(o)) return;
+  if(o.__ptRef){
+    const dx=o.left-o.__ptRef.left, dy=o.top-o.__ptRef.top;
+    if(dx||dy){
+      const d=o.data;
+      d.x1+=dx; d.y1+=dy; d.x2+=dx; d.y2+=dy;
+    }
+  }
+  o.__ptRef={left:o.left, top:o.top};
+  if(canvas.getActiveObject()===o) showEndpointHandles(o);
+});
+onSketchCanvas('selection:created', e=>{ const o=(e.selected||[])[0]; if(isLineish(o)){ o.__ptRef={left:o.left, top:o.top}; showEndpointHandles(o);} });
+onSketchCanvas('selection:updated', e=>{ const o=(e.selected||[])[0]; if(isLineish(o)){ o.__ptRef={left:o.left, top:o.top}; showEndpointHandles(o);} else clearEndpointHandles(); });
+onSketchCanvas('selection:cleared', ()=>clearEndpointHandles());
+
 document.addEventListener('keydown', e=>{
   if(document.getElementById('module-layout').classList.contains('hidden')) return;
   const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''));
