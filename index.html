@@ -18,7 +18,11 @@
   .hidden{display:none !important;}
 
   /* ---------- top bar ---------- */
-  #topbar{display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--navy);color:#fff;flex-wrap:wrap;position:relative;z-index:600;}
+  /* Stacking order, highest last: leaflet panes 400 < leaflet controls 800
+     < map toolbar 850 < top bar 900 < modals 1000 < toast 2000.
+     The toolbar has to clear Leaflet's own layers or its dropdowns
+     (search results, selection actions) render behind the map. */
+  #topbar{display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--navy);color:#fff;flex-wrap:wrap;position:relative;z-index:900;}
   #topbar h1{font-size:15px;font-weight:600;margin:0 8px 0 0;white-space:nowrap;}
   .mod-tabs{display:flex;background:#111d38;border-radius:7px;padding:3px;gap:3px;}
   .mod-tabs button{background:transparent;border:none;color:#aab6d4;font-size:12.5px;font-weight:700;padding:5px 14px;border-radius:5px;}
@@ -61,19 +65,56 @@
   #fieldsList th{background:var(--navy);color:#fff;text-align:left;padding:6px 9px;font-size:11.5px;position:sticky;top:0;}
   #fieldsList td{padding:5px 9px;border-bottom:1px solid #eef1f6;}
   #fieldsList td.ftype{color:var(--muted);font-size:11px;}
-  #geoSearchWrap{position:relative;}
-  #geoSearchInput{width:190px;padding:4px 7px;border:1px solid var(--line);border-radius:5px;font-size:12px;}
+  #geoSearchWrap{position:relative;flex-shrink:1;min-width:110px;}
+  #geoSearchInput{width:190px;max-width:100%;padding:4px 7px;border:1px solid var(--line);border-radius:5px;font-size:12px;}
   #geoResults{position:absolute;top:100%;left:0;width:290px;background:#fff;border:1px solid var(--line);border-radius:6px;
     box-shadow:0 6px 20px rgba(20,30,60,.18);z-index:60;max-height:250px;overflow-y:auto;margin-top:3px;}
   #geoResults button{display:block;width:100%;text-align:left;background:none;border:none;padding:7px 10px;font-size:12px;border-bottom:1px solid #f0f3f7;}
   #geoResults button:hover{background:#eef4f3;}
   #mk-center{flex:1;display:flex;flex-direction:column;min-width:0;}
-  #mk-toolbar{display:flex;gap:7px;align-items:center;padding:7px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  /* single row at any width: fixed-size buttons, the status text and search box absorb the squeeze
+     (no overflow:hidden here — the search results dropdown has to escape the toolbar) */
+  #mk-toolbar{display:flex;gap:7px;align-items:center;padding:7px 10px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:nowrap;position:relative;z-index:850;}
+  #mk-toolbar .btn{flex-shrink:0;}
+  #mkStatus{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex-shrink:1;}
+  #mkSelBar{display:flex;align-items:center;gap:5px;flex-shrink:0;background:#eaf6f5;border:1px solid var(--teal);border-radius:6px;padding:2px 4px 2px 8px;}
+  #mkSelCount{font-size:11.5px;font-weight:700;color:var(--teal);white-space:nowrap;}
+  .panel-tools{position:relative;display:flex;align-items:center;padding-right:6px;flex-shrink:0;}
+  .panel-tools>button{border:1px solid var(--line);background:#f5f7fa;border-radius:5px;font-size:11px;font-weight:700;padding:4px 7px;color:var(--navy);white-space:nowrap;}
+  .panel-tools>button:hover{background:#e7f2f1;border-color:var(--teal);}
+  .tools-menu{position:absolute;top:100%;right:0;min-width:210px;max-height:60vh;overflow-y:auto;background:#fff;border:1px solid var(--line);
+    border-radius:7px;box-shadow:0 8px 26px rgba(20,30,60,.2);z-index:120;padding:5px 0;margin-top:3px;}
+  .tools-menu .tg{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:7px 12px 3px;}
+  .tools-menu button,.tabs .tools-menu button{display:block;width:100%;flex:0 0 auto;text-align:left;background:none;border:none;
+    padding:6px 12px;font-size:12px;font-weight:400;color:var(--text);border-bottom:none;border-radius:0;}
+  .tools-menu button:hover,.tabs .tools-menu button:hover{background:#eef4f3;}
+
+  /* collapsible sections inside a tab (Data tab, Tools tab) */
+  .acc{border:1px solid var(--line);border-radius:6px;margin-bottom:8px;background:#fff;overflow:hidden;}
+  .acc>.acc-h{display:flex;align-items:center;justify-content:space-between;width:100%;background:#f5f7fa;border:none;
+    padding:8px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--navy);text-align:left;}
+  .acc>.acc-h:hover{background:#e7f2f1;}
+  .acc>.acc-h .chev{font-size:10px;color:var(--muted);transition:transform .15s;}
+  .acc:not(.open)>.acc-h .chev{transform:rotate(-90deg);}
+  .acc>.acc-b{padding:10px;border-top:1px solid var(--line);}
+  .acc:not(.open)>.acc-b{display:none;}
+  .acc .empty-hint{padding:0;}
+  .tool-item{display:block;width:100%;text-align:left;background:none;border:none;padding:6px 8px;font-size:12px;
+    color:var(--text);border-radius:4px;}
+  .tool-item:hover{background:#eef4f3;}
+  #projZoomCtl{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:1px;z-index:20;box-shadow:0 1px 5px rgba(0,0,0,.28);border-radius:4px;overflow:hidden;}
+  #projZoomCtl button{width:30px;height:30px;border:none;background:#fff;font-size:17px;font-weight:700;color:#3a3a3a;line-height:1;border-bottom:1px solid #ddd;}
+  #projZoomCtl button:last-child{border-bottom:none;}
+  #projZoomCtl button:hover{background:#f4f4f4;}
   #mk-map{flex:1;background:#dde3ea;}
   #mk-right{width:292px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;}
-  .tabs{display:flex;border-bottom:1px solid var(--line);}
+  .tabs{display:flex;align-items:center;border-bottom:1px solid var(--line);}
   .tabs button{flex:1;padding:10px 0;background:none;border:none;font-size:12px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;}
   .tabs button.active{color:var(--navy);border-bottom-color:var(--teal);}
+  /* buttons parked in a tab row (Tools, Hide menu) keep their own chrome */
+  .tabs .panel-tools>button{flex:0 0 auto;border:1px solid var(--line);background:#f5f7fa;border-radius:5px;
+    font-size:11px;font-weight:700;padding:4px 7px;color:var(--navy);white-space:nowrap;border-bottom:1px solid var(--line);}
+  .tabs .panel-tools>button:hover{background:#e7f2f1;border-color:var(--teal);}
   .tabcontent{flex:1;overflow-y:auto;padding:13px;font-size:12.5px;}
   .tabcontent h3{margin:14px 0 6px;}
   .tabcontent h3:first-child{margin-top:0;}
@@ -91,6 +132,8 @@
   .checkline input{margin:0;}
 
   .cat-row,.legend-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+  .cat-row[data-cat]{cursor:pointer;border-radius:4px;padding:1px 3px;}
+  .cat-row[data-cat]:hover{background:#eef4f3;}
   .cat-row input[type=color],.legend-row input[type=color]{width:28px;height:24px;border:1px solid var(--line);border-radius:3px;padding:0;flex-shrink:0;}
   .cat-row span{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .legend-row input[type=text]{flex:1;padding:4px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;}
@@ -98,8 +141,21 @@
 
   .filt-row{display:flex;gap:4px;margin-bottom:5px;align-items:center;}
   .filt-row select,.filt-row input{padding:4px 5px;border:1px solid var(--line);border-radius:4px;font-size:11.5px;min-width:0;}
-  .filt-row .f-field{flex:1.2;} .filt-row .f-op{flex:.7;} .filt-row .f-val{flex:1;}
-  .filt-row button{border:none;background:#f1e3e0;color:var(--danger);border-radius:3px;width:20px;height:22px;font-size:11px;flex-shrink:0;}
+  .filt-row .f-field{flex:1.2;} .filt-row .f-op{flex:.7;}
+  .filt-row .f-valwrap{flex:1;position:relative;display:flex;min-width:0;}
+  .filt-row .f-val{flex:1;min-width:0;border-radius:4px 0 0 4px;}
+  .filt-row .f-pop{border:1px solid var(--line);border-left:none;background:#f5f7fa;color:var(--navy);
+    border-radius:0 4px 4px 0;width:18px;height:auto;font-size:9px;flex-shrink:0;}
+  .filt-row .f-pop:hover{background:#e7f2f1;border-color:var(--teal);}
+  /* fixed, not absolute: the panel and its accordion sections both clip their
+     overflow, which was cutting this list off at the next section */
+  .f-vallist{position:fixed;min-width:190px;max-width:280px;max-height:260px;overflow-y:auto;
+    background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(20,30,60,.25);z-index:1500;padding:4px;}
+  .f-vallist .f-valsearch{width:100%;padding:4px 6px;border:1px solid var(--line);border-radius:4px;font-size:11.5px;margin-bottom:4px;position:sticky;top:0;}
+  .f-vallist button{display:block;width:100%;text-align:left;background:none;border:none;padding:4px 6px;font-size:11.5px;
+    color:var(--text);border-radius:3px;height:auto;}
+  .f-vallist button:hover{background:#eef4f3;}
+  .filt-row .f-del{border:none;background:#f1e3e0;color:var(--danger);border-radius:3px;width:20px;height:22px;font-size:11px;flex-shrink:0;}
 
   .ramp-preview{display:flex;height:14px;border-radius:3px;overflow:hidden;border:1px solid var(--line);margin-top:4px;}
   .ramp-preview div{flex:1;}
@@ -148,13 +204,14 @@
   #mk-proj canvas{position:absolute;inset:0;width:100%;height:100%;}
   #projMsg{position:absolute;left:10px;bottom:8px;font-size:11px;color:var(--muted);background:rgba(255,255,255,.85);padding:3px 8px;border-radius:4px;}
 
-  /* collapsible layout right panel */
+  /* collapsible layout right panel — the toggle sits in the tab row, so it can
+     never overlap the tabs; when collapsed the tabs hide but the toggle stays. */
   #rightpanel{position:relative;transition:width .15s;}
-  #rightpanel.collapsed{width:30px;}
-  #rightpanel.collapsed .tabs,#rightpanel.collapsed .tabcontent{display:none !important;}
-  #loPanelToggle{position:absolute;top:8px;left:4px;z-index:5;border:1px solid var(--line);background:#f5f7fa;border-radius:5px;font-size:12px;padding:3px 6px;color:var(--muted);}
-  #loPanelToggle:hover{background:#e7ecf5;color:var(--text);}
-  #rightpanel:not(.collapsed) #loPanelToggle{position:absolute;top:9px;right:6px;left:auto;}
+  #rightpanel.collapsed{width:44px !important;min-width:0;}
+  #rightpanel.collapsed .tabcontent{display:none !important;}
+  #rightpanel.collapsed .tabs .tab-btn{display:none !important;}
+  #rightpanel.collapsed .tabs{justify-content:center;}
+  #rightpanel.collapsed .panel-tools{padding-right:0;}
   .tbl-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
   #tblFilterWrap{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:8px;background:#fafbfd;}
   .legend-row select{width:70px;padding:3px;border:1px solid var(--line);border-radius:4px;font-size:11px;flex-shrink:0;}
@@ -168,16 +225,34 @@
   .tool-btn .ic{font-size:17px;}
   .tool-sep{height:1px;background:var(--line);margin:6px 2px;}
   #stage-wrap{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:36px;}
-  #stage{background:#fff;box-shadow:0 2px 18px rgba(20,30,60,.25);position:relative;}
+  /* zoom scales the stage visually; Fabric keeps working in page coordinates */
+  #stage{background:#fff;box-shadow:0 2px 18px rgba(20,30,60,.25);position:relative;transform-origin:top center;}
+  .grp-div{width:1px;height:20px;background:rgba(255,255,255,.28);margin:0 3px;}
+  #zoomLevel{font-size:11.5px;color:#c9d2e6;min-width:40px;text-align:center;}
+  .zoom-menu{position:relative;display:inline-flex;}
+  .zoom-menu .tools-menu{position:absolute;top:100%;right:0;min-width:170px;z-index:1200;}
   .guideline{position:absolute;background:#e8467c;pointer-events:none;z-index:40;display:none;}
   #guideV{width:1px;top:0;bottom:0;} #guideH{height:1px;left:0;right:0;}
   .embed-frame{position:absolute;z-index:30;border:0;pointer-events:none;}
   .embed-frame.interactive{pointer-events:auto;}
-  #rightpanel{width:290px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;}
+  #rightpanel{width:340px;min-width:250px;max-width:560px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;}
+  #loPanelResize{position:absolute;top:0;left:-3px;width:6px;height:100%;cursor:col-resize;z-index:25;}
+  #loPanelResize:hover,#loPanelResize.dragging{background:var(--teal);opacity:.5;}
+  #rightpanel.collapsed #loPanelResize{display:none;}
+  /* sketch tool palette (right panel) */
+  #skModes{display:flex;flex-wrap:wrap;gap:4px;}
+  #skModes .sk-btn{width:34px;height:32px;border:1px solid var(--line);background:#fff;border-radius:5px;font-size:14px;color:var(--navy);line-height:1;}
+  #skModes .sk-btn:hover{background:#e7f2f1;border-color:var(--teal);}
+  #skModes .sk-btn.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+  .tool-btn.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+  #stage.sketching{cursor:crosshair;}
+  .vertex-hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#1b2a4a;color:#fff;font-size:11.5px;
+    padding:5px 12px;border-radius:5px;z-index:60;pointer-events:none;}
+
   .layer-item{display:flex;align-items:center;gap:6px;padding:6px 7px;border:1px solid var(--line);border-radius:5px;margin-bottom:5px;background:#fafbfd;}
   .layer-item.active{border-color:var(--teal);background:#eaf6f5;}
-  .layer-item .lname{flex:1;font-size:12px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .layer-item button{border:none;background:none;font-size:12px;padding:2px 4px;color:var(--muted);}
+  .layer-item .lname{flex:1;min-width:0;font-size:12px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .layer-item button{border:none;background:none;font-size:12px;padding:2px 4px;color:var(--muted);flex-shrink:0;}
   .layer-item button:hover{color:var(--text);}
   .status-badge{display:inline-block;padding:2px 7px;border-radius:9px;font-size:10.5px;font-weight:700;}
   .status-badge.ok{background:#dff2e6;color:#1e7a45;}
@@ -205,6 +280,9 @@
   #attr-table th .arrow{font-size:9px;margin-left:3px;}
   #attr-table td{padding:4px 8px;border-bottom:1px solid #edf0f5;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;}
   #attr-table tr:nth-child(even){background:#f7f9fc;}
+  #attr-table tr[data-i]{cursor:pointer;}
+  #attr-table tr[data-i]:hover td{background:#eef4f3;}
+  #attr-table tr.rowsel td,#attr-table tr.rowsel:nth-child(even) td{background:#ffeec2;box-shadow:inset 0 0 0 9999px rgba(255,176,0,.14);}
 
   #inset-leaflet{width:100%;height:400px;border:1px solid var(--line);border-radius:6px;background:#dde3ea;}
   .inset-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;align-items:center;}
@@ -238,6 +316,24 @@
     </select>
     <button class="btn ghost small" id="btnUndo" title="Undo (Ctrl+Z)">↩</button>
     <button class="btn ghost small" id="btnRedo" title="Redo (Ctrl+Shift+Z)">↪</button>
+    <span class="grp-div"></span>
+    <button class="btn ghost small" id="btnZoomOut" title="Zoom out (Ctrl+−)">−</button>
+    <span id="zoomLevel" title="Current zoom">100%</span>
+    <button class="btn ghost small" id="btnZoomIn" title="Zoom in (Ctrl++)">+</button>
+    <span class="zoom-menu">
+      <button class="btn ghost small" id="btnZoomMenu" title="Zoom options">▾</button>
+      <div id="zoomMenuList" class="tools-menu hidden">
+        <button data-z="fitpage">Fit whole page</button>
+        <button data-z="fitwidth">Fit width</button>
+        <button data-z="selection">Zoom to selection</button>
+        <div class="tg">Preset</div>
+        <button data-z="0.5">50%</button>
+        <button data-z="0.75">75%</button>
+        <button data-z="1">100%</button>
+        <button data-z="1.5">150%</button>
+        <button data-z="2">200%</button>
+      </div>
+    </span>
   </div>
   <div class="grp">
     <button class="btn ghost small" id="btnHome" title="Projects home">🏠</button>
@@ -348,33 +444,50 @@
 
   <div id="mk-center">
     <div id="mk-toolbar">
-      <button class="btn light small" id="mkToggleLeft" title="Show or hide the layers panel">⟨ Hide Layers</button>
-      <button class="btn light small" id="mkSpatialBtn">⬡ Spatial tools</button>
+      <button class="btn light small" id="mkToggleLeft" title="Show or hide the layers panel">⟨ Layers</button>
       <span id="geoSearchWrap">
         <input type="text" id="geoSearchInput" placeholder="🔍 Go to place…" autocomplete="off">
         <div id="geoResults" class="hidden"></div>
       </span>
-      <span style="flex:1"></span>
       <span class="kv" id="mkStatus"></span>
+      <span style="flex:1"></span>
+      <span id="mkSelBar" class="hidden">
+        <span id="mkSelCount"></span>
+        <button class="btn light small" id="mkSelExport" title="Export or save the selected features">Selected ▾</button>
+        <button class="btn light small" id="mkSelClear" title="Clear selection">✕</button>
+      </span>
       <button class="btn small" id="mkSendBtn">Send to Layout ▸</button>
-      <button class="btn light small" id="mkToggleRight" title="Show or hide the style panel">Hide Menu ⟩</button>
+      <button class="btn light small" id="mkToggleRight" title="Show or hide the style panel">Menu ⟩</button>
     </div>
     <div id="mk-map"></div>
     <div id="mk-proj" class="hidden">
       <canvas id="projCanvas"></canvas>
       <div id="projMsg"></div>
+      <div id="projZoomCtl">
+        <button id="projZoomIn" title="Zoom in">+</button>
+        <button id="projZoomOut" title="Zoom out">−</button>
+      </div>
     </div>
   </div>
 
   <aside id="mk-right">
     <div class="tabs" id="mk-tabs">
       <button class="mk-tab-btn active" data-tab="style">Style</button>
-      <button class="mk-tab-btn" data-tab="filter">Filter</button>
-      <button class="mk-tab-btn" data-tab="labels">Labels</button>
+      <button class="mk-tab-btn" data-tab="data">Data</button>
+      <button class="mk-tab-btn" data-tab="tools">Tools</button>
     </div>
     <div id="mk-tab-style" class="tabcontent"><div class="empty-hint">Select a layer to style it.</div></div>
-    <div id="mk-tab-filter" class="tabcontent" style="display:none"></div>
-    <div id="mk-tab-labels" class="tabcontent" style="display:none"></div>
+    <div id="mk-tab-data" class="tabcontent" style="display:none">
+      <div class="acc open" data-acc="filter">
+        <button class="acc-h">Filter<span class="chev">▾</span></button>
+        <div class="acc-b" id="mk-tab-filter"></div>
+      </div>
+      <div class="acc open" data-acc="labels">
+        <button class="acc-h">Labels<span class="chev">▾</span></button>
+        <div class="acc-b" id="mk-tab-labels"></div>
+      </div>
+    </div>
+    <div id="mk-tab-tools" class="tabcontent" style="display:none"></div>
   </aside>
 </div>
 
@@ -395,6 +508,8 @@
     <div class="tool-btn" id="toolScale"><span class="ic">📏</span>Scale Bar</div>
     <div class="tool-btn" id="toolNeatline"><span class="ic">▢</span>Neatline</div>
     <div class="tool-sep"></div>
+    <div class="tool-btn" id="toolSketch" title="Draw on the map — pen, shapes, arrows"><span class="ic">✎</span>Sketch</div>
+    <div class="tool-sep"></div>
     <div class="tool-btn" id="toolMargins" title="Toggle margin guides (not exported)"><span class="ic">⌗</span>Margins</div>
     <div class="tool-btn" id="toolDuplicate"><span class="ic">⧉</span>Duplicate</div>
     <div class="tool-btn" id="toolDelete"><span class="ic">🗑️</span>Delete</div>
@@ -409,10 +524,11 @@
   </main>
 
   <aside id="rightpanel">
-    <button id="loPanelToggle" title="Hide menu">Hide Menu ⟩</button>
+    <div id="loPanelResize" title="Drag to resize"></div>
     <div class="tabs" id="lo-tabs">
       <button class="tab-btn active" data-tab="props">Properties</button>
       <button class="tab-btn" data-tab="layers">Layers</button>
+      <span class="panel-tools"><button id="loPanelToggle" title="Hide menu">Menu ⟩</button></span>
     </div>
     <div id="tab-props" class="tabcontent">
       <div class="empty-hint">Select an object on the page to edit it, or use the tools on the left to add a new one.</div>
@@ -847,10 +963,20 @@ function download(filename, text, mime){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=filename;
+  /* the anchor has to be in the document — a detached one is ignored by some browsers */
+  a.style.display='none';
+  document.body.appendChild(a);
   a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 5000);
 }
 function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function hexToRgba(hex, alpha){
+  const h=String(hex||'#ffffff').replace('#','');
+  const full = h.length===3 ? h.split('').map(c=>c+c).join('') : h;
+  const n=parseInt(full,16);
+  if(!isFinite(n)) return 'rgba(255,255,255,'+(alpha==null?1:alpha)+')';
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+(alpha==null?1:alpha)+')';
+}
 
 /* ---------- shared typography ---------- */
 const SYSTEM_FONTS=[
@@ -999,8 +1125,8 @@ function togglePanel(id, btnId, openLabel, closedLabel){
   document.getElementById(btnId).textContent = p.classList.contains('collapsed') ? closedLabel : openLabel;
   setTimeout(()=>{ if(mkMap) mkMap.invalidateSize(); }, 220);
 }
-document.getElementById('mkToggleLeft').onclick=()=>togglePanel('mk-left','mkToggleLeft','⟨ Hide Layers','⟩ Show Layers');
-document.getElementById('mkToggleRight').onclick=()=>togglePanel('mk-right','mkToggleRight','Hide Menu ⟩','Show Menu ⟨');
+document.getElementById('mkToggleLeft').onclick=()=>togglePanel('mk-left','mkToggleLeft','⟨ Layers','⟩ Layers');
+document.getElementById('mkToggleRight').onclick=()=>togglePanel('mk-right','mkToggleRight','Menu ⟩','⟨ Menu');
 
 /* ---------- add-data menu ---------- */
 const addMenuList=document.getElementById('mkAddMenuList');
@@ -1087,6 +1213,37 @@ function featurePasses(lyr, f){
 function visibleFeatures(lyr){ return lyr.geojson.features.filter(f=>featurePasses(lyr,f)); }
 
 /* Reusable filter-builder UI (right tab + attribute table) */
+/* The value list is fixed-positioned so it can't be clipped by the panel or the
+   accordion section it lives in — place it against the field, flipping up if
+   there isn't room below. */
+function positionValueList(list, anchor){
+  const a=anchor.getBoundingClientRect();
+  list.style.width=Math.max(190, a.width)+'px';
+  list.style.left=Math.min(a.left, window.innerWidth-list.offsetWidth-8)+'px';
+  list.style.top='0px';
+  const h=Math.min(list.scrollHeight+8, 260);
+  const below=window.innerHeight-a.bottom-8;
+  if(below>=h || below>=a.top-8){
+    list.style.top=(a.bottom+3)+'px';
+    list.style.maxHeight=Math.max(120, below)+'px';
+  } else {
+    list.style.top=Math.max(8, a.top-h-3)+'px';
+    list.style.maxHeight=Math.max(120, a.top-16)+'px';
+  }
+}
+/* every distinct value in a field, most frequent first (whole dataset, not a sample) */
+function distinctValues(lyr, field){
+  const counts=new Map();
+  lyr.geojson.features.forEach(f=>{
+    const v=(f.properties||{})[field];
+    if(v==null||v==='') return;
+    const k=String(v);
+    counts.set(k,(counts.get(k)||0)+1);
+  });
+  return Array.from(counts.entries())
+    .sort((a,b)=> b[1]-a[1] || a[0].localeCompare(b[0], undefined, {numeric:true}))
+    .map(e=>({value:e[0], n:e[1]}));
+}
 function renderFilterUI(container, lyr, onChange){
   const fields=fieldsOf(lyr), f=lyr.filter;
   container.innerHTML=`
@@ -1107,15 +1264,56 @@ function renderFilterUI(container, lyr, onChange){
       <div class="filt-row" data-i="${i}">
         <select class="f-field"><option value="">field…</option>${fields.map(fd=>'<option '+(c.field===fd?'selected':'')+'>'+esc(fd)+'</option>').join('')}</select>
         <select class="f-op">${Object.keys(OPS).map(o=>'<option '+(c.op===o?'selected':'')+'>'+o+'</option>').join('')}</select>
-        <input class="f-val" type="text" value="${esc(c.value)}" placeholder="value">
-        <button>✕</button>
+        <span class="f-valwrap">
+          <input class="f-val" type="text" value="${esc(c.value)}" placeholder="value">
+          <button class="f-pop" title="Populate values — list every value in this field">▾</button>
+          <div class="f-vallist hidden"></div>
+        </span>
+        <button class="f-del">✕</button>
       </div>`).join('');
     rowsEl.querySelectorAll('.filt-row').forEach(row=>{
       const i=+row.getAttribute('data-i');
       row.querySelector('.f-field').onchange=e=>{ f.conds[i].field=e.target.value; changed(); };
       row.querySelector('.f-op').onchange=e=>{ f.conds[i].op=e.target.value; changed(); };
       row.querySelector('.f-val').onchange=e=>{ f.conds[i].value=e.target.value; changed(); };
-      row.querySelector('button').onclick=()=>{ f.conds.splice(i,1); drawRows(); changed(); };
+      row.querySelector('.f-del').onclick=()=>{ f.conds.splice(i,1); drawRows(); changed(); };
+      /* populate values: list every distinct value in the chosen field */
+      const pop=row.querySelector('.f-pop');
+      const list=row.querySelector('.f-vallist');
+      pop.onclick=e=>{
+        e.stopPropagation();
+        if(!list.classList.contains('hidden')){ list.classList.add('hidden'); return; }
+        const fld=f.conds[i].field;
+        if(!fld){ toast('Choose a field first.'); return; }
+        const vals=distinctValues(lyr, fld);
+        if(!vals.length){ toast('No values found in that field.'); return; }
+        list.innerHTML='<input class="f-valsearch" type="text" placeholder="Search '+vals.length+' values…">'+
+          vals.map(v=>'<button data-v="'+esc(v.value)+'">'+esc(v.value)+
+            '<span class="kv" style="margin:0;float:right;">'+v.n+'</span></button>').join('');
+        list.classList.remove('hidden');
+        positionValueList(list, row.querySelector('.f-valwrap'));
+        const search=list.querySelector('.f-valsearch');
+        search.oninput=()=>{
+          const q=search.value.toLowerCase();
+          list.querySelectorAll('button').forEach(b=>{
+            b.style.display = b.getAttribute('data-v').toLowerCase().includes(q) ? 'block' : 'none';
+          });
+        };
+        list.querySelectorAll('button').forEach(b=>{
+          b.onclick=ev=>{
+            ev.stopPropagation();
+            const v=b.getAttribute('data-v');
+            row.querySelector('.f-val').value=v;
+            f.conds[i].value=v;
+            list.classList.add('hidden');
+            changed();
+          };
+        });
+        search.focus();
+      };
+      document.addEventListener('click', ev=>{
+        if(!list.classList.contains('hidden') && !row.contains(ev.target)) list.classList.add('hidden');
+      });
     });
     updateCount();
   }
@@ -1188,7 +1386,7 @@ function computeCategories(lyr){
     counts.set(key, (counts.get(key)||0)+1);
   }
   const all=Array.from(counts.entries()).sort((a,b)=> b[1]-a[1] || a[0].localeCompare(b[0]));
-  const topN=Math.max(1, Math.min(st.topN||12, all.length));
+  const topN=st.showAll ? all.length : Math.max(1, Math.min(st.topN||12, all.length));
   const top=all.slice(0,topN).map(e=>e[0]);
   const rest=all.slice(topN);
   const sortedTop=top.slice().sort((a,b)=>a.localeCompare(b));
@@ -1261,11 +1459,22 @@ function renderLayer(lyr){
       }
       const rows=Object.keys(p).slice(0,12).map(k=>'<b>'+esc(k)+':</b> '+esc(p[k])).join('<br>');
       layer.bindPopup(rows||'(no attributes)');
+      /* click selects; Ctrl/Cmd or Shift adds to the selection */
+      layer.on('click', ev=>{
+        const oe=ev.originalEvent||{};
+        const additive = oe.ctrlKey||oe.metaKey||oe.shiftKey;
+        const i=fidOf(lyr, f);
+        if(i==null) return;
+        mkSelectedId=lyr.id;
+        setSelection(lyr, [i], additive?'toggle':'set');
+        scrollTableToFeature(i);
+      });
     }
   };
   lyr.leaflet=L.geoJSON(lyr.geojson, opts).addTo(mkMap);
   updateLabelCss(lyr);
   updateMkStatus();
+  if(selHighlight && selHighlight.bringToFront) selHighlight.bringToFront();
   if(projActive) scheduleProjRender();
 }
 function updateLabelCss(lyr){
@@ -1347,6 +1556,7 @@ function renderMakerLayerList(){
           if(!window.confirm('Remove layer "'+l.name+'" from the map? (Your original file is untouched.)')) return;
           if(l.leaflet) mkMap.removeLayer(l.leaflet);
           mkLayers.splice(i,1);
+          if(selection.layerId===id) clearSelection();
           if(mkSelectedId===id) mkSelectedId=mkLayers.length?mkLayers[0].id:null;
           renderMakerLayerList(); renderMakerPanels(); updateMkStatus();
         }
@@ -1358,6 +1568,158 @@ function reorderAll(){
   mkLayers.forEach(l=>{ if(l.leaflet){ mkMap.removeLayer(l.leaflet); l.leaflet=null; } });
   renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
 }
+
+/* ================= FEATURE SELECTION =================
+   One selection at a time, scoped to a single layer. Features are identified by
+   their index in lyr.geojson.features, resolved through a WeakMap so nothing is
+   written onto the features themselves (which would leak into exports). */
+let selection={layerId:null, set:new Set()};
+let selHighlight=null, selLastRow=null;
+
+function fidOf(lyr, f){
+  if(!lyr._fidMap || lyr._fidN!==lyr.geojson.features.length){
+    lyr._fidMap=new WeakMap();
+    lyr.geojson.features.forEach((ft,i)=>lyr._fidMap.set(ft,i));
+    lyr._fidN=lyr.geojson.features.length;
+  }
+  return lyr._fidMap.get(f);
+}
+function selectionLayer(){ return selection.layerId? mkLayers.find(l=>l.id===selection.layerId) : null; }
+function selectedFeatureList(){
+  const lyr=selectionLayer(); if(!lyr) return [];
+  const out=[];
+  selection.set.forEach(i=>{ const f=lyr.geojson.features[i]; if(f) out.push(f); });
+  return out;
+}
+function clearSelection(){
+  selection={layerId:null, set:new Set()};
+  selLastRow=null;
+  renderSelection();
+}
+function setSelection(lyr, idxs, mode){
+  if(!lyr) return;
+  if(selection.layerId!==lyr.id){ selection={layerId:lyr.id, set:new Set()}; }
+  if(mode==='add'){ idxs.forEach(i=>selection.set.add(i)); }
+  else if(mode==='toggle'){ idxs.forEach(i=>{ if(selection.set.has(i)) selection.set.delete(i); else selection.set.add(i); }); }
+  else { selection.set=new Set(idxs); }
+  renderSelection();
+}
+function renderSelection(){
+  if(selHighlight){ try{ mkMap.removeLayer(selHighlight); }catch(_){} selHighlight=null; }
+  const lyr=selectionLayer();
+  const feats=selectedFeatureList();
+  if(lyr && feats.length){
+    selHighlight=L.geoJSON({type:'FeatureCollection', features:feats}, {
+      style:()=>({color:'#ffb000', weight:4, opacity:1, fillColor:'#ffd24d', fillOpacity:.35}),
+      pointToLayer:(f,latlng)=>L.circleMarker(latlng,{radius:(lyr.style.radius||6)+5, color:'#ffb000',
+        weight:3, fillColor:'#ffd24d', fillOpacity:.55}),
+      interactive:false
+    }).addTo(mkMap);
+    if(selHighlight.bringToFront) selHighlight.bringToFront();
+  }
+  updateSelBar();
+  markSelectedRows();
+  if(projActive) scheduleProjRender();
+}
+function updateSelBar(){
+  const bar=document.getElementById('mkSelBar');
+  const n=selection.set.size;
+  if(!n){ bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  const lyr=selectionLayer();
+  document.getElementById('mkSelCount').textContent=n.toLocaleString()+' selected'+(lyr?' in '+lyr.name:'');
+}
+function markSelectedRows(){
+  const tbl=document.getElementById('attr-table');
+  if(!tbl) return;
+  const lyr=selectedLayer();
+  const on = lyr && selection.layerId===lyr.id;
+  tbl.querySelectorAll('tr[data-i]').forEach(tr=>{
+    const i=+tr.getAttribute('data-i');
+    tr.classList.toggle('rowsel', !!on && selection.set.has(i));
+  });
+}
+function zoomToSelection(){
+  const feats=selectedFeatureList();
+  if(!feats.length){ toast('Nothing selected.'); return; }
+  try{
+    if(projActive){ projFitToData(); return; }
+    mkMap.fitBounds(L.geoJSON({type:'FeatureCollection', features:feats}).getBounds(), {padding:[30,30], maxZoom:16});
+  }catch(_){ toast('Could not zoom to the selection.'); }
+}
+function selectionToFC(){
+  return {type:'FeatureCollection', features:selectedFeatureList().map(f=>({
+    type:'Feature', properties:Object.assign({}, f.properties||{}), geometry:clone(f.geometry)
+  }))};
+}
+function featuresToCSV(lyr, feats){
+  const cols=fieldsOf(lyr);
+  const isPt=lyr.geom==='point';
+  const header=[...cols, ...(isPt?['longitude','latitude']:[])];
+  const lines=[header.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')];
+  feats.forEach(f=>{
+    const row=cols.map(c=>{
+      const v=(f.properties||{})[c];
+      return v==null?'':'"'+String(v).replace(/"/g,'""')+'"';
+    });
+    if(isPt){
+      const co=(f.geometry&&f.geometry.type==='Point')?f.geometry.coordinates:['',''];
+      row.push(co[0],co[1]);
+    }
+    lines.push(row.join(','));
+  });
+  return lines.join('\n');
+}
+/* selection actions menu */
+(function(){
+  const btn=document.getElementById('mkSelExport');
+  const clr=document.getElementById('mkSelClear');
+  if(!btn) return;
+  const menu=document.createElement('div');
+  menu.className='tools-menu hidden';
+  menu.style.cssText='position:absolute;top:100%;right:0;min-width:210px;';
+  menu.innerHTML='<button data-a="zoom">🔍 Zoom to selection</button>'+
+    '<button data-a="newlayer">＋ New layer from selection</button>'+
+    '<button data-a="invert">⇄ Invert selection</button>'+
+    '<button data-a="clear">✕ Clear selection</button>'+
+    '<div class="tg">Export</div>'+
+    '<button data-a="geojson">⬇ Selected as GeoJSON</button>'+
+    '<button data-a="csv">⬇ Selected as CSV</button>';
+  const wrap=document.getElementById('mkSelBar');
+  wrap.style.position='relative';
+  wrap.appendChild(menu);
+  btn.onclick=e=>{ e.stopPropagation(); menu.classList.toggle('hidden'); };
+  document.addEventListener('click', e=>{
+    if(!menu.classList.contains('hidden') && !menu.contains(e.target) && e.target!==btn) menu.classList.add('hidden');
+  });
+  menu.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{
+      menu.classList.add('hidden');
+      const a=b.getAttribute('data-a');
+      if(a==='clear'){ clearSelection(); return; }
+      const lyr=selectionLayer();
+      if(!lyr){ toast('Nothing selected.'); return; }
+      const feats=selectedFeatureList();
+      if(a==='zoom') zoomToSelection();
+      else if(a==='invert'){
+        const all=lyr.geojson.features.map((_,i)=>i);
+        setSelection(lyr, all.filter(i=>!selection.set.has(i)), 'set');
+      }
+      else if(a==='newlayer'){
+        if(!feats.length){ toast('Nothing selected.'); return; }
+        addMakerLayer(selectionToFC(), lyr.name+' (selection)');
+        toast(feats.length+' features copied to a new layer.');
+      }
+      else if(a==='geojson'){
+        download(lyr.name.replace(/[^a-z0-9\-_]+/gi,'_')+'_selection.geojson', JSON.stringify(selectionToFC()), 'application/geo+json');
+      }
+      else if(a==='csv'){
+        download(lyr.name.replace(/[^a-z0-9\-_]+/gi,'_')+'_selection.csv', featuresToCSV(lyr, feats), 'text/csv');
+      }
+    };
+  });
+  clr.onclick=()=>clearSelection();
+})();
 
 /* ---------- resizable Layers panel ---------- */
 (function(){
@@ -1434,15 +1796,21 @@ document.getElementById('expLayerGo').onclick=()=>{
 };
 
 /* ---------- right panel: tabs ---------- */
+const MK_TABS=['style','data','tools'];
 document.querySelectorAll('.mk-tab-btn').forEach(btn=>{
   btn.onclick=()=>{
     document.querySelectorAll('.mk-tab-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     const tab=btn.getAttribute('data-tab');
-    ['style','filter','labels'].forEach(t=>{
+    MK_TABS.forEach(t=>{
       document.getElementById('mk-tab-'+t).style.display = t===tab?'block':'none';
     });
   };
+});
+/* collapsible section headings inside tabs */
+document.addEventListener('click', e=>{
+  const h=e.target.closest && e.target.closest('.acc>.acc-h');
+  if(h) h.parentElement.classList.toggle('open');
 });
 function renderMakerPanels(){ renderStyleTab(); renderFilterTab(); renderLabelsTab(); }
 
@@ -1481,8 +1849,9 @@ function renderStyleTab(){
       <select id="stField"><option value="">— choose —</option>${fields.map(f=>'<option '+(st.field===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>
       <div class="row2">
         <div class="field"><label>Colour scheme</label><select id="stRamp">${rampOptions(st.ramp,lyr.geom,'cat')}</select></div>
-        <div class="field" style="max-width:96px;"><label>Show top</label><input type="number" id="stTopN" min="1" max="40" value="${st.topN||12}"></div>
+        <div class="field" style="max-width:96px;"><label>Show top</label><input type="number" id="stTopN" min="1" max="40" value="${st.topN||12}" ${st.showAll?'disabled':''}></div>
       </div>
+      <button class="btn small ${st.showAll?'':'light'}" id="stShowAll" style="margin-bottom:6px;">Show all</button>
       <div class="kv" id="stCatInfo"></div>
       <div id="stCatList" style="max-height:280px;overflow-y:auto;margin-top:6px;"></div>
       <button class="btn small secondary" id="stCatReset">Re-assign colours</button>`;
@@ -1563,28 +1932,22 @@ function renderStyleTab(){
   g('stFillOp').oninput=()=>{ st.fillOpacity=+g('stFillOp').value; g('stOpVal').textContent=Math.round(st.fillOpacity*100)+'%'; rerender(); };
   g('stLayerOp').oninput=()=>{ lyr.opacity=+g('stLayerOp').value; g('stLOpVal').textContent=Math.round(lyr.opacity*100)+'%'; rerender(); };
 
-  if(g('stTopN')) g('stTopN').onchange=()=>{ st.topN=Math.max(1,Math.min(40,parseInt(g('stTopN').value)||12)); st.catMap={}; renderStyleTab(); rerender(); };
-  if(st.mode==='cat' && st.field){
-    computeCategories(lyr);
-    const list=g('stCatList');
-    const counts=lyr._catCounts||new Map();
-    let rows=(lyr._cats||[]).map(v=>`<div class="cat-row"><input type="color" data-v="${esc(v)}" value="${st.catMap[v]}"><span title="${esc(v)}">${esc(v)}</span><span class="kv" style="margin:0;">${counts.get(v)||0}</span></div>`).join('');
-    if(lyr._catOtherN){
-      rows+=`<div class="cat-row"><input type="color" data-v="${OTHER_KEY}" value="${st.catMap[OTHER_KEY]}"><span><i>Other (${lyr._catOtherN} values)</i></span><span class="kv" style="margin:0;">${lyr._catOtherCount}</span></div>`;
-    }
-    list.innerHTML=rows;
-    g('stCatInfo').innerHTML='<b>'+(lyr._catTotal||0)+'</b> unique value'+((lyr._catTotal===1)?'':'s')+' in this field'+
-      (lyr._catOtherN? ' — showing the '+(lyr._cats||[]).length+' most common, rest grouped as “Other”.' : ' — all shown.');
-    list.querySelectorAll('input[type=color]').forEach(inp=>{
-      inp.oninput=()=>{
-        const k=inp.getAttribute('data-v');
-        st.catMap[k]=inp.value;
-        if(k===OTHER_KEY) st.otherColor=inp.value;
-        rerender();
-      };
-    });
-    g('stCatReset').onclick=()=>{ st.catMap={}; renderStyleTab(); rerender(); };
+  /* Top N updates the category list only — rebuilding the whole tab would destroy
+     this input mid-edit and drop focus, so repeated arrow-key nudges stopped working. */
+  if(g('stTopN')){
+    const applyTopN=()=>{
+      const v=parseInt(g('stTopN').value,10);
+      if(!isFinite(v)) return;
+      st.topN=Math.max(1,Math.min(40,v));
+      st.catMap={};
+      refreshCatList(lyr);
+      rerender();
+    };
+    let topTimer=null;
+    g('stTopN').oninput=()=>{ clearTimeout(topTimer); topTimer=setTimeout(applyTopN, 250); };
+    g('stTopN').onchange=()=>{ clearTimeout(topTimer); applyTopN(); };
   }
+  if(st.mode==='cat' && st.field) refreshCatList(lyr);
   if(st.mode==='grad' && st.field){
     computeClassification(lyr);
     const info=g('stBreaksInfo');
@@ -1592,6 +1955,65 @@ function renderStyleTab(){
       info.innerHTML='<b>Class breaks:</b> '+lyr._breaks.map(b=>fmtNum(b)).join(' | ');
     }
   }
+}
+
+/* Repaints just the category swatch list, its summary line and the Show-all button.
+   Kept separate from renderStyleTab so editing Top N doesn't rebuild (and unfocus) the panel. */
+function refreshCatList(lyr){
+  const g=id=>document.getElementById(id);
+  const list=g('stCatList');
+  if(!list||!lyr) return;
+  const st=lyr.style;
+  computeCategories(lyr);
+  const counts=lyr._catCounts||new Map();
+  let rows=(lyr._cats||[]).map(v=>`<div class="cat-row" data-cat="${esc(v)}" title="Click to select these features on the map"><input type="color" data-v="${esc(v)}" value="${st.catMap[v]}"><span>${esc(v)}</span><span class="kv" style="margin:0;">${counts.get(v)||0}</span></div>`).join('');
+  if(lyr._catOtherN){
+    rows+=`<div class="cat-row" data-cat="${OTHER_KEY}" title="Click to select these features on the map"><input type="color" data-v="${OTHER_KEY}" value="${st.catMap[OTHER_KEY]}"><span><i>Other (${lyr._catOtherN} values)</i></span><span class="kv" style="margin:0;">${lyr._catOtherCount}</span></div>`;
+  }
+  list.innerHTML=rows;
+  const shownN=(lyr._cats||[]).length;
+  if(g('stCatInfo')){
+    g('stCatInfo').innerHTML='<b>'+(lyr._catTotal||0)+'</b> unique value'+((lyr._catTotal===1)?'':'s')+' in this field'+
+      (lyr._catOtherN? ' — showing the '+shownN+' most common, rest grouped as “Other”.' : ' — all shown.');
+  }
+  const sa=g('stShowAll');
+  if(sa){
+    sa.textContent = st.showAll ? 'Show top only' : 'Show all ('+(lyr._catTotal||0)+')';
+    sa.classList.toggle('light', !st.showAll);
+    sa.onclick=()=>{
+      st.showAll=!st.showAll; st.catMap={};
+      if(g('stTopN')) g('stTopN').disabled=st.showAll;
+      refreshCatList(lyr);
+      renderLayer(lyr);
+    };
+  }
+  list.querySelectorAll('input[type=color]').forEach(inp=>{
+    inp.oninput=()=>{
+      const k=inp.getAttribute('data-v');
+      st.catMap[k]=inp.value;
+      if(k===OTHER_KEY) st.otherColor=inp.value;
+      renderLayer(lyr);
+    };
+    inp.onclick=e=>e.stopPropagation();   /* don't trigger row selection */
+  });
+  /* click a class to select every feature in it */
+  list.querySelectorAll('.cat-row').forEach(row=>{
+    row.onclick=ev=>{
+      const key=row.getAttribute('data-cat');
+      const tops=new Set(lyr._cats||[]);
+      const idxs=[];
+      lyr.geojson.features.forEach((f,i)=>{
+        if(!featurePasses(lyr,f)) return;
+        const raw=(f.properties||{})[st.field];
+        if(raw==null||raw==='') return;
+        const v=String(raw);
+        if(key===OTHER_KEY ? !tops.has(v) : v===key) idxs.push(i);
+      });
+      setSelection(lyr, idxs, (ev.ctrlKey||ev.metaKey||ev.shiftKey)?'add':'set');
+      toast(idxs.length+' feature'+(idxs.length===1?'':'s')+' selected.');
+    };
+  });
+  if(g('stCatReset')) g('stCatReset').onclick=()=>{ st.catMap={}; refreshCatList(lyr); renderLayer(lyr); };
 }
 
 function renderFilterTab(){
@@ -1692,8 +2114,9 @@ function renderAttrTable(){
   const MAXROWS=1500;
   document.getElementById('attrCount').textContent=feats.length+' features'+(feats.length>MAXROWS?' (showing first '+MAXROWS+')':'');
   const tbl=document.getElementById('attr-table');
+  const shown=feats.slice(0,MAXROWS);
   tbl.innerHTML='<tr>'+cols.map(c=>'<th data-c="'+esc(c)+'">'+esc(c)+(attrSort.col===c?'<span class="arrow">'+(attrSort.asc?'▲':'▼')+'</span>':'')+'</th>').join('')+'</tr>'
-    + feats.slice(0,MAXROWS).map(f=>'<tr>'+cols.map(c=>'<td>'+esc((f.properties||{})[c])+'</td>').join('')+'</tr>').join('');
+    + shown.map(f=>'<tr data-i="'+fidOf(lyr,f)+'">'+cols.map(c=>'<td>'+esc((f.properties||{})[c])+'</td>').join('')+'</tr>').join('');
   tbl.querySelectorAll('th').forEach(th=>{
     th.onclick=()=>{
       const c=th.getAttribute('data-c');
@@ -1701,6 +2124,41 @@ function renderAttrTable(){
       renderAttrTable();
     };
   });
+  /* row click selects the feature on the map; Ctrl/Cmd toggles, Shift extends */
+  const order=shown.map(f=>fidOf(lyr,f));
+  tbl.querySelectorAll('tr[data-i]').forEach(tr=>{
+    tr.onclick=ev=>{
+      const i=+tr.getAttribute('data-i');
+      if(ev.shiftKey && selLastRow!=null){
+        const a=order.indexOf(selLastRow), b=order.indexOf(i);
+        if(a>=0 && b>=0){
+          const [lo,hi]=a<b?[a,b]:[b,a];
+          setSelection(lyr, order.slice(lo,hi+1), 'add');
+          return;
+        }
+      }
+      if(ev.ctrlKey||ev.metaKey) setSelection(lyr, [i], 'toggle');
+      else setSelection(lyr, [i], 'set');
+      selLastRow=i;
+      panToFeature(lyr, i);
+    };
+  });
+  markSelectedRows();
+}
+function panToFeature(lyr, i){
+  const f=lyr.geojson.features[i];
+  if(!f||!f.geometry||projActive) return;
+  try{
+    const b=L.geoJSON(f).getBounds();
+    if(f.geometry.type==='Point') mkMap.panTo(b.getCenter());
+    else if(!mkMap.getBounds().intersects(b)) mkMap.fitBounds(b, {padding:[40,40], maxZoom:mkMap.getZoom()});
+  }catch(_){}
+}
+function scrollTableToFeature(i){
+  const tbl=document.getElementById('attr-table');
+  if(!tbl || document.getElementById('modal-table').classList.contains('hidden')) return;
+  const tr=tbl.querySelector('tr[data-i="'+i+'"]');
+  if(tr) tr.scrollIntoView({block:'nearest'});
 }
 
 /* ---------- field calculator ---------- */
@@ -1918,12 +2376,37 @@ function renderSpatialForm(){
     a.onchange=fillIds; b.onchange=fillIds; fillIds();
   }
 }
-document.getElementById('mkSpatialBtn').onclick=()=>{
-  if(!mkLayers.length){ toast('Add at least one layer first.'); return; }
-  openModal('modal-spatial');
-  renderSpatialForm();
-  document.getElementById('spStatus').textContent='';
-};
+/* Spatial tools are their own tab. The list is built from the operation <select>
+   itself, so the two can never drift apart. Each group is a collapsible heading. */
+(function(){
+  const tab=document.getElementById('mk-tab-tools');
+  const sel=document.getElementById('spOp');
+  if(!tab||!sel) return;
+  let html='';
+  Array.from(sel.children).forEach((node,i)=>{
+    if(node.tagName==='OPTGROUP'){
+      html+='<div class="acc'+(i===0?' open':'')+'"><button class="acc-h">'+esc(node.label)+'<span class="chev">▾</span></button><div class="acc-b">';
+      Array.from(node.children).forEach(o=>{
+        html+='<button class="tool-item" data-op="'+esc(o.value)+'">'+esc(o.textContent)+'</button>';
+      });
+      html+='</div></div>';
+    } else if(node.tagName==='OPTION'){
+      html+='<button class="tool-item" data-op="'+esc(node.value)+'">'+esc(node.textContent)+'</button>';
+    }
+  });
+  html+='<p class="kv">Every tool creates a new layer — your input layers are never overwritten.</p>';
+  tab.innerHTML=html;
+  tab.querySelectorAll('.tool-item').forEach(b=>{
+    b.onclick=()=>{
+      const op=b.getAttribute('data-op');
+      if(!mkLayers.length){ toast('Add at least one layer first.'); return; }
+      sel.value=op;
+      openModal('modal-spatial');
+      renderSpatialForm();
+      document.getElementById('spStatus').textContent='';
+    };
+  });
+})();
 document.getElementById('spOp').addEventListener('change', renderSpatialForm);
 document.getElementById('spRunBtn').onclick=()=>{
   const op=document.getElementById('spOp').value;
@@ -2201,6 +2684,23 @@ function runGeoSearch(q){
       geoResults.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--danger);">Search failed: '+esc(err.message)+'</div>';
     });
 }
+let geoMarker=null;
+function clearGeoMarker(){
+  if(geoMarker){ try{ mkMap.removeLayer(geoMarker); }catch(_){} geoMarker=null; }
+}
+function dropGeoMarker(lat, lon, label){
+  clearGeoMarker();
+  geoMarker=L.marker([lat,lon]).addTo(mkMap);
+  const html='<div style="font-size:12px;max-width:210px;"><b>'+esc(String(label).split(',')[0])+'</b>'+
+    '<div style="color:#6b7386;margin:3px 0 6px;font-size:11px;">'+esc(label)+'</div>'+
+    '<button class="geo-mk-rm" style="border:1px solid #d7dce3;background:#f5f7fa;border-radius:4px;padding:3px 7px;font-size:11px;cursor:pointer;">Remove marker</button></div>';
+  geoMarker.bindPopup(html);
+  geoMarker.on('popupopen', ev=>{
+    const btn=ev.popup.getElement().querySelector('.geo-mk-rm');
+    if(btn) btn.onclick=()=>clearGeoMarker();
+  });
+  geoMarker.openPopup();
+}
 function goToPlace(r){
   const lat=parseFloat(r.lat), lon=parseFloat(r.lon);
   if(projActive){
@@ -2217,10 +2717,14 @@ function goToPlace(r){
   }
   if(r.boundingbox){
     const bb=r.boundingbox.map(Number);
-    mkMap.fitBounds([[bb[0],bb[2]],[bb[1],bb[3]]], {maxZoom:15, padding:[20,20]});
+    mkMap.fitBounds([[bb[0],bb[2]],[bb[1],bb[3]]], {maxZoom:15, padding:[20,20], animate:false});
+    /* land 2 zoom levels closer than a plain bbox fit — a bbox fit alone sits too far out for most places */
+    mkMap.setZoom(Math.min(18, mkMap.getZoom()+2), {animate:false});
+    mkMap.panTo([lat,lon], {animate:false});
   } else {
-    mkMap.setView([lat,lon], 12);
+    mkMap.setView([lat,lon], 14);
   }
+  dropGeoMarker(lat, lon, r.display_name);
   toast('Moved to '+String(r.display_name).split(',')[0]+'.');
 }
 
@@ -2462,8 +2966,27 @@ function renderProjection(){
       });
     }
   });
+  /* selection highlight on top of everything */
+  try{
+    const selFeats=(typeof selectedFeatureList==='function') ? selectedFeatureList() : [];
+    if(selFeats.length){
+      const selLyr=selectionLayer();
+      ctx.save();
+      selFeats.forEach(f0=>{
+        if(!f0.geometry) return;
+        const f = def.interrupted && !/Point/.test(f0.geometry.type) ? prepForInterrupted(f0) : f0;
+        const gt=f0.geometry.type;
+        if(/Point/.test(gt)) path.pointRadius(((selLyr&&selLyr.style.radius)||6)+5);
+        ctx.beginPath(); path(f);
+        if(!/LineString/.test(gt)||/Polygon/.test(gt)){ ctx.fillStyle='rgba(255,210,77,0.45)'; ctx.fill(); }
+        ctx.strokeStyle='#ffb000'; ctx.lineWidth=3; ctx.stroke();
+      });
+      ctx.restore();
+    }
+  }catch(_){}
+
   const zoomPct=Math.round(projView.k*100);
-  document.getElementById('projMsg').textContent=def.label+' · '+zoomPct+'% · scroll to zoom, drag to '+(def.kind==='rotate'?'rotate':'pan');
+  document.getElementById('projMsg').textContent=def.label+' · '+zoomPct+'% · scroll or double-click to zoom, drag to '+(def.kind==='rotate'?'rotate':'pan');
 }
 
 /* ---------- fit helpers ---------- */
@@ -2555,6 +3078,7 @@ window.addEventListener('resize', ()=>{ if(projActive) scheduleProjRender(); });
 
   el.addEventListener('mousedown', e=>{
     if(!projActive) return;
+    if(e.target.closest && e.target.closest('#projZoomCtl')) return;  /* don't drag off the zoom buttons */
     dragging=true; lastX=e.clientX; lastY=e.clientY;
     el.style.cursor='grabbing';
   });
@@ -2580,6 +3104,29 @@ window.addEventListener('resize', ()=>{ if(projActive) scheduleProjRender(); });
   window.addEventListener('mouseup', ()=>{
     if(dragging){ dragging=false; document.getElementById('mk-proj').style.cursor='grab'; }
   });
+
+  /* zoom about an arbitrary point (px offsets from canvas centre) */
+  function zoomAbout(dx, dy, factor){
+    const target=Math.max(0.2, Math.min(400, projView.k*factor));
+    const F=target/projView.k;
+    projView.tx = dx - F*(dx - projView.tx);
+    projView.ty = dy - F*(dy - projView.ty);
+    projView.k = target;
+    renderProjection();
+  }
+  /* double-click zooms in, shift+double-click zooms out — same as the Leaflet map */
+  el.addEventListener('dblclick', e=>{
+    if(!projActive) return;
+    e.preventDefault();
+    const rect=el.getBoundingClientRect();
+    const dx=(e.clientX-rect.left)-el.clientWidth/2;
+    const dy=(e.clientY-rect.top)-el.clientHeight/2;
+    zoomAbout(dx, dy, e.shiftKey ? 1/2 : 2);
+  });
+  const zi=document.getElementById('projZoomIn'), zo=document.getElementById('projZoomOut');
+  if(zi) zi.onclick=e=>{ e.stopPropagation(); zoomAbout(0,0,2); };
+  if(zo) zo.onclick=e=>{ e.stopPropagation(); zoomAbout(0,0,1/2); };
+
   el.style.cursor='grab';
 })();
 /* ================= MAP LAYOUT ================= */
@@ -2625,6 +3172,7 @@ document.getElementById('btnRedo').onclick=redo;
 /* ---------- canvas init ---------- */
 function initCanvas(){
   canvas=new fabric.Canvas('c',{backgroundColor:'#ffffff', preserveObjectStacking:true, selection:true});
+  initSketchTools();
   applyPageSize();
   canvas.on('selection:created', showPropertiesForSelection);
   canvas.on('selection:updated', showPropertiesForSelection);
@@ -2665,10 +3213,93 @@ function currentPageDims(){
 function applyPageSize(){
   const {wIn,hIn}=currentPageDims();
   pageState.wIn=wIn; pageState.hIn=hIn;
-  canvas.setWidth(Math.round(wIn*EDIT_DPI));
-  canvas.setHeight(Math.round(hIn*EDIT_DPI));
-  canvas.renderAll();
+  applyLayoutZoom(layoutZoom);
 }
+
+/* ---------- page zoom ----------
+   Fabric's own zoom is used (not a CSS transform) so pointer hit-testing,
+   snapping and handle dragging all stay accurate at any zoom level. */
+let layoutZoom=1;
+const ZOOM_MIN=0.15, ZOOM_MAX=5;
+function pagePx(){ return {w:Math.round(pageState.wIn*EDIT_DPI), h:Math.round(pageState.hIn*EDIT_DPI)}; }
+function applyLayoutZoom(z, opts){
+  layoutZoom=Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z||1));
+  const {w,h}=pagePx();
+  canvas.setZoom(layoutZoom);
+  canvas.setWidth(Math.round(w*layoutZoom));
+  canvas.setHeight(Math.round(h*layoutZoom));
+  const lbl=document.getElementById('zoomLevel');
+  if(lbl) lbl.textContent=Math.round(layoutZoom*100)+'%';
+  canvas.calcOffset();
+  canvas.renderAll();
+  if(typeof positionEmbedFrames==='function') positionEmbedFrames();
+  if(!opts||!opts.keepScroll) {}
+}
+function zoomFit(mode){
+  const wrap=document.getElementById('stage-wrap');
+  const {w,h}=pagePx();
+  const padX=72, padY=72;
+  const availW=Math.max(120, wrap.clientWidth-padX);
+  const availH=Math.max(120, wrap.clientHeight-padY);
+  applyLayoutZoom(mode==='fitwidth' ? availW/w : Math.min(availW/w, availH/h));
+  wrap.scrollTop=0;
+}
+function zoomToSelection(){
+  const o=canvas.getActiveObject();
+  if(!o){ toast('Select something first.'); return; }
+  const wrap=document.getElementById('stage-wrap');
+  const b=o.getBoundingRect(true,true);          /* page coordinates */
+  const availW=Math.max(120, wrap.clientWidth-120);
+  const availH=Math.max(120, wrap.clientHeight-120);
+  applyLayoutZoom(Math.min(availW/Math.max(20,b.width), availH/Math.max(20,b.height), 4));
+  const stage=document.getElementById('stage');
+  const sx=stage.offsetLeft + (b.left+b.width/2)*layoutZoom;
+  const sy=stage.offsetTop  + (b.top +b.height/2)*layoutZoom;
+  wrap.scrollLeft=Math.max(0, sx-wrap.clientWidth/2);
+  wrap.scrollTop =Math.max(0, sy-wrap.clientHeight/2);
+}
+(function(){
+  const g=id=>document.getElementById(id);
+  const step=f=>applyLayoutZoom(layoutZoom*f);
+  g('btnZoomIn').onclick=()=>step(1.25);
+  g('btnZoomOut').onclick=()=>step(1/1.25);
+  const menu=g('zoomMenuList');
+  g('btnZoomMenu').onclick=e=>{ e.stopPropagation(); menu.classList.toggle('hidden'); };
+  document.addEventListener('click', e=>{
+    if(!menu.classList.contains('hidden') && !menu.contains(e.target) && e.target!==g('btnZoomMenu'))
+      menu.classList.add('hidden');
+  });
+  menu.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{
+      menu.classList.add('hidden');
+      const z=b.getAttribute('data-z');
+      if(z==='fitpage'||z==='fitwidth') zoomFit(z);
+      else if(z==='selection') zoomToSelection();
+      else applyLayoutZoom(parseFloat(z));
+    };
+  });
+  /* Ctrl/Cmd + wheel zooms about the cursor, as in most design software */
+  document.getElementById('stage-wrap').addEventListener('wheel', e=>{
+    if(!(e.ctrlKey||e.metaKey)) return;
+    if(document.getElementById('module-layout').classList.contains('hidden')) return;
+    e.preventDefault();
+    const wrap=e.currentTarget;
+    const before={x:wrap.scrollLeft+e.clientX, y:wrap.scrollTop+e.clientY};
+    const prev=layoutZoom;
+    applyLayoutZoom(layoutZoom*(e.deltaY<0?1.1:1/1.1));
+    const f=layoutZoom/prev;
+    wrap.scrollLeft=before.x*f-e.clientX;
+    wrap.scrollTop =before.y*f-e.clientY;
+  }, {passive:false});
+  document.addEventListener('keydown', e=>{
+    if(document.getElementById('module-layout').classList.contains('hidden')) return;
+    if(!(e.ctrlKey||e.metaKey)) return;
+    if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName||'')) return;
+    if(e.key==='='||e.key==='+'){ e.preventDefault(); step(1.25); }
+    if(e.key==='-'||e.key==='_'){ e.preventDefault(); step(1/1.25); }
+    if(e.key==='0'){ e.preventDefault(); applyLayoutZoom(1); }
+  });
+})();
 document.getElementById('pageSize').addEventListener('change', e=>{ pageState.size=e.target.value; applyPageSize(); pushHistory(); });
 document.getElementById('pageOrientation').addEventListener('change', e=>{ pageState.orientation=e.target.value; applyPageSize(); pushHistory(); });
 
@@ -2855,7 +3486,10 @@ function rebuildNorthArrow(obj, style){
 }
 
 /* ---------- legend (headings + rect / circle / line swatches) ---------- */
-function buildLegendGroup(title, items){
+const LEGEND_FRAME_DEFAULT={border:false, borderColor:'#8f97a8', borderWidth:1, bg:true, bgColor:'#ffffff', bgOpacity:0.92};
+function legendFrameOf(data){ return Object.assign({}, LEGEND_FRAME_DEFAULT, (data&&data.frame)||{}); }
+function buildLegendGroup(title, items, frame){
+  const fr=Object.assign({}, LEGEND_FRAME_DEFAULT, frame||{});
   const padding=10, swW=14, width=210;
   let y=padding+26;
   const parts=[];
@@ -2872,7 +3506,20 @@ function buildLegendGroup(title, items){
       y+=rowH;
     }
   });
-  const bg=new fabric.Rect({left:0, top:0, width, height:y+padding-6, fill:'rgba(255,255,255,0.92)', stroke:'#8f97a8', strokeWidth:1, rx:3, ry:3});
+  /* the panel rect is always present so the group keeps a stable size — but its
+     fill and stroke are the user's call. No border by default. */
+  const bgFill = fr.bg ? hexToRgba(fr.bgColor||'#ffffff', fr.bgOpacity==null?0.92:fr.bgOpacity) : 'rgba(0,0,0,0)';
+  const bpad = fr.borderPad||0;
+  const radius = fr.borderRadius==null?3:fr.borderRadius;
+  const bg=new fabric.Rect({left:-bpad, top:-bpad, width:width+bpad*2, height:y+padding-6+bpad*2, fill:bgFill,
+    stroke: fr.border ? (fr.borderColor||'#8f97a8') : 'rgba(0,0,0,0)',
+    strokeWidth: fr.border ? (fr.borderWidth||1) : 0,
+    strokeDashArray: fr.border ? dashFor(fr.borderStyle, fr.borderWidth) : null,
+    strokeLineCap: fr.borderStyle==='dotted' ? 'round' : 'butt',
+    rx:radius, ry:radius});
+  if(fr.border && fr.borderShadow){
+    bg.set({shadow:new fabric.Shadow({color:'rgba(20,30,60,0.35)', blur:8, offsetX:2, offsetY:2})});
+  }
   parts.push(bg);
   parts.push(new fabric.Text(title||'Legend',{left:padding, top:padding, fontSize:14, fontWeight:'700', fill:'#1b2a4a', fontFamily:'Arial'}));
   rows.forEach(({it,y,rowH,size})=>{
@@ -2896,7 +3543,7 @@ function rebuildLegendOnCanvas(obj){
   const {left,top,scaleX,scaleY,angle}=obj;
   const idx=canvas.getObjects().indexOf(obj);
   canvas.remove(obj);
-  const g=buildLegendGroup(obj.data.title, obj.data.items);
+  const g=buildLegendGroup(obj.data.title, obj.data.items, obj.data.frame);
   g.set({left,top,scaleX,scaleY,angle});
   g.data=obj.data;
   g.set({cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
@@ -2910,40 +3557,144 @@ document.getElementById('toolLegend').onclick=()=>{
     {color:'#b3572f', label:'Point feature', shape:'circle'},
     {color:'#3a4a72', label:'Line feature', shape:'line'}
   ];
-  addObj(buildLegendGroup('Legend', items),{type:'legend', title:'Legend', items});
+  const frame=Object.assign({}, LEGEND_FRAME_DEFAULT);
+  addObj(buildLegendGroup('Legend', items, frame),{type:'legend', title:'Legend', items, frame});
 };
 
 /* ---------- scale bar ---------- */
-function buildScaleBarGroup(barPx, distanceVal, unit, calibrated){
-  const h=6, parts=[], seg=barPx/4;
-  for(let i=0;i<4;i++){
-    parts.push(new fabric.Rect({left:i*seg, top:0, width:seg, height:h, fill:i%2===0?'#1b2a4a':'#ffffff', stroke:'#1b2a4a', strokeWidth:1}));
+const SCALEBAR_STYLES=[
+  ['checker','Alternating checker'],
+  ['plain','Plain bar'],
+  ['line','Line with end ticks'],
+  ['double','Double / stacked (two units)'],
+  ['rf','Text only (representative fraction)']
+];
+/* second unit for the stacked style */
+const PAIR_UNIT={km:'mi', m:'ft', mi:'km', ft:'m'};
+
+function scaleBarLabelFont(data){ return (data&&data.font)||'Arial'; }
+
+function buildScaleBarGroup(barPx, distanceVal, unit, calibrated, data){
+  const d=data||{};
+  const style=d.barStyle||'checker';
+  const divisions=Math.max(2, Math.min(8, d.divisions||4));
+  const col=d.color||'#1b2a4a';
+  const fs=d.fontSize||10;
+  const fam=scaleBarLabelFont(d);
+  const h=d.barHeight||6;
+  const parts=[];
+  const lbl=(t,x,y,fill,anchorRight)=>{
+    const tx=new fabric.Text(String(t),{left:x, top:y, fontSize:fs, fill:fill||col, fontFamily:fam});
+    if(anchorRight) tx.set({left:x-tx.width});
+    return tx;
+  };
+
+  if(style==='rf'){
+    /* representative fraction — no bar at all */
+    let txt='not calibrated';
+    if(calibrated && d.metersPerPx){
+      const mPerInch=d.metersPerPx*EDIT_DPI;
+      const denom=Math.round(mPerInch*39.3701);
+      txt = d.rfMode==='verbal'
+        ? ('1 cm = '+fmtNum(d.metersPerPx*EDIT_DPI/2.54/100*100/100)+' m').replace(/\s+/g,' ')
+        : ('1 : '+denom.toLocaleString());
+      if(d.rfMode==='verbal'){
+        const mPerCm=d.metersPerPx*(EDIT_DPI/2.54);
+        txt = mPerCm>=1000 ? ('1 cm = '+fmtNum(mPerCm/1000)+' km') : ('1 cm = '+fmtNum(mPerCm)+' m');
+      }
+    }
+    parts.push(new fabric.Text(txt,{left:0, top:0, fontSize:fs+2, fill:calibrated?col:'#b3572f', fontFamily:fam}));
+    return new fabric.Group(parts,{left:40, top:canvas.getHeight()-70});
   }
-  parts.push(new fabric.Text('0',{left:0, top:h+3, fontSize:10, fill:'#1b2a4a', fontFamily:'Arial'}));
-  const endTxt=new fabric.Text(calibrated? (fmtNum(distanceVal)+' '+unit) : 'not calibrated',
-    {left:0, top:h+3, fontSize:10, fill:calibrated?'#1b2a4a':'#b3572f', fontFamily:'Arial'});
-  endTxt.set({left:Math.max(12, barPx-endTxt.width)});
-  parts.push(endTxt);
+
+  const seg=barPx/divisions;
+  if(style==='checker'){
+    for(let i=0;i<divisions;i++){
+      parts.push(new fabric.Rect({left:i*seg, top:0, width:seg, height:h,
+        fill:i%2===0?col:'#ffffff', stroke:col, strokeWidth:1}));
+    }
+  } else if(style==='plain'){
+    parts.push(new fabric.Rect({left:0, top:0, width:barPx, height:h, fill:col, stroke:col, strokeWidth:1}));
+  } else if(style==='line'){
+    parts.push(new fabric.Rect({left:0, top:h/2-0.75, width:barPx, height:1.5, fill:col}));
+    for(let i=0;i<=divisions;i++){
+      parts.push(new fabric.Rect({left:i*seg-0.75, top:0, width:1.5, height:h, fill:col}));
+    }
+  } else if(style==='double'){
+    const u2=PAIR_UNIT[unit]||'mi';
+    const dist2=calibrated ? niceRound(distanceVal*UNIT_M[unit]/UNIT_M[u2]) : distanceVal;
+    const px2=calibrated ? barPx*(dist2*UNIT_M[u2])/(distanceVal*UNIT_M[unit]) : barPx;
+    for(let i=0;i<divisions;i++){
+      parts.push(new fabric.Rect({left:i*seg, top:0, width:seg, height:h,
+        fill:i%2===0?col:'#ffffff', stroke:col, strokeWidth:1}));
+    }
+    const seg2=px2/divisions;
+    for(let i=0;i<divisions;i++){
+      parts.push(new fabric.Rect({left:i*seg2, top:h+2, width:seg2, height:h,
+        fill:i%2===0?'#ffffff':col, stroke:col, strokeWidth:1}));
+    }
+    parts.push(lbl('0', 0, h*2+5));
+    parts.push(lbl(calibrated? (fmtNum(distanceVal)+' '+unit):'not calibrated',
+      Math.max(14,barPx), h*2+5, calibrated?col:'#b3572f', true));
+    parts.push(lbl(calibrated? (fmtNum(dist2)+' '+u2):'', Math.max(14,px2), h*2+5+fs+3, col, true));
+    return new fabric.Group(parts,{left:40, top:canvas.getHeight()-70});
+  }
+
+  /* labels for checker / plain / line */
+  parts.push(lbl('0', 0, h+3));
+  if(divisions>=4 && style!=='plain'){
+    parts.push(lbl(calibrated? fmtNum(distanceVal/2):'', barPx/2-6, h+3));
+  }
+  const endText=calibrated? (fmtNum(distanceVal)+' '+unit) : 'not calibrated';
+  parts.push(lbl(endText, Math.max(14, barPx), h+3, calibrated?col:'#b3572f', true));
   return new fabric.Group(parts,{left:40, top:canvas.getHeight()-70});
 }
-function recomputeScaleBar(obj){
+function scaleBarMetersPerPx(obj){
   const mapFrame=findById(obj.data.mapFrameId);
+  if(mapFrame && mapFrame.data.calibration) return mapFrame.data.calibration.constant / mapFrame.scaleX;
+  return null;
+}
+function recomputeScaleBar(obj){
+  const mpp=scaleBarMetersPerPx(obj);
   const distanceVal=obj.data.targetDistance, unit=obj.data.unit;
   let barPx=120, calibrated=false;
-  if(mapFrame && mapFrame.data.calibration){
-    const metersPerCanvasPx=mapFrame.data.calibration.constant / mapFrame.scaleX;
-    barPx=Math.max(20, (distanceVal*UNIT_M[unit]) / metersPerCanvasPx);
+  if(mpp){
+    barPx=Math.max(20, (distanceVal*UNIT_M[unit]) / mpp);
     calibrated=true;
+    obj.data.metersPerPx=mpp;
   }
   const {left,top,angle}=obj;
   const idx=canvas.getObjects().indexOf(obj);
   canvas.remove(obj);
-  const g=buildScaleBarGroup(barPx, distanceVal, unit, calibrated);
+  const g=buildScaleBarGroup(barPx, distanceVal, unit, calibrated, obj.data);
   g.set({left,top,angle});
   g.data=obj.data;
+  g.data.barPx=barPx;
   g.set({cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
   canvas.insertAt(g, idx, false);
   return g;
+}
+/* Dragging a scale bar's side handles changes the distance it represents rather
+   than stretching the artwork — the label follows, snapped to a round number. */
+function scaleBarResized(obj){
+  const mpp=obj.data.metersPerPx || scaleBarMetersPerPx(obj);
+  if(!mpp || !obj.data.barPx){ obj.set({scaleX:1, scaleY:1}); return null; }
+  const newPx=obj.data.barPx*obj.scaleX;
+  const meters=newPx*mpp;
+  let unit=obj.data.unit;
+  let val=meters/UNIT_M[unit];
+  if(obj.data.snapRound!==false){
+    /* switch between m/km (or ft/mi) when the number gets awkward, then round
+       to a single decimal place — enough to feel tidy without jumping about */
+    if(unit==='km' && meters<1000){ unit='m'; }
+    else if(unit==='m' && meters>=1000){ unit='km'; }
+    val=meters/UNIT_M[unit];
+    val = val>=100 ? Math.round(val) : Math.round(val*10)/10;
+  }
+  obj.data.targetDistance=Math.max(0.1, val);
+  obj.data.unit=unit;
+  obj.set({scaleX:1, scaleY:1});
+  return recomputeScaleBar(obj);
 }
 document.getElementById('toolScale').onclick=()=>{
   const frames=canvas.getObjects().filter(o=>o.data&&(o.data.type==='mapFrame'||o.data.type==='insetFrame'));
@@ -2956,8 +3707,9 @@ document.getElementById('toolScale').onclick=()=>{
     let nice=niceRound(widthMeters/4);
     if(nice>=1000){ dist=nice/1000; unit='km'; } else { dist=nice; unit='m'; }
   }
-  const data={type:'scaleBar', mapFrameId:linkTo.data.id, targetDistance:dist, unit};
-  const obj=addObj(buildScaleBarGroup(120, dist, unit, !!linkTo.data.calibration), data);
+  const data={type:'scaleBar', mapFrameId:linkTo.data.id, targetDistance:dist, unit,
+    barStyle:'checker', divisions:4, color:'#1b2a4a', fontSize:10, barHeight:6, snapRound:true, rfMode:'ratio'};
+  const obj=addObj(buildScaleBarGroup(120, dist, unit, !!linkTo.data.calibration, data), data);
   const g=recomputeScaleBar(obj);
   canvas.setActiveObject(g); canvas.renderAll();
   if(!linkTo.data.calibration) toast('Linked map frame is not calibrated — select it and click "Calibrate scale".', 3600);
@@ -2965,6 +3717,10 @@ document.getElementById('toolScale').onclick=()=>{
 function onObjectModified(e){
   const o=e.target;
   if(o&&o.data&&(o.data.type==='mapFrame'||o.data.type==='insetFrame')) refreshLinkedScaleBars(o.data.id);
+  if(o&&o.data&&o.data.type==='scaleBar' && (o.scaleX!==1||o.scaleY!==1)){
+    const ng=scaleBarResized(o);
+    if(ng){ canvas.setActiveObject(ng); canvas.renderAll(); showPropertiesForSelection({selected:[ng]}); }
+  }
 }
 function onObjectScaling(e){
   const o=e.target;
@@ -3188,18 +3944,82 @@ function borderIdFor(obj){ return 'bd_'+obj.data.id; }
 function findBorderOf(obj){
   return canvas.getObjects().find(o=>o.data&&o.data.type==='elementBorder'&&o.data.ownerId===obj.data.id);
 }
+/* One shared border definition, used by the generic element border and the
+   legend panel so the two can't drift apart. */
+const BORDER_DEFAULT={on:false, color:'#1b2a4a', width:1.5, style:'solid', radius:0, pad:4, shadow:false};
+function borderOf(data){ return Object.assign({}, BORDER_DEFAULT, (data&&data.border)||{}); }
+function dashFor(style, width){
+  const w=Math.max(1,width||1);
+  if(style==='dashed') return [w*4, w*3];
+  if(style==='dotted') return [w*0.1, w*2.2];
+  return null;
+}
+function borderControlsHtml(bd, opts){
+  const o=opts||{};
+  const label=o.label||'Draw a border around this element';
+  const p=o.prefix||'pBorder';
+  return `<div class="checkline"><input type="checkbox" id="${p}On" ${bd.on?'checked':''}><label for="${p}On" style="margin:0;color:var(--text);">${label}</label></div>
+    <div id="${p}Opts" ${bd.on?'':'style="display:none;"'}>
+      <div class="row2">
+        <div class="field"><label>Colour</label><input type="color" id="${p}Color" value="${toHex(bd.color)}"></div>
+        <div class="field"><label>Width</label><input type="number" id="${p}W" value="${bd.width}" min="0.5" step="0.5"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Line style</label>
+          <select id="${p}Style">
+            <option value="solid" ${bd.style==='solid'?'selected':''}>Solid</option>
+            <option value="dashed" ${bd.style==='dashed'?'selected':''}>Dashed</option>
+            <option value="dotted" ${bd.style==='dotted'?'selected':''}>Dotted</option>
+          </select></div>
+        <div class="field"><label>Corner radius</label><input type="number" id="${p}Radius" value="${bd.radius}" min="0" step="1"></div>
+      </div>
+      <div class="field"><label>Padding (px)</label><input type="number" id="${p}Pad" value="${bd.pad}" min="0" step="1"></div>
+      <div class="checkline"><input type="checkbox" id="${p}Shadow" ${bd.shadow?'checked':''}><label for="${p}Shadow" style="margin:0;color:var(--text);">Drop shadow</label></div>
+    </div>`;
+}
+function readBorderControls(prefix){
+  const g=id=>document.getElementById(id);
+  const p=prefix||'pBorder';
+  return {
+    on: g(p+'On').checked,
+    color: g(p+'Color').value,
+    width: parseFloat(g(p+'W').value)||1.5,
+    style: g(p+'Style').value,
+    radius: Math.max(0, parseFloat(g(p+'Radius').value)||0),
+    pad: Math.max(0, parseFloat(g(p+'Pad').value)||0),
+    shadow: g(p+'Shadow').checked
+  };
+}
+function bindBorderControls(prefix, onChange){
+  const g=id=>document.getElementById(id);
+  const p=prefix||'pBorder';
+  if(!g(p+'On')) return;
+  const sync=()=>{
+    g(p+'Opts').style.display = g(p+'On').checked ? '' : 'none';
+    onChange();
+  };
+  [p+'On',p+'Color',p+'W',p+'Style',p+'Radius',p+'Pad',p+'Shadow'].forEach(id=>{
+    const el=g(id); if(!el) return;
+    el.onchange=sync;
+    if(el.type==='color') el.oninput=sync;
+  });
+}
 function applyElementBorder(obj){
   const existing=findBorderOf(obj);
   if(existing) canvas.remove(existing);
   const bd=obj.data.border;
   if(!bd||!bd.on){ canvas.renderAll(); return; }
   const b=obj.getBoundingRect(true,true);
-  const pad=bd.pad||0;
+  const pad=bd.pad==null?4:bd.pad;
   const r=new fabric.Rect({
     left:b.left-pad, top:b.top-pad, width:b.width+pad*2, height:b.height+pad*2,
     fill:'transparent', stroke:bd.color||'#1b2a4a', strokeWidth:bd.width||1.5,
+    strokeDashArray: dashFor(bd.style, bd.width),
+    strokeLineCap: bd.style==='dotted' ? 'round' : 'butt',
+    rx: bd.radius||0, ry: bd.radius||0,
     selectable:false, evented:false
   });
+  if(bd.shadow) r.set({shadow:new fabric.Shadow({color:'rgba(20,30,60,0.35)', blur:8, offsetX:2, offsetY:2})});
   r.data={id:uid(), type:'elementBorder', ownerId:obj.data.id};
   canvas.add(r);
   canvas.renderAll();
@@ -3212,7 +4032,7 @@ function refreshAllBorders(){
 function typeLabel(t){
   return {mapFrame:'🖼️ Map Frame', insetFrame:'📍 Inset Map', title:'T Title', text:'t Text', legend:'▤ Legend',
     northArrow:'🧭 North Arrow', scaleBar:'📏 Scale Bar', neatline:'▢ Neatline', embedPlaceholder:'🔗 Live Embed',
-    image:'🏞️ Image', placeholder:'▦ Placeholder', marginGuide:'⌗ Margin guide'}[t]||t;
+    image:'🏞️ Image', placeholder:'▦ Placeholder', marginGuide:'⌗ Margin guide', sketch:'✎ Sketch'}[t]||t;
 }
 function refreshLayersTab(){
   const el=document.getElementById('tab-layers');
@@ -3233,7 +4053,13 @@ function renderLayersTab(){
   el.querySelectorAll('.layer-item').forEach(item=>{
     const id=item.getAttribute('data-id');
     item.querySelector('.lname').onclick=()=>{
-      const o=findById(id); if(o){ canvas.setActiveObject(o); canvas.renderAll(); }
+      const o=findById(id);
+      if(!o) return;
+      canvas.setActiveObject(o);
+      canvas.renderAll();
+      /* a programmatic selection doesn't always raise Fabric's selection event,
+         so refresh the panel here or the Properties tab stays on the old object */
+      showPropertiesForSelection({selected:[o]});
     };
     item.querySelectorAll('button').forEach(btn=>{
       btn.onclick=ev=>{
@@ -3248,15 +4074,14 @@ function renderLayersTab(){
     });
   });
 }
+function showTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.getAttribute('data-tab')===tab));
+  document.getElementById('tab-props').style.display=tab==='props'?'block':'none';
+  document.getElementById('tab-layers').style.display=tab==='layers'?'block':'none';
+  if(tab==='layers') renderLayersTab();
+}
 document.querySelectorAll('.tab-btn').forEach(btn=>{
-  btn.onclick=()=>{
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const tab=btn.getAttribute('data-tab');
-    document.getElementById('tab-props').style.display=tab==='props'?'block':'none';
-    document.getElementById('tab-layers').style.display=tab==='layers'?'block':'none';
-    if(tab==='layers') renderLayersTab();
-  };
+  btn.onclick=()=>showTab(btn.getAttribute('data-tab'));
 });
 
 /* ---------- properties ---------- */
@@ -3264,9 +4089,28 @@ function clearProperties(){
   document.getElementById('tab-props').innerHTML='<div class="empty-hint">Select an object on the page to edit it, or use the tools on the left to add a new one.</div>';
   renderLayersTab();
 }
+/* Editing a property rebuilds this panel, which would otherwise throw away the
+   field being edited — remember where the caret was and put it back. */
+function capturePanelFocus(){
+  const a=document.activeElement;
+  if(!a||!a.id||!document.getElementById('tab-props').contains(a)) return null;
+  const st={id:a.id};
+  if(a.selectionStart!=null){ st.start=a.selectionStart; st.end=a.selectionEnd; }
+  return st;
+}
+function restorePanelFocus(st){
+  if(!st) return;
+  const el=document.getElementById(st.id);
+  if(!el) return;
+  el.focus();
+  if(st.start!=null && el.setSelectionRange){
+    try{ el.setSelectionRange(st.start, st.end); }catch(_){}
+  }
+}
 function showPropertiesForSelection(e){
   const obj=(e&&e.selected&&e.selected[0])||canvas.getActiveObject();
   if(!obj||!obj.data){ clearProperties(); return; }
+  const focusState=capturePanelFocus();
   const el=document.getElementById('tab-props');
   let html=`<h3>${typeLabel(obj.data.type)}</h3>`;
 
@@ -3304,6 +4148,7 @@ function showPropertiesForSelection(e){
       <div class="field"><label>Line height</label><input type="number" id="pLineH" value="${(obj.lineHeight||1.16).toFixed(2)}" step="0.05" min="0.6" max="3"></div>`;
   }
   if(obj.data.type==='legend'){
+    const fr=legendFrameOf(obj.data);
     html+=`<div class="field"><label>Legend title</label><input type="text" id="pLegendTitle" value="${esc(obj.data.title)}"></div>
       <div id="legendRows"></div>
       <div class="legend-add-row">
@@ -3311,7 +4156,18 @@ function showPropertiesForSelection(e){
         <button class="btn small secondary" id="pLegAddPt">+ Point</button>
         <button class="btn small secondary" id="pLegAddLn">+ Line</button>
         <button class="btn small secondary" id="pLegAddHd">+ Heading</button>
-      </div>`;
+      </div>
+      <div class="divider"></div><h3>Legend panel</h3>
+      <div class="checkline"><input type="checkbox" id="pLegBg" ${fr.bg?'checked':''}><label for="pLegBg" style="margin:0;color:var(--text);">Background fill</label></div>
+      <div class="row2" id="pLegBgRow" ${fr.bg?'':'style="display:none"'}>
+        <div class="field"><label>Fill colour</label><input type="color" id="pLegBgColor" value="${fr.bgColor}"></div>
+        <div class="field"><label>Opacity: <span id="pLegBgOpVal">${Math.round(fr.bgOpacity*100)}%</span></label>
+          <input type="range" id="pLegBgOp" min="0" max="1" step="0.05" value="${fr.bgOpacity}"></div>
+      </div>`
+      + borderControlsHtml({on:fr.border, color:fr.borderColor, width:fr.borderWidth,
+                            style:fr.borderStyle||'solid', radius:fr.borderRadius==null?3:fr.borderRadius,
+                            pad:fr.borderPad==null?0:fr.borderPad, shadow:!!fr.borderShadow},
+                           {prefix:'pLegB', label:'Border around the legend panel'});
   }
   if(obj.data.type==='northArrow'){
     html+=`<div class="field"><label>Style</label>
@@ -3324,13 +4180,71 @@ function showPropertiesForSelection(e){
   }
   if(obj.data.type==='scaleBar'){
     const mf=findById(obj.data.mapFrameId);
+    const d=obj.data;
+    const isRF=(d.barStyle||'checker')==='rf';
     html+=`<div class="field"><label>Linked map frame</label><div class="kv">${mf? typeLabel(mf.data.type)+(mf.data.calibration?' (calibrated)':' (not calibrated)') : 'frame not found'}</div></div>
-      <div class="row2">
-        <div class="field"><label>Represents</label><input type="number" id="pScaleDist" value="${obj.data.targetDistance}" step="0.1" min="0.001"></div>
-        <div class="field"><label>Unit</label>
-          <select id="pScaleUnit">${['m','km','mi','ft'].map(u=>'<option value="'+u+'" '+(obj.data.unit===u?'selected':'')+'>'+u+'</option>').join('')}</select></div>
+      <div class="field"><label>Style</label>
+        <select id="pScaleStyle">${SCALEBAR_STYLES.map(s=>'<option value="'+s[0]+'" '+((d.barStyle||'checker')===s[0]?'selected':'')+'>'+s[1]+'</option>').join('')}</select></div>`;
+    if(isRF){
+      html+=`<div class="field"><label>Format</label>
+        <select id="pScaleRfMode">
+          <option value="ratio" ${d.rfMode!=='verbal'?'selected':''}>Ratio (1:50,000)</option>
+          <option value="verbal" ${d.rfMode==='verbal'?'selected':''}>Verbal (1 cm = 500 m)</option>
+        </select></div>`;
+    } else {
+      html+=`<div class="row2">
+          <div class="field"><label>Represents</label><input type="number" id="pScaleDist" value="${d.targetDistance}" step="0.1" min="0.001"></div>
+          <div class="field"><label>Unit</label>
+            <select id="pScaleUnit">${['m','km','mi','ft'].map(u=>'<option value="'+u+'" '+(d.unit===u?'selected':'')+'>'+u+'</option>').join('')}</select></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Divisions</label><input type="number" id="pScaleDiv" value="${d.divisions||4}" min="2" max="8"></div>
+          <div class="field"><label>Bar height</label><input type="number" id="pScaleH" value="${d.barHeight||6}" min="2" max="24"></div>
+        </div>
+        <div class="checkline"><input type="checkbox" id="pScaleSnap" ${d.snapRound!==false?'checked':''}>
+          <label for="pScaleSnap" style="margin:0;color:var(--text);">Snap to round numbers when resizing</label></div>`;
+    }
+    html+=`<div class="row2">
+        <div class="field"><label>Colour</label><input type="color" id="pScaleColor" value="${d.color||'#1b2a4a'}"></div>
+        <div class="field"><label>Label size</label><input type="number" id="pScaleFs" value="${d.fontSize||10}" min="6" max="28"></div>
       </div>
-      <button class="btn small secondary" id="pScaleRecalc">Recalculate</button>`;
+      <button class="btn small secondary" id="pScaleRecalc">Recalculate</button>
+      <div class="kv" style="margin-top:6px;">${isRF? 'The ratio updates automatically when the map frame is resized.' : 'Drag the side handles to change the bar’s length — the distance it represents follows.'}</div>`;
+  }
+  if(obj.data.type==='sketch'){
+    const isPen=(obj.data.sketch==='pen'||obj.data.sketch==='highlight');
+    const isGroup=obj.type==='group';
+    const strokeSrc=isGroup ? (obj.getObjects()[0]||{}) : obj;
+    const hasFill=obj.fill && obj.fill!=='rgba(0,0,0,0)' && obj.fill!=='transparent';
+    const dashArr=strokeSrc.strokeDashArray;
+    const curDash = !dashArr ? 'solid' : (dashArr[0]<1 ? 'dotted' : 'dashed');
+    html+=`<div class="row2">
+        <div class="field"><label>${isPen?'Ink colour':'Stroke colour'}</label><input type="color" id="pSkStroke" value="${toHex(strokeSrc.stroke||sketchStyle.stroke)}"></div>
+        <div class="field"><label>Stroke width</label><input type="number" id="pSkW" value="${strokeSrc.strokeWidth||2}" min="0.5" step="0.5"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Line style</label>
+          <select id="pSkDash">
+            <option value="solid" ${curDash==='solid'?'selected':''}>Solid</option>
+            <option value="dashed" ${curDash==='dashed'?'selected':''}>Dashed</option>
+            <option value="dotted" ${curDash==='dotted'?'selected':''}>Dotted</option>
+          </select></div>
+        <div class="field"><label>Ends</label>
+          <select id="pSkCap">
+            <option value="round" ${(strokeSrc.strokeLineCap||'round')==='round'?'selected':''}>Round</option>
+            <option value="butt" ${strokeSrc.strokeLineCap==='butt'?'selected':''}>Flat</option>
+            <option value="square" ${strokeSrc.strokeLineCap==='square'?'selected':''}>Square</option>
+          </select></div>
+      </div>`;
+    if(!isPen && obj.data.sketch!=='line' && obj.data.sketch!=='arrow'){
+      html+=`<div class="checkline"><input type="checkbox" id="pSkFillOn" ${hasFill?'checked':''}>
+          <label for="pSkFillOn" style="margin:0;color:var(--text);">Fill</label></div>
+        <div class="field" id="pSkFillRow" ${hasFill?'':'style="display:none"'}>
+          <label>Fill colour</label><input type="color" id="pSkFill" value="${hasFill?toHex(obj.fill):'#3a9a93'}"></div>`;
+    }
+    html+=`<div class="field"><label>Opacity: <span id="pSkOpVal">${Math.round((obj.opacity==null?1:obj.opacity)*100)}%</span></label>
+        <input type="range" id="pSkOp" min="0.05" max="1" step="0.05" value="${obj.opacity==null?1:obj.opacity}"></div>`;
+    if(obj.points) html+=`<div class="kv">Double-click this shape on the page to drag its individual points.</div>`;
   }
   if(obj.data.type==='neatline'){
     html+=`<div class="row2">
@@ -3348,15 +4262,9 @@ function showPropertiesForSelection(e){
     html+=`<div class="kv">Template placeholder — double-click it on the page (or use the button below) to fill it with the real element.</div>
       <div class="field" style="margin-top:8px;"><button class="btn small" id="pFillPh">Fill placeholder now</button></div>`;
   }
-  if(obj.data.type!=='neatline' && obj.data.type!=='marginGuide'){
-    const bd=obj.data.border||{};
-    html+=`<div class="divider"></div><h3>Border</h3>
-      <div class="checkline"><input type="checkbox" id="pBorderOn" ${bd.on?'checked':''}><label for="pBorderOn" style="margin:0;color:var(--text);">Draw a border around this element</label></div>
-      <div class="row2" id="pBorderOpts" ${bd.on?'':'style="display:none;"'}>
-        <div class="field"><label>Width</label><input type="number" id="pBorderW" value="${bd.width||1.5}" min="0.5" step="0.5"></div>
-        <div class="field"><label>Colour</label><input type="color" id="pBorderColor" value="${toHex(bd.color||'#1b2a4a')}"></div>
-      </div>
-      <div class="field" id="pBorderPadWrap" ${bd.on?'':'style="display:none;"'}><label>Padding (px)</label><input type="number" id="pBorderPad" value="${bd.pad==null?4:bd.pad}" min="0" step="1"></div>`;
+  /* legends carry their own panel border, so they skip the generic one */
+  if(obj.data.type!=='neatline' && obj.data.type!=='marginGuide' && obj.data.type!=='legend'){
+    html+=`<div class="divider"></div><h3>Border</h3>`+borderControlsHtml(borderOf(obj.data));
   }
   html+=`<div class="divider"></div><h3>Arrange</h3>
     <div class="row2">
@@ -3398,43 +4306,104 @@ function showPropertiesForSelection(e){
     g('pLegAddPt').onclick=()=>addItem({color:'#b3572f', label:'New point', shape:'circle'});
     g('pLegAddLn').onclick=()=>addItem({color:'#3a4a72', label:'New line', shape:'line'});
     g('pLegAddHd').onclick=()=>addItem({header:true, label:'Heading'});
+    /* legend panel fill + border — both the user's choice, border off by default */
+    const applyFrame=()=>{
+      const b=readBorderControls('pLegB');
+      obj.data.frame={
+        bg: g('pLegBg').checked,
+        bgColor: g('pLegBgColor').value,
+        bgOpacity: parseFloat(g('pLegBgOp').value),
+        border: b.on, borderColor: b.color, borderWidth: b.width,
+        borderStyle: b.style, borderRadius: b.radius, borderPad: b.pad, borderShadow: b.shadow
+      };
+      g('pLegBgRow').style.display = obj.data.frame.bg ? '' : 'none';
+      const ng=rebuildLegendOnCanvas(obj);
+      showPropertiesForSelection({selected:[ng]});
+    };
+    g('pLegBg').onchange=applyFrame;
+    g('pLegBgColor').onchange=applyFrame;
+    g('pLegBgOp').onchange=applyFrame;
+    g('pLegBgOp').oninput=()=>{ g('pLegBgOpVal').textContent=Math.round(parseFloat(g('pLegBgOp').value)*100)+'%'; };
+    bindBorderControls('pLegB', applyFrame);
   }
   if(obj.data.type==='scaleBar'){
-    g('pScaleRecalc').onclick=()=>{
-      obj.data.targetDistance=parseFloat(g('pScaleDist').value)||1;
-      obj.data.unit=g('pScaleUnit').value;
+    const applyScale=()=>{
+      if(g('pScaleDist')) obj.data.targetDistance=parseFloat(g('pScaleDist').value)||1;
+      if(g('pScaleUnit')) obj.data.unit=g('pScaleUnit').value;
+      if(g('pScaleDiv')) obj.data.divisions=Math.max(2,Math.min(8,parseInt(g('pScaleDiv').value,10)||4));
+      if(g('pScaleH')) obj.data.barHeight=Math.max(2,Math.min(24,parseFloat(g('pScaleH').value)||6));
+      if(g('pScaleSnap')) obj.data.snapRound=g('pScaleSnap').checked;
+      if(g('pScaleRfMode')) obj.data.rfMode=g('pScaleRfMode').value;
+      obj.data.barStyle=g('pScaleStyle').value;
+      obj.data.color=g('pScaleColor').value;
+      obj.data.fontSize=Math.max(6,Math.min(28,parseFloat(g('pScaleFs').value)||10));
       const ng=recomputeScaleBar(obj);
       canvas.setActiveObject(ng); canvas.renderAll();
       showPropertiesForSelection({selected:[ng]});
     };
+    g('pScaleRecalc').onclick=applyScale;
+    g('pScaleStyle').onchange=applyScale;
+    g('pScaleColor').onchange=applyScale;
+    g('pScaleFs').onchange=applyScale;
+    if(g('pScaleDiv')) g('pScaleDiv').onchange=applyScale;
+    if(g('pScaleH')) g('pScaleH').onchange=applyScale;
+    if(g('pScaleUnit')) g('pScaleUnit').onchange=applyScale;
+    if(g('pScaleSnap')) g('pScaleSnap').onchange=()=>{ obj.data.snapRound=g('pScaleSnap').checked; };
+    if(g('pScaleRfMode')) g('pScaleRfMode').onchange=applyScale;
+  }
+  if(obj.data.type==='sketch'){
+    const isGroup = obj.type==='group';
+    const applyStroke=()=>{
+      const c=g('pSkStroke').value, w=parseFloat(g('pSkW').value)||2;
+      const dash=sketchDash(g('pSkDash').value, w), cap=g('pSkCap').value;
+      if(isGroup){
+        obj.getObjects().forEach(o=>{
+          if(o.type==='triangle') o.set({fill:c});
+          else o.set({stroke:c, strokeWidth:w, strokeDashArray:dash, strokeLineCap:cap});
+        });
+      } else if(obj.data.sketch==='highlight'){
+        obj.set({stroke:hexToRgba(c,0.35), strokeWidth:w, strokeDashArray:dash, strokeLineCap:cap});
+      } else {
+        obj.set({stroke:c, strokeWidth:w, strokeDashArray:dash, strokeLineCap:cap});
+      }
+      obj.set({dirty:true});
+      canvas.renderAll(); pushHistory();
+    };
+    g('pSkStroke').onchange=applyStroke;
+    g('pSkW').onchange=applyStroke;
+    g('pSkDash').onchange=applyStroke;
+    g('pSkCap').onchange=applyStroke;
+    if(g('pSkFillOn')){
+      const applyFill=()=>{
+        const on=g('pSkFillOn').checked;
+        g('pSkFillRow').style.display = on?'':'none';
+        obj.set({fill: on ? g('pSkFill').value : 'rgba(0,0,0,0)', dirty:true});
+        canvas.renderAll(); pushHistory();
+      };
+      g('pSkFillOn').onchange=applyFill;
+      g('pSkFill').onchange=applyFill;
+    }
+    g('pSkOp').oninput=()=>{
+      const v=parseFloat(g('pSkOp').value);
+      g('pSkOpVal').textContent=Math.round(v*100)+'%';
+      obj.set({opacity:v}); canvas.renderAll();
+    };
+    g('pSkOp').onchange=()=>pushHistory();
   }
   if(obj.data.type==='neatline'){
     g('pStrokeW').onchange=()=>{ obj.data.strokeW=parseInt(g('pStrokeW').value||1,10); const ng=rebuildNeatline(obj); showPropertiesForSelection({selected:[ng]}); };
     g('pStrokeColor').oninput=()=>{ obj.data.strokeColor=g('pStrokeColor').value; const ng=rebuildNeatline(obj); showPropertiesForSelection({selected:[ng]}); };
     g('pTicks').onchange=()=>{ obj.data.ticks=g('pTicks').checked; const ng=rebuildNeatline(obj); showPropertiesForSelection({selected:[ng]}); };
   }
-  if(g('pBorderOn')){
-    const syncBorder=()=>{
-      obj.data.border={
-        on: g('pBorderOn').checked,
-        width: parseFloat(g('pBorderW').value)||1.5,
-        color: g('pBorderColor').value,
-        pad: parseFloat(g('pBorderPad').value)||0
-      };
-      const show=obj.data.border.on?'flex':'none';
-      g('pBorderOpts').style.display=show;
-      g('pBorderPadWrap').style.display=obj.data.border.on?'block':'none';
-      applyElementBorder(obj);
-    };
-    g('pBorderOn').onchange=syncBorder;
-    g('pBorderW').onchange=syncBorder;
-    g('pBorderColor').oninput=syncBorder;
-    g('pBorderPad').onchange=syncBorder;
-  }
+  bindBorderControls('pBorder', ()=>{
+    obj.data.border=readBorderControls('pBorder');
+    applyElementBorder(obj);
+  });
   g('pFront').onclick=()=>{ obj.bringToFront(); canvas.renderAll(); renderLayersTab(); };
   g('pBack').onclick=()=>{ obj.sendToBack(); canvas.renderAll(); renderLayersTab(); };
   g('pDup').onclick=duplicateSelected;
   g('pDel').onclick=deleteSelected;
+  restorePanelFocus(focusState);
   renderLayersTab();
 }
 function renderLegendRows(obj){
@@ -3699,11 +4668,414 @@ document.getElementById('loPanelToggle').onclick=()=>{
   const rp=document.getElementById('rightpanel');
   rp.classList.toggle('collapsed');
   const col=rp.classList.contains('collapsed');
+  /* the resize handle leaves an inline width, which would beat the collapsed
+     rule and leave a full-width empty panel — park it and put it back after */
+  if(col){
+    if(rp.style.width) rp.dataset.openWidth=rp.style.width;
+    rp.style.width='';
+  } else if(rp.dataset.openWidth){
+    rp.style.width=rp.dataset.openWidth;
+  }
   const b=document.getElementById('loPanelToggle');
-  b.textContent = col ? '⟨' : 'Hide Menu ⟩';
+  b.textContent = col ? '⟨' : 'Menu ⟩';
   b.title = col ? 'Show menu' : 'Hide menu';
   setTimeout(()=>{ canvas.calcOffset(); canvas.renderAll(); positionEmbedFrames(); }, 180);
 };
+
+/* ---------- resizable layout panel ---------- */
+(function(){
+  const KEY='cartoStudio_loPanelWidth';
+  const panel=document.getElementById('rightpanel');
+  const handle=document.getElementById('loPanelResize');
+  if(!panel||!handle) return;
+  const saved=parseInt(localStorage.getItem(KEY),10);
+  if(saved && saved>=250 && saved<=560) panel.style.width=saved+'px';
+  let dragging=false, startX=0, startW=0, lastW=0;
+  handle.addEventListener('mousedown', e=>{
+    dragging=true; startX=e.clientX; startW=panel.getBoundingClientRect().width; lastW=startW;
+    handle.classList.add('dragging');
+    document.body.style.userSelect='none';
+    /* the panel animates its width; that lags a drag and reports stale sizes */
+    panel.style.transition='none';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    /* handle is on the panel's left edge, so dragging left widens it */
+    lastW=Math.max(250, Math.min(560, startW - (e.clientX-startX)));
+    panel.style.width=lastW+'px';
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(!dragging) return;
+    dragging=false;
+    handle.classList.remove('dragging');
+    document.body.style.userSelect='';
+    panel.style.transition='';
+    localStorage.setItem(KEY, Math.round(lastW));   /* the width we set, not a mid-animation read */
+    canvas.calcOffset(); canvas.renderAll(); positionEmbedFrames();
+  });
+})();
+
+/* ================= SKETCH / DRAWING TOOLS =================
+   Freehand pen, highlighter, straight line, arrow, rectangle, ellipse and
+   polygon. Everything lands on the same Fabric canvas as a normal element, so it
+   drags, scales, layers and exports like anything else. Double-clicking a drawn
+   shape switches it into vertex-editing mode. */
+let sketchMode=null, sketchDraft=null, sketchStart=null, polyPts=[], polyPreview=null, vertexEditor=null;
+const sketchStyle={stroke:'#b3452f', width:2, opacity:1,
+  fillOn:false, fill:'#3a9a93', fillOpacity:0.35,
+  dash:'solid', cap:'round', arrowSize:4.5, arrowStyle:'filled'};
+
+const SKETCH_MODES=[
+  ['pen','✎','Freehand pen'],
+  ['highlight','▬','Highlighter'],
+  ['line','╱','Straight line'],
+  ['arrow','↗','Arrow'],
+  ['rect','▭','Rectangle'],
+  ['ellipse','◯','Ellipse'],
+  ['poly','⬠','Polygon — click points, double-click to finish']
+];
+function sketchDash(style, width){
+  const w=Math.max(1,width||1);
+  if(style==='dashed') return [w*4, w*3];
+  if(style==='dotted') return [w*0.1, w*2.2];
+  return null;
+}
+function sketchFillValue(){
+  return sketchStyle.fillOn ? hexToRgba(sketchStyle.fill, sketchStyle.fillOpacity) : 'rgba(0,0,0,0)';
+}
+function setSketchMode(mode){
+  if(mode==='off') mode=null;
+  finishPolygon(true);
+  sketchMode=mode;
+  document.getElementById('toolSketch').classList.toggle('on', !!mode);
+  document.getElementById('stage').classList.toggle('sketching', !!mode);
+  canvas.selection = !mode;
+  canvas.isDrawingMode = (mode==='pen'||mode==='highlight');
+  if(canvas.isDrawingMode){
+    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+    canvas.freeDrawingBrush.color = mode==='highlight'
+      ? hexToRgba(sketchStyle.stroke, 0.35) : hexToRgba(sketchStyle.stroke, sketchStyle.opacity);
+    canvas.freeDrawingBrush.width = mode==='highlight' ? Math.max(10, sketchStyle.width*6) : sketchStyle.width;
+  }
+  canvas.forEachObject(o=>{ if(!(o.data&&o.data.guide)) o.selectable = !mode; });
+  showVertexHint(mode==='poly' ? 'Click to add points · double-click or Enter to finish · Esc cancels' : null);
+  if(mode){
+    /* keep the panel in place across mode switches — rebuilding it would destroy
+       the very button being clicked */
+    if(document.getElementById('skModes')) updateSketchPanelState();
+    else renderSketchPanel();
+  }
+  canvas.renderAll();
+}
+function updateSketchPanelState(){
+  document.querySelectorAll('#skModes .sk-btn').forEach(b=>
+    b.classList.toggle('on', b.getAttribute('data-sk')===sketchMode));
+  const closed=(sketchMode==='rect'||sketchMode==='ellipse'||sketchMode==='poly');
+  const fill=document.getElementById('skFillSec');
+  const arrow=document.getElementById('skArrowSec');
+  if(fill) fill.style.display = closed ? '' : 'none';
+  if(arrow) arrow.style.display = (sketchMode==='arrow') ? '' : 'none';
+}
+
+/* Sketch settings live in the right panel alongside every other tool's options. */
+function renderSketchPanel(){
+  const el=document.getElementById('tab-props');
+  if(!el) return;
+  showTab('props');
+  const s=sketchStyle;
+  el.innerHTML=`<h3>✎ Sketch</h3>
+    <div class="field"><label>Tool</label>
+      <div id="skModes">${SKETCH_MODES.map(m=>
+        `<button class="sk-btn ${sketchMode===m[0]?'on':''}" data-sk="${m[0]}" title="${esc(m[2])}">${m[1]}</button>`).join('')}</div>
+    </div>
+    <div class="divider"></div><h3>Stroke</h3>
+    <div class="row2">
+      <div class="field"><label>Colour</label><input type="color" id="skStroke" value="${s.stroke}"></div>
+      <div class="field"><label>Width</label><input type="number" id="skWidth" value="${s.width}" min="0.5" step="0.5"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Line style</label>
+        <select id="skDash">
+          <option value="solid" ${s.dash==='solid'?'selected':''}>Solid</option>
+          <option value="dashed" ${s.dash==='dashed'?'selected':''}>Dashed</option>
+          <option value="dotted" ${s.dash==='dotted'?'selected':''}>Dotted</option>
+        </select></div>
+      <div class="field"><label>Ends</label>
+        <select id="skCap">
+          <option value="round" ${s.cap==='round'?'selected':''}>Round</option>
+          <option value="butt" ${s.cap==='butt'?'selected':''}>Flat</option>
+          <option value="square" ${s.cap==='square'?'selected':''}>Square</option>
+        </select></div>
+    </div>
+    <div class="field"><label>Opacity: <span id="skOpVal">${Math.round(s.opacity*100)}%</span></label>
+      <input type="range" id="skOpacity" min="0.05" max="1" step="0.05" value="${s.opacity}"></div>
+    <div id="skFillSec"><div class="divider"></div><h3>Fill</h3>
+      <div class="checkline"><input type="checkbox" id="skFillOn" ${s.fillOn?'checked':''}>
+        <label for="skFillOn" style="margin:0;color:var(--text);">Fill the shape</label></div>
+      <div class="row2" id="skFillRow" ${s.fillOn?'':'style="display:none"'}>
+        <div class="field"><label>Fill colour</label><input type="color" id="skFill" value="${s.fill}"></div>
+        <div class="field"><label>Fill opacity: <span id="skFillOpVal">${Math.round(s.fillOpacity*100)}%</span></label>
+          <input type="range" id="skFillOpacity" min="0.05" max="1" step="0.05" value="${s.fillOpacity}"></div>
+      </div></div>
+    <div id="skArrowSec"><div class="divider"></div><h3>Arrowhead</h3>
+      <div class="row2">
+        <div class="field"><label>Size</label><input type="number" id="skArrowSize" value="${s.arrowSize}" min="2" max="12" step="0.5"></div>
+        <div class="field"><label>Style</label>
+          <select id="skArrowStyle">
+            <option value="filled" ${s.arrowStyle==='filled'?'selected':''}>Filled</option>
+            <option value="open" ${s.arrowStyle==='open'?'selected':''}>Open (line)</option>
+          </select></div>
+      </div></div>
+    <div class="divider"></div>
+    <div class="kv">These settings apply to what you draw next. To change something already drawn, click it and edit it here.</div>
+    <button class="btn small light" id="skDone" style="margin-top:8px;">Done drawing</button>`;
+
+  el.querySelectorAll('#skModes .sk-btn').forEach(b=>{
+    b.onclick=()=>{
+      const m=b.getAttribute('data-sk');
+      setSketchMode(sketchMode===m ? null : m);
+      if(!sketchMode) clearProperties();
+    };
+  });
+  const g=id=>document.getElementById(id);
+  const sync=()=>{
+    s.stroke=g('skStroke').value;
+    s.width=parseFloat(g('skWidth').value)||2;
+    s.dash=g('skDash').value;
+    s.cap=g('skCap').value;
+    s.opacity=parseFloat(g('skOpacity').value);
+    if(g('skFillOn')){
+      s.fillOn=g('skFillOn').checked;
+      g('skFillRow').style.display=s.fillOn?'':'none';
+      s.fill=g('skFill').value;
+      s.fillOpacity=parseFloat(g('skFillOpacity').value);
+    }
+    if(g('skArrowSize')){
+      s.arrowSize=parseFloat(g('skArrowSize').value)||4.5;
+      s.arrowStyle=g('skArrowStyle').value;
+    }
+    if(canvas.isDrawingMode){
+      canvas.freeDrawingBrush.color = sketchMode==='highlight'
+        ? hexToRgba(s.stroke, 0.35) : hexToRgba(s.stroke, s.opacity);
+      canvas.freeDrawingBrush.width = sketchMode==='highlight' ? Math.max(10, s.width*6) : s.width;
+    }
+  };
+  ['skStroke','skWidth','skDash','skCap','skFillOn','skFill','skArrowSize','skArrowStyle'].forEach(id=>{
+    const e=g(id); if(!e) return;
+    e.onchange=sync; if(e.type==='color') e.oninput=sync;
+  });
+  g('skOpacity').oninput=()=>{ g('skOpVal').textContent=Math.round(parseFloat(g('skOpacity').value)*100)+'%'; sync(); };
+  if(g('skFillOpacity')) g('skFillOpacity').oninput=()=>{
+    g('skFillOpVal').textContent=Math.round(parseFloat(g('skFillOpacity').value)*100)+'%'; sync();
+  };
+  g('skDone').onclick=()=>{ setSketchMode(null); clearProperties(); };
+  updateSketchPanelState();
+}
+function showVertexHint(text){
+  let el=document.getElementById('sketchHint');
+  if(!text){ if(el) el.remove(); return; }
+  if(!el){
+    el=document.createElement('div');
+    el.id='sketchHint'; el.className='vertex-hint';
+    document.getElementById('stage-wrap').appendChild(el);
+  }
+  el.textContent=text;
+}
+document.getElementById('toolSketch').onclick=()=>{
+  if(sketchMode){ setSketchMode(null); clearProperties(); }
+  else { canvas.discardActiveObject(); setSketchMode('pen'); }
+};
+
+/* The canvas doesn't exist until initCanvas() runs, so sketch listeners are
+   queued here and attached from there. */
+const sketchCanvasHooks=[];
+function onSketchCanvas(evt, fn){ sketchCanvasHooks.push([evt,fn]); }
+function initSketchTools(){ sketchCanvasHooks.forEach(h=>canvas.on(h[0],h[1])); }
+
+/* freehand strokes come from Fabric's own brush — tag them so they behave like our elements */
+onSketchCanvas('path:created', e=>{
+  const p=e.path;
+  p.data={id:uid(), type:'sketch', sketch:(sketchMode==='highlight'?'highlight':'pen')};
+  p.set({cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78',
+         selectable:true, opacity:sketchStyle.opacity});
+  pushHistory();
+  refreshLayersTab();
+});
+
+function arrowGroup(x1,y1,x2,y2,style){
+  const dx=x2-x1, dy=y2-y1;
+  const ang=Math.atan2(dy,dx);
+  const head=Math.max(9, (style.width||2)*(style.arrowSize||4.5));
+  const line=new fabric.Line([x1,y1,x2-Math.cos(ang)*head*0.7, y2-Math.sin(ang)*head*0.7],
+    {stroke:style.stroke, strokeWidth:style.width, strokeLineCap:style.cap||'round',
+     strokeDashArray:sketchDash(style.dash, style.width)});
+  let tip;
+  if(style.arrowStyle==='open'){
+    /* two strokes forming a V rather than a solid triangle */
+    const back=head, spread=Math.PI/7;
+    tip=new fabric.Polyline([
+      {x:x2-Math.cos(ang-spread)*back, y:y2-Math.sin(ang-spread)*back},
+      {x:x2, y:y2},
+      {x:x2-Math.cos(ang+spread)*back, y:y2-Math.sin(ang+spread)*back}
+    ],{stroke:style.stroke, strokeWidth:style.width, fill:'rgba(0,0,0,0)',
+       strokeLineCap:style.cap||'round', strokeLineJoin:'round'});
+  } else {
+    tip=new fabric.Triangle({
+      left:x2, top:y2, originX:'center', originY:'center',
+      width:head, height:head, fill:style.stroke,
+      angle:(ang*180/Math.PI)+90
+    });
+  }
+  return new fabric.Group([line,tip],{opacity:style.opacity});
+}
+
+onSketchCanvas('mouse:down', opt=>{
+  if(!sketchMode || sketchMode==='pen' || sketchMode==='highlight') return;
+  const p=canvas.getPointer(opt.e);
+  if(sketchMode==='poly'){
+    polyPts.push({x:p.x,y:p.y});
+    if(polyPreview) canvas.remove(polyPreview);
+    polyPreview=new fabric.Polyline(polyPts.concat([{x:p.x,y:p.y}]),{
+      stroke:sketchStyle.stroke, strokeWidth:sketchStyle.width, fill:'rgba(0,0,0,0)',
+      selectable:false, evented:false, objectCaching:false});
+    canvas.add(polyPreview); canvas.renderAll();
+    return;
+  }
+  sketchStart={x:p.x,y:p.y};
+  const s=sketchStyle;
+  const common={stroke:s.stroke, strokeWidth:s.width, opacity:s.opacity,
+    strokeDashArray:sketchDash(s.dash,s.width), strokeLineCap:s.cap, objectCaching:false};
+  if(sketchMode==='rect'){
+    sketchDraft=new fabric.Rect(Object.assign({left:p.x, top:p.y, width:1, height:1, fill:sketchFillValue()}, common));
+  } else if(sketchMode==='ellipse'){
+    sketchDraft=new fabric.Ellipse(Object.assign({left:p.x, top:p.y, rx:1, ry:1, fill:sketchFillValue()}, common));
+  } else if(sketchMode==='line'){
+    sketchDraft=new fabric.Line([p.x,p.y,p.x,p.y], common);
+  } else if(sketchMode==='arrow'){
+    sketchDraft=arrowGroup(p.x,p.y,p.x+1,p.y+1,s);
+  }
+  if(sketchDraft){ sketchDraft.set({selectable:false, evented:false}); canvas.add(sketchDraft); }
+});
+onSketchCanvas('mouse:move', opt=>{
+  const p=canvas.getPointer(opt.e);
+  if(sketchMode==='poly' && polyPts.length && polyPreview){
+    canvas.remove(polyPreview);
+    polyPreview=new fabric.Polyline(polyPts.concat([{x:p.x,y:p.y}]),{
+      stroke:sketchStyle.stroke, strokeWidth:sketchStyle.width, fill:'rgba(0,0,0,0)',
+      selectable:false, evented:false, objectCaching:false});
+    canvas.add(polyPreview); canvas.renderAll();
+    return;
+  }
+  if(!sketchDraft||!sketchStart) return;
+  const x0=sketchStart.x, y0=sketchStart.y;
+  if(sketchMode==='rect'){
+    sketchDraft.set({left:Math.min(x0,p.x), top:Math.min(y0,p.y),
+      width:Math.abs(p.x-x0), height:Math.abs(p.y-y0)});
+  } else if(sketchMode==='ellipse'){
+    sketchDraft.set({left:Math.min(x0,p.x), top:Math.min(y0,p.y),
+      rx:Math.abs(p.x-x0)/2, ry:Math.abs(p.y-y0)/2});
+  } else if(sketchMode==='line'){
+    sketchDraft.set({x2:p.x, y2:p.y});
+  } else if(sketchMode==='arrow'){
+    canvas.remove(sketchDraft);
+    sketchDraft=arrowGroup(x0,y0,p.x,p.y,sketchStyle);
+    sketchDraft.set({selectable:false, evented:false});
+    canvas.add(sketchDraft);
+  }
+  canvas.renderAll();
+});
+onSketchCanvas('mouse:up', ()=>{
+  if(!sketchDraft||!sketchStart) return;
+  const d=sketchDraft; sketchDraft=null; sketchStart=null;
+  const b=d.getBoundingRect(true,true);
+  if(b.width<3 && b.height<3){ canvas.remove(d); canvas.renderAll(); return; }
+  d.set({selectable:true, evented:true, objectCaching:true,
+    cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
+  d.data={id:uid(), type:'sketch', sketch:sketchMode};
+  canvas.setActiveObject(d);
+  canvas.renderAll();
+  pushHistory();
+  refreshLayersTab();
+});
+onSketchCanvas('mouse:dblclick', ()=>{ if(sketchMode==='poly') finishPolygon(false); });
+
+function finishPolygon(cancel){
+  if(polyPreview){ canvas.remove(polyPreview); polyPreview=null; }
+  const pts=polyPts.slice(); polyPts=[];
+  if(cancel||pts.length<3){ canvas.renderAll(); return; }
+  const poly=new fabric.Polygon(pts,{
+    fill:sketchFillValue(), stroke:sketchStyle.stroke, strokeWidth:sketchStyle.width,
+    strokeDashArray:sketchDash(sketchStyle.dash,sketchStyle.width), strokeLineCap:sketchStyle.cap,
+    opacity:sketchStyle.opacity, objectCaching:false,
+    cornerStyle:'circle', cornerColor:'#2f7d78', borderColor:'#2f7d78'});
+  poly.data={id:uid(), type:'sketch', sketch:'poly'};
+  canvas.add(poly);
+  canvas.setActiveObject(poly);
+  canvas.renderAll();
+  pushHistory();
+  refreshLayersTab();
+}
+
+/* ---------- vertex editing ---------- */
+function polyPointsAbsolute(obj){
+  const m=obj.calcTransformMatrix();
+  return obj.points.map(pt=>{
+    const p=new fabric.Point(pt.x-obj.pathOffset.x, pt.y-obj.pathOffset.y);
+    return fabric.util.transformPoint(p, m);
+  });
+}
+function exitVertexEdit(){
+  if(!vertexEditor) return;
+  vertexEditor.handles.forEach(h=>canvas.remove(h));
+  vertexEditor=null;
+  showVertexHint(null);
+  canvas.renderAll();
+}
+function enterVertexEdit(obj){
+  exitVertexEdit();
+  if(!obj || !obj.points) return;
+  const abs=polyPointsAbsolute(obj);
+  const handles=abs.map((p,i)=>{
+    const h=new fabric.Circle({
+      left:p.x, top:p.y, radius:5, fill:'#ffffff', stroke:'#2f7d78', strokeWidth:2,
+      originX:'center', originY:'center', hasControls:false, hasBorders:false, objectCaching:false});
+    h.data={id:uid(), type:'vertexHandle', guide:true, idx:i, ownerId:obj.data.id};
+    canvas.add(h);
+    return h;
+  });
+  vertexEditor={obj, handles};
+  showVertexHint('Drag the points to reshape · double-click the shape again or press Esc to finish');
+  canvas.renderAll();
+}
+onSketchCanvas('object:moving', e=>{
+  const h=e.target;
+  if(!vertexEditor || !h.data || h.data.type!=='vertexHandle') return;
+  const obj=vertexEditor.obj;
+  const inv=fabric.util.invertTransform(obj.calcTransformMatrix());
+  const local=fabric.util.transformPoint(new fabric.Point(h.left, h.top), inv);
+  obj.points[h.data.idx].x = local.x + obj.pathOffset.x;
+  obj.points[h.data.idx].y = local.y + obj.pathOffset.y;
+  obj.set({dirty:true});
+  canvas.renderAll();
+});
+onSketchCanvas('mouse:dblclick', opt=>{
+  const t=opt.target;
+  if(sketchMode) return;
+  if(vertexEditor && (!t || t===vertexEditor.obj)){ exitVertexEdit(); pushHistory(); return; }
+  if(t && t.data && t.data.type==='sketch' && t.points) enterVertexEdit(t);
+});
+document.addEventListener('keydown', e=>{
+  if(document.getElementById('module-layout').classList.contains('hidden')) return;
+  const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''));
+  if(typing) return;
+  if(e.key==='Escape'){
+    if(polyPts.length) { finishPolygon(true); return; }
+    if(vertexEditor){ exitVertexEdit(); return; }
+    if(sketchMode){ setSketchMode(null); clearProperties(); }
+  }
+  if(e.key==='Enter' && sketchMode==='poly' && polyPts.length>=3) finishPolygon(false);
+});
 /* ================= ONLINE DATA SOURCES ================= */
 const ONLINE_CAP = 5000;
 let onlinePending=null;
@@ -4034,7 +5406,7 @@ function serializeCurrentProject(){
     name:rec?rec.name:'Untitled',
     created:rec?rec.created:Date.now(),
     modified:Date.now(),
-    thumbnail: canvas.getObjects().length ? canvas.toDataURL({format:'jpeg', quality:0.6, multiplier:0.12}) : (rec?rec.thumbnail:null),
+    thumbnail: canvas.getObjects().length ? atFullSize(()=>canvas.toDataURL({format:'jpeg', quality:0.6, multiplier:0.12})) : (rec?rec.thumbnail:null),
     page:{size:pageState.size, orientation:pageState.orientation},
     canvasJSON:canvas.toJSON(['data']),
     maker:{
@@ -4132,8 +5504,10 @@ function downloadBlob(filename, blob){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=filename;
+  a.style.display='none';
+  document.body.appendChild(a);
   a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 8000);
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 8000);
 }
 function exportProjectFile(id){
   const rec=(id===currentProjectId)? serializeCurrentProject() : projectsCache.find(p=>p.id===id);
@@ -4390,17 +5764,27 @@ function updateExportUI(){
 }
 document.getElementById('exportFormat').addEventListener('change', updateExportUI);
 
+/* Screen zoom must never leak into an export or a thumbnail — run the job at
+   100% and put the user's zoom back afterwards. */
+function atFullSize(fn){
+  const z=(typeof layoutZoom==='number')?layoutZoom:1;
+  if(z!==1) applyLayoutZoom(1);
+  try{ return fn(); }
+  finally{ if(z!==1) applyLayoutZoom(z); }
+}
 function layoutDataURL(dpi){
-  canvas.discardActiveObject();
-  const hidden=[];
-  canvas.getObjects().forEach(o=>{
-    if(o.data&&(o.data.guide||o.data.type==='placeholder')){ hidden.push(o); o.visible=false; }
+  return atFullSize(()=>{
+    canvas.discardActiveObject();
+    const hidden=[];
+    canvas.getObjects().forEach(o=>{
+      if(o.data&&(o.data.guide||o.data.type==='placeholder')){ hidden.push(o); o.visible=false; }
+    });
+    canvas.renderAll();
+    const url=canvas.toDataURL({format:'png', multiplier:dpi/EDIT_DPI});
+    hidden.forEach(o=>o.visible=true);
+    canvas.renderAll();
+    return url;
   });
-  canvas.renderAll();
-  const url=canvas.toDataURL({format:'png', multiplier:dpi/EDIT_DPI});
-  hidden.forEach(o=>o.visible=true);
-  canvas.renderAll();
-  return url;
 }
 function layoutPdfBlob(dpi){
   const {jsPDF}=window.jspdf;
@@ -4462,18 +5846,21 @@ document.getElementById('doExportBtn').onclick=()=>{
     downloadBlob(name+'.png', dataURLtoBlob(layoutDataURL(dpi)));
     toast('Exported.');
   } else if(fmt==='svg'){
-    canvas.discardActiveObject();
-    const hidden=[];
-    canvas.getObjects().forEach(o=>{
-      if(o.data&&(o.data.guide||o.data.type==='placeholder')){ hidden.push(o); o.visible=false; }
+    const svg=atFullSize(()=>{
+      canvas.discardActiveObject();
+      const hidden=[];
+      canvas.getObjects().forEach(o=>{
+        if(o.data&&(o.data.guide||o.data.type==='placeholder')){ hidden.push(o); o.visible=false; }
+      });
+      canvas.renderAll();
+      const out=canvas.toSVG({
+        width: pageState.wIn+'in', height: pageState.hIn+'in',
+        viewBox:{x:0, y:0, width:canvas.getWidth(), height:canvas.getHeight()}
+      });
+      hidden.forEach(o=>o.visible=true);
+      canvas.renderAll();
+      return out;
     });
-    canvas.renderAll();
-    const svg=canvas.toSVG({
-      width: pageState.wIn+'in', height: pageState.hIn+'in',
-      viewBox:{x:0, y:0, width:canvas.getWidth(), height:canvas.getHeight()}
-    });
-    hidden.forEach(o=>o.visible=true);
-    canvas.renderAll();
     downloadBlob(name+'.svg', new Blob([svg],{type:'image/svg+xml'}));
     toast('SVG exported — text and shapes remain editable.');
   } else if(fmt==='pdf'){
