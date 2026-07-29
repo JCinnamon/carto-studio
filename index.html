@@ -161,6 +161,14 @@
 
   .ramp-preview{display:flex;height:14px;border-radius:3px;overflow:hidden;border:1px solid var(--line);margin-top:4px;}
   .ramp-preview div{flex:1;}
+  /* point symbol picker */
+  .sym-preview{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 8px;}
+  .sym-chip{width:34px;height:34px;border:1px solid var(--line);background:#fff;border-radius:6px;padding:5px;line-height:0;}
+  .sym-chip svg{width:100%;height:100%;display:block;}
+  .sym-chip:hover{background:#eef4f3;border-color:var(--teal);}
+  .sym-chip.on{border-color:var(--teal);background:#e7f2f1;box-shadow:0 0 0 1px var(--teal) inset;}
+  .mk-symbol{background:none;border:none;}
+  #rampBody textarea{width:100%;padding:7px;border:1px solid var(--line);border-radius:5px;font-size:12px;font-family:monospace;}
 
   #mk-left.collapsed,#mk-right.collapsed{display:none;}
 
@@ -333,7 +341,7 @@
   <h1>🗺️ Carto Studio</h1>
   <div class="mod-tabs">
     <button id="modMakerBtn" class="active">Map Maker</button>
-    <button id="modLayoutBtn">Map Layout</button>
+    <button id="modLayoutBtn">Map Composer</button>
   </div>
   <div class="grp" id="grp-page">
     <label>Page</label>
@@ -490,7 +498,7 @@
         <button class="btn light small" id="mkSelExport" title="Export or save the selected features">Selected ▾</button>
         <button class="btn light small" id="mkSelClear" title="Clear selection">✕</button>
       </span>
-      <button class="btn small" id="mkSendBtn">Send to Layout ▸</button>
+      <button class="btn small" id="mkSendBtn">Send to Composer ▸</button>
       <button class="btn light small" id="mkToggleRight" title="Show or hide the style panel">Menu ⟩</button>
     </div>
     <div id="mk-map"></div>
@@ -525,7 +533,7 @@
   </aside>
 </div>
 
-<!-- ================= MAP LAYOUT ================= -->
+<!-- ================= MAP COMPOSER ================= -->
 <div id="module-layout" class="module hidden">
   <aside id="toolrail">
     <div class="tool-btn" id="toolTemplates" title="Start from a layout template"><span class="ic">▦</span>Templates</div>
@@ -577,14 +585,14 @@
   <div class="modal">
     <h2>Quick start</h2>
     <div class="help-step"><b>Two ways to work:</b>
-      <p><b>A. Map Maker → Layout (all in this tool).</b> Add data in Map Maker, filter and symbolize it, then click <b>Send to Layout</b> — your styled map arrives as a map frame with the scale already calibrated and a legend built from your symbology.</p>
+      <p><b>A. Map Maker → Layout (all in this tool).</b> Add data in Map Maker, filter and symbolize it, then click <b>Send to Composer</b> — your styled map arrives as a map frame with the scale already calibrated and a legend built from your symbology.</p>
       <p style="margin-top:6px;"><b>B. Bring your own map image.</b> Made a map elsewhere (any GIS or graphics software)? Export it as an image and upload it in the Layout module via <b>Map Frame</b>, then calibrate the scale bar by drawing a reference line of known distance.</p>
     </div>
     <div class="help-step"><b>Map Maker basics.</b>
       <p>The <b>+ Add data</b> menu takes uploads (GeoJSON, CSV with lat/long, zipped shapefile), your data library, and online sources: Natural Earth base layers, OpenStreetMap features for your map area, open-data portal search, or any GeoJSON/CSV/feature-service URL. Select a layer to set its symbology (single, categories, graduated colour with equal interval / quantile / natural breaks / manual classification, graduated symbol size), filters, and labels. The attribute table includes the filter builder and Field Calculator (e.g. <i>rate = count / population * 1000</i>). Spatial tools: buffer, select by location, points-in-polygons statistics, clip, erase, intersect, union, dissolve, merge, centroids, convex hull, bounding box, simplify, nearest-neighbour join, and distance matrix. The ⬇ button on each layer exports valid GeoJSON or CSV, including calculated fields. The ⟨ ⟩ buttons collapse the side panels.</p>
     </div>
     <div class="help-step"><b>Projections.</b>
-      <p>The <b>Projection</b> selector switches the map from the Web Mercator editing view into any of 13 projections — world (Equal Earth, Robinson, Winkel Tripel, Mollweide, Mercator, Orthographic), regional conic (Albers, Lambert Conformal, with adjustable centre and standard parallels), azimuthal (Equidistant, Stereographic), and historical (Gall–Peters, Goode, Bonne). Projected view draws your vector layers with an optional graticule and world-land backdrop; raster basemaps can't be reprojected in the browser, so they hide. Send to Layout captures the projected map (scale bars don't apply — scale varies across a projection).</p>
+      <p>The <b>Projection</b> selector switches the map from the Web Mercator editing view into any of 13 projections — world (Equal Earth, Robinson, Winkel Tripel, Mollweide, Mercator, Orthographic), regional conic (Albers, Lambert Conformal, with adjustable centre and standard parallels), azimuthal (Equidistant, Stereographic), and historical (Gall–Peters, Goode, Bonne). Projected view draws your vector layers with an optional graticule and world-land backdrop; raster basemaps can't be reprojected in the browser, so they hide. Send to Composer captures the projected map (scale bars don't apply — scale varies across a projection).</p>
     </div>
     <div class="help-step"><b>Layout basics.</b>
       <p>Start from a <b>Template</b> if you like — double-click any placeholder to fill it with the real element in that exact spot. Add title, text, legend, north arrow, scale bar, neatline, images. Everything drags, resizes, and rotates. Undo with Ctrl+Z. The <b>Margins</b> button shows 0.5" margin guides (never exported). A <b>Live Embed</b> shows an interactive web map on screen for reference but prints as a placeholder — use a real image frame for the final export.</p>
@@ -668,6 +676,14 @@
     <div id="attr-table-wrap"><table id="attr-table"></table></div>
   </div>
   <div id="tableWinResize" title="Drag to resize"></div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-ramp">
+  <div class="modal">
+    <h2>Import a colour ramp</h2>
+    <div id="rampBody"></div>
+    <div class="modal-close-row"><button class="btn light" onclick="closeModal('modal-ramp')">Close</button></div>
+  </div>
 </div>
 
 <div class="modal-overlay hidden" id="modal-sync">
@@ -966,7 +982,7 @@
 <script>
 /* ============================================================
    Carto Studio
-   Map Maker (build & symbolize) + Map Layout (compose & export)
+   Map Maker (build & symbolize) + Map Composer (compose & export)
    Single-file, client-side. No accounts, no server.
    ============================================================ */
 (function(){
@@ -1072,6 +1088,72 @@ const RAMPS = {
   diverging: ['RdBu','RdYlBu','BrBG','PiYG','PuOr','Spectral'],
   qualitative: ['Set2','Set1','Dark2','Paired','Pastel1','Accent']
 };
+/* ---------- point symbols ----------
+   Grouped the way cartography texts do: abstract shapes carry no resemblance to
+   what they stand for, associative ones hint at it, iconic ones picture it.
+   Each is a path in a 0–100 box, so the same definition drives both the Leaflet
+   marker (inline SVG) and the projected canvas (Path2D). */
+const SYMBOLS = {
+  abstract: [
+    ['circle',   'Circle',    'M50 8a42 42 0 1 0 0.1 0Z'],
+    ['square',   'Square',    'M12 12h76v76h-76Z'],
+    ['triangle', 'Triangle',  'M50 10 92 86H8Z'],
+    ['diamond',  'Diamond',   'M50 8 92 50 50 92 8 50Z'],
+    ['pentagon', 'Pentagon',  'M50 8 92 39 76 88H24L8 39Z'],
+    ['hexagon',  'Hexagon',   'M28 14h44l22 36-22 36H28L6 50Z'],
+    ['star',     'Star',      'M50 6 62 38l34 2-26 22 8 33-28-18-28 18 8-33-26-22 34-2Z'],
+    ['cross',    'Cross',     'M40 8h20v32h32v20H60v32H40V60H8V40h32Z'],
+    ['x',        'Saltire',   'M22 8 50 36 78 8 92 22 64 50l28 28-14 14-28-28-28 28L8 78l28-28L8 22Z'],
+    ['bar',      'Bar',       'M10 38h80v24h-80Z']
+  ],
+  associative: [
+    ['tent',    'Tent / camping',  'M50 12 92 88H8Zm0 22L30 88h40Z'],
+    ['tree',    'Tree / forest',   'M50 8 74 44H60l18 28H56v20H44V72H22l18-28H26Z'],
+    ['wave',    'Water',           'M8 40q13-14 26 0t26 0 26 0v12q-13 14-26 0t-26 0-26 0Zm0 28q13-14 26 0t26 0 26 0v12q-13 14-26 0t-26 0-26 0Z'],
+    ['factory', 'Industry',        'M8 88V44l24 14V44l24 14V22h12v66Zm14-10h12v-10H22Zm26 0h12v-10H48Z'],
+    ['house',   'Settlement',      'M50 10 94 48H80v42H56V62H44v28H20V48H6Z'],
+    ['peak',    'Relief / peak',   'M50 12 92 88H8Zm0 24L36 62h28Z'],
+    ['drop',    'Rainfall',        'M50 8c18 24 28 38 28 50a28 28 0 1 1-56 0c0-12 10-26 28-50Z'],
+    ['leaf',    'Vegetation',      'M86 14C46 14 14 34 14 66c0 8 3 16 8 20 6-26 26-44 52-52-20 12-34 28-40 52 30 4 52-20 52-52Z'],
+    ['track',   'Route',           'M18 88C18 40 82 60 82 12M14 88h8m56-76h8'],
+    ['pin',     'Place marker',    'M50 6a30 30 0 0 0-30 30c0 22 30 58 30 58s30-36 30-58A30 30 0 0 0 50 6Zm0 42a12 12 0 1 1 0-24 12 12 0 0 1 0 24Z']
+  ],
+  iconic: [
+    ['school',   'School',      'M50 10 92 30 50 50 8 30Zm-26 30v22c0 8 12 16 26 16s26-8 26-16V40L50 58Z'],
+    ['hospital', 'Hospital',    'M14 14h72v72H14Zm28 12v16H26v16h16v16h16V58h16V42H58V26Z'],
+    ['airport',  'Airport',     'M50 6c4 0 6 6 6 14v14l34 20v10L56 54v20l12 10v8L50 88l-18 4v-8l12-10V54L10 64V54l34-20V20c0-8 2-14 6-14Z'],
+    ['boat',     'Port',        'M46 10h8v10h20L54 34v22l32-8c-4 24-18 38-36 38S18 72 14 48l32 8V34L26 20h20Z'],
+    ['rail',     'Railway',     'M32 8h36v46H32Zm-8 54h52l10 26H14Zm16-46h20v18H40Z'],
+    ['fuel',     'Fuel',        'M18 10h40v78H18Zm8 10v20h24V20Zm44 6 12 12v40a8 8 0 0 1-16 0V52h-6V26Z'],
+    ['bed',      'Accommodation','M8 34h12v22h72v32H80V68H20v20H8Zm22 4h20a12 12 0 0 1 0 24H30Z'],
+    ['cup',      'Café',        'M16 22h56v28a28 28 0 0 1-56 0Zm56 6h8a12 12 0 0 1 0 24h-8ZM12 82h64v8H12Z'],
+    ['bin',      'Waste',       'M34 6h32v10h22v12H12V16h22Zm-14 30h60l-6 54H26Z'],
+    ['power',    'Power',       'M56 6 22 56h20l-6 38 36-52H50Z']
+  ]
+};
+const SYMBOL_INDEX={};
+Object.keys(SYMBOLS).forEach(g=>SYMBOLS[g].forEach(s=>SYMBOL_INDEX[s[0]]={group:g, label:s[1], d:s[2]}));
+const SYMBOL_GROUP_LABEL={abstract:'Abstract', associative:'Associative', iconic:'Iconic'};
+/* symbols the user uploaded — kept per project in the style, cached here by id */
+const customSymbols={};
+function symbolPath(name){
+  if(name && name.indexOf('custom:')===0){
+    const c=customSymbols[name.slice(7)];
+    return c? c.d : SYMBOL_INDEX.circle.d;
+  }
+  return (SYMBOL_INDEX[name]||SYMBOL_INDEX.circle).d;
+}
+function symbolIsStroked(name){
+  /* a couple of glyphs read better as strokes than fills */
+  return name==='track';
+}
+function symbolSvg(name, fill, stroke, strokeW){
+  const d=symbolPath(name);
+  const stroked=symbolIsStroked(name);
+  return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'+
+    '<path d="'+d+'" fill="'+(stroked?'none':fill)+'" stroke="'+(stroked?fill:(stroke||'none'))+
+    '" stroke-width="'+(stroked?10:(strokeW||0)*4)+'" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
 const BASEMAPS = {
   'esri-gray': {urls:['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}','https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}'], attr:'Esri, HERE, Garmin, FAO, NOAA', max:16},
   'esri-dark': {urls:['https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}','https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'], attr:'Esri, HERE, Garmin, FAO, NOAA', max:16},
@@ -1092,7 +1174,11 @@ function defaultStyle(geom){
     color: geom==='polygon' ? '#7fb2d9' : geom==='line' ? '#3a4a72' : '#2f7d78',
     fillOpacity: geom==='polygon' ? 0.75 : 0.85,
     strokeColor:'#555555', strokeWeight: geom==='line' ? 2.5 : 1, dash:'',
-    radius:6, minR:4, maxR:22, sizeScale:'sqrt', catMap:{}, topN:12, otherColor:'#bdc3cc'};
+    radius:6, minR:4, maxR:22, sizeScale:'sqrt', catMap:{}, topN:12, otherColor:'#bdc3cc',
+    symbol:'circle',              /* point marker shape */
+    classColors:null,             /* per-class overrides for the ramp */
+    colorField:null,              /* bivariate: the field driving colour */
+    dotValue:100, dotSize:2.2, dotColor:'#b3452f'};   /* dot density */
 }
 function defaultLabels(){ return {enabled:false, field:null, size:11, color:'#22293a', halo:true,
   font:'Arial, Helvetica, sans-serif', bold:true, italic:false}; }
@@ -1414,9 +1500,25 @@ function computeClassification(lyr){
     if(breaks.length<2) breaks=[min, max+(max===min?1:0)];
   }
   const k=breaks.length-1;
-  let colors=chroma.scale(chroma.brewer[st.ramp]||chroma.brewer.YlOrRd).colors(Math.max(k,2)).slice(0,k);
-  if(st.reverse) colors=colors.slice().reverse();
+  let colors=rampColors(st, k);
   lyr._breaks=breaks; lyr._colors=colors;
+}
+/* Colours for k classes: a custom ramp if one was imported, otherwise the named
+   ColorBrewer scale interpolated to however many classes are asked for (Brewer
+   itself stops at 9, and we allow up to 12). Individual classes can be
+   overridden by hand and those overrides win. */
+function rampColors(st, k){
+  let base;
+  if(st.customRamp && st.customRamp.length>=2){
+    base=chroma.scale(st.customRamp).colors(Math.max(k,2)).slice(0,k);
+  } else {
+    base=chroma.scale(chroma.brewer[st.ramp]||chroma.brewer.YlOrRd).colors(Math.max(k,2)).slice(0,k);
+  }
+  if(st.reverse) base=base.slice().reverse();
+  if(st.classColors){
+    base=base.map((c,i)=> st.classColors[i] || c);
+  }
+  return base;
 }
 function classColor(lyr, v){
   if(!lyr._breaks||!isFinite(v)) return '#bbbbbb';
@@ -1471,36 +1573,144 @@ function gradRadius(lyr, v){
   else t=(v-lyr._vmin)/(lyr._vmax-lyr._vmin);
   return st.minR + Math.max(0,Math.min(1,t))*(st.maxR-st.minR);
 }
+/* Proportional (unclassed): symbol AREA is proportional to the value, which is
+   the whole point of the technique — radius therefore goes with the square root. */
+function propRadius(lyr, v){
+  const st=lyr.style;
+  if(!isFinite(v)||v<=0||!lyr._vmax) return 0;
+  return st.maxR * Math.sqrt(Math.max(0,v)/Math.max(1e-9,lyr._vmax));
+}
+/* the colour side of a bivariate (size + colour) layer */
+function colorValueOf(lyr, f){
+  const st=lyr.style;
+  const p=f.properties||{};
+  let v=parseFloat(p[st.colorField||st.field]);
+  if(st.normField){
+    const d=parseFloat(p[st.normField]);
+    v=(isFinite(d)&&d!==0)? v/d : NaN;
+  }
+  return v;
+}
+function computeColorClassification(lyr){
+  const st=lyr.style;
+  const vals=visibleFeatures(lyr).map(f=>colorValueOf(lyr,f)).filter(v=>isFinite(v)).sort((a,b)=>a-b);
+  if(!vals.length){ lyr._cBreaks=null; lyr._cColors=null; return; }
+  const n=Math.min(st.classes, vals.length);
+  const breaks=[];
+  for(let i=0;i<=n;i++) breaks.push(vals[Math.min(vals.length-1, Math.floor(i*vals.length/n))]);
+  breaks[breaks.length-1]=vals[vals.length-1];
+  const uniq=Array.from(new Set(breaks)).sort((a,b)=>a-b);
+  lyr._cBreaks = uniq.length>=2 ? uniq : [vals[0], vals[vals.length-1]+1];
+  lyr._cColors = rampColors(st, lyr._cBreaks.length-1);
+}
+function bivariateColor(lyr, f){
+  if(!lyr._cBreaks) return lyr.style.color;
+  const v=colorValueOf(lyr,f);
+  if(!isFinite(v)) return '#bbbbbb';
+  const b=lyr._cBreaks;
+  for(let i=0;i<b.length-1;i++){ if(v<=b[i+1]) return lyr._cColors[i]; }
+  return lyr._cColors[lyr._cColors.length-1];
+}
+
+/* ---------- dot density ----------
+   Scatters one dot per N units of the value inside each polygon. Placement is
+   random but cached, so dots don't dance about every time the map redraws. */
+function dotDensityPoints(lyr){
+  const st=lyr.style;
+  const sig=[st.field, st.dotValue, lyr._fidN, JSON.stringify(lyr.filter)].join('|');
+  if(lyr._dotSig===sig && lyr._dots) return lyr._dots;
+  const dots=[];
+  const per=Math.max(1e-9, +st.dotValue||100);
+  visibleFeatures(lyr).forEach(f=>{
+    const v=parseFloat((f.properties||{})[st.field]);
+    if(!isFinite(v)||v<=0||!f.geometry) return;
+    const n=Math.min(4000, Math.round(v/per));
+    if(n<1) return;
+    let bb;
+    try{ bb=turf.bbox(f); }catch(_){ return; }
+    let placed=0, guard=0;
+    while(placed<n && guard<n*60){
+      guard++;
+      const x=bb[0]+Math.random()*(bb[2]-bb[0]);
+      const y=bb[1]+Math.random()*(bb[3]-bb[1]);
+      try{
+        if(turf.booleanPointInPolygon(turf.point([x,y]), f)){ dots.push([y,x]); placed++; }
+      }catch(_){ break; }
+    }
+  });
+  lyr._dots=dots; lyr._dotSig=sig;
+  return dots;
+}
 
 /* ---------- rendering ---------- */
+/* the colour a feature ends up with, whichever method is in play */
+function featureColor(lyr, f){
+  const st=lyr.style;
+  if(st.mode==='cat') return catColor(lyr,f);
+  if(st.mode==='grad') return classColor(lyr, valueOf(lyr,f));
+  if(st.mode==='bivariate') return bivariateColor(lyr,f);
+  return st.color;
+}
+/* the radius a point ends up with */
+function featureRadius(lyr, f){
+  const st=lyr.style;
+  if(st.mode==='gradSize') return gradRadius(lyr, valueOf(lyr,f));
+  if(st.mode==='prop'||st.mode==='bivariate') return propRadius(lyr, valueOf(lyr,f));
+  return st.radius;
+}
 function featureStyle(lyr, f){
   const st=lyr.style;
-  let color=st.color;
-  if(st.mode==='cat') color=catColor(lyr,f);
-  else if(st.mode==='grad') color=classColor(lyr, valueOf(lyr,f));
+  const color=featureColor(lyr,f);
   return {color: lyr.geom==='line'? color : st.strokeColor,
     weight: st.strokeWeight, opacity: lyr.opacity,
     fillColor: color, fillOpacity: st.fillOpacity*lyr.opacity,
     dashArray: st.dash||null};
 }
+/* Points are drawn as an inline SVG marker so any symbol shape can be used;
+   plain circles stay on circleMarker, which is cheaper for big point layers. */
+function pointMarker(lyr, latlng, f){
+  const st=lyr.style;
+  const r=featureRadius(lyr,f);
+  const color=featureColor(lyr,f);
+  if(!st.symbol || st.symbol==='circle'){
+    return L.circleMarker(latlng,{radius:r, fillColor:color, color:st.strokeColor,
+      weight:st.strokeWeight, fillOpacity:st.fillOpacity*lyr.opacity, opacity:lyr.opacity});
+  }
+  const size=Math.max(4, r*2);
+  const icon=L.divIcon({
+    className:'mk-symbol',
+    html:'<div style="width:'+size+'px;height:'+size+'px;opacity:'+(st.fillOpacity*lyr.opacity)+'">'+
+         symbolSvg(st.symbol, color, st.strokeColor, st.strokeWeight)+'</div>',
+    iconSize:[size,size], iconAnchor:[size/2,size/2]
+  });
+  return L.marker(latlng,{icon, keyboard:false});
+}
 function renderLayer(lyr){
   if(lyr.leaflet){ mkMap.removeLayer(lyr.leaflet); lyr.leaflet=null; }
+  if(lyr.dotLayer){ mkMap.removeLayer(lyr.dotLayer); lyr.dotLayer=null; }
   if(!lyr.visible) return;
   const st=lyr.style;
-  if(st.mode==='grad'||st.mode==='gradSize') { computeClassification(lyr); sizeRange(lyr); }
+  if(st.mode==='grad'||st.mode==='gradSize'||st.mode==='prop') { computeClassification(lyr); sizeRange(lyr); }
+  if(st.mode==='bivariate'){ sizeRange(lyr); computeColorClassification(lyr); }
   if(st.mode==='cat') computeCategories(lyr);
+  if(st.mode==='dot'){
+    /* the polygons stay as a faint outline; the dots carry the message */
+    const dots=dotDensityPoints(lyr);
+    lyr.dotLayer=L.layerGroup(dots.map(d=>L.circleMarker(d,{
+      radius:st.dotSize||2.2, fillColor:st.dotColor||'#b3452f', color:st.dotColor||'#b3452f',
+      weight:0, fillOpacity:0.85*lyr.opacity, interactive:false
+    }))).addTo(mkMap);
+  }
   const opts={
     filter: f=>featurePasses(lyr,f),
-    style: f=>featureStyle(lyr,f),
-    pointToLayer: (f,latlng)=>{
-      let r=st.radius;
-      if(st.mode==='gradSize') r=gradRadius(lyr, valueOf(lyr,f));
-      let color=st.color;
-      if(st.mode==='cat') color=catColor(lyr,f);
-      else if(st.mode==='grad') color=classColor(lyr, valueOf(lyr,f));
-      return L.circleMarker(latlng,{radius:r, fillColor:color, color:st.strokeColor,
-        weight:st.strokeWeight, fillOpacity:st.fillOpacity*lyr.opacity, opacity:lyr.opacity});
+    style: f=>{
+      if(st.mode==='dot'){
+        return {color:st.strokeColor, weight:st.strokeWeight, opacity:lyr.opacity,
+                fillColor:'#ffffff', fillOpacity:0.05*lyr.opacity, dashArray:st.dash||null};
+      }
+      return featureStyle(lyr,f);
     },
+    pointToLayer: (f,latlng)=>pointMarker(lyr, latlng, f),
     onEachFeature: (f,layer)=>{
       const p=f.properties||{};
       if(lyr.labels.enabled && lyr.labels.field && p[lyr.labels.field]!=null){
@@ -1605,6 +1815,7 @@ function renderMakerLayerList(){
         if(act==='del'){
           if(!window.confirm('Remove layer "'+l.name+'" from the map? (Your original file is untouched.)')) return;
           if(l.leaflet) mkMap.removeLayer(l.leaflet);
+          if(l.dotLayer) mkMap.removeLayer(l.dotLayer);
           mkLayers.splice(i,1);
           if(selection.layerId===id) clearSelection();
           if(mkSelectedId===id) mkSelectedId=mkLayers.length?mkLayers[0].id:null;
@@ -1615,7 +1826,10 @@ function renderMakerLayerList(){
   });
 }
 function reorderAll(){
-  mkLayers.forEach(l=>{ if(l.leaflet){ mkMap.removeLayer(l.leaflet); l.leaflet=null; } });
+  mkLayers.forEach(l=>{
+    if(l.leaflet){ mkMap.removeLayer(l.leaflet); l.leaflet=null; }
+    if(l.dotLayer){ mkMap.removeLayer(l.dotLayer); l.dotLayer=null; }
+  });
   renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
 }
 
@@ -1872,11 +2086,39 @@ function rampOptions(sel, geom, mode){
   });
   return html;
 }
-function rampPreviewHtml(ramp, n, reverse){
+function rampPreviewHtml(ramp, n, reverse, st){
   let colors;
-  try{ colors=chroma.scale(chroma.brewer[ramp]).colors(n); }catch(_){ colors=['#ccc']; }
+  try{
+    colors = (st && st.customRamp && st.customRamp.length>=2)
+      ? chroma.scale(st.customRamp).colors(n)
+      : chroma.scale(chroma.brewer[ramp]).colors(n);
+  }catch(_){ colors=['#ccc']; }
   if(reverse) colors=colors.slice().reverse();
-  return '<div class="ramp-preview">'+colors.map(c=>'<div style="background:'+c+'"></div>').join('')+'</div>';
+  if(st && st.classColors) colors=colors.map((c,i)=>st.classColors[i]||c);
+  return '<div class="ramp-preview">'+colors.map(c=>'<div style="background:'+c+'"></div>').join('')+'</div>'+
+    (st && st.customRamp? '<div class="kv">Using an imported ramp.</div>':'');
+}
+function symbolOptionsHtml(sel){
+  let html='';
+  Object.keys(SYMBOLS).forEach(g=>{
+    html+='<optgroup label="'+SYMBOL_GROUP_LABEL[g]+'">'+
+      SYMBOLS[g].map(s=>'<option value="'+s[0]+'" '+(sel===s[0]?'selected':'')+'>'+esc(s[1])+'</option>').join('')+
+      '</optgroup>';
+  });
+  const custom=Object.keys(customSymbols);
+  if(custom.length){
+    html+='<optgroup label="Uploaded">'+custom.map(id=>
+      '<option value="custom:'+id+'" '+(sel==='custom:'+id?'selected':'')+'>'+esc(customSymbols[id].name)+'</option>').join('')+'</optgroup>';
+  }
+  return html;
+}
+/* a strip of every symbol in the chosen group, so the choice is visual */
+function symbolPreviewHtml(sel){
+  const cur=SYMBOL_INDEX[sel];
+  const group=cur? cur.group : 'abstract';
+  return SYMBOLS[group].map(s=>
+    '<button class="sym-chip '+(sel===s[0]?'on':'')+'" data-sym="'+s[0]+'" title="'+esc(s[1])+'">'+
+    symbolSvg(s[0], sel===s[0]?'#2f7d78':'#5a6478', null, 0)+'</button>').join('');
 }
 
 function renderStyleTab(){
@@ -1885,14 +2127,26 @@ function renderStyleTab(){
   if(!lyr){ el.innerHTML='<div class="empty-hint">Select a layer to style it.</div>'; return; }
   const st=lyr.style, fields=fieldsOf(lyr), numFields=numericFieldsOf(lyr);
   const modes = lyr.geom==='point'
-    ? [['single','Single symbol'],['cat','Categories (unique values)'],['grad','Graduated colour'],['gradSize','Graduated symbol size']]
-    : [['single','Single symbol'],['cat','Categories (unique values)'],['grad','Graduated colour']];
+    ? [['single','Single symbol'],['cat','Categories (unique values)'],['grad','Graduated colour'],
+       ['gradSize','Graduated symbol size'],['prop','Proportional symbols (unclassed)'],
+       ['bivariate','Size and colour together']]
+    : lyr.geom==='polygon'
+      ? [['single','Single symbol'],['cat','Categories (unique values)'],['grad','Graduated colour'],
+         ['dot','Dot density']]
+      : [['single','Single symbol'],['cat','Categories (unique values)'],['grad','Graduated colour']];
   let html=`<h3>${esc(lyr.name)} — symbology</h3>
     <div class="field"><label>Style type</label>
       <select id="stMode">${modes.map(m=>'<option value="'+m[0]+'" '+(st.mode===m[0]?'selected':'')+'>'+m[1]+'</option>').join('')}</select>
     </div>`;
   if(st.mode==='single'){
     html+=`<div class="field"><label>${lyr.geom==='line'?'Line colour':'Fill colour'}</label><input type="color" id="stColor" value="${st.color}"></div>`;
+  }
+  if(lyr.geom==='point'){
+    html+=`<div class="field"><label>Symbol</label>
+      <select id="stSymbol">${symbolOptionsHtml(st.symbol)}</select></div>
+      <div class="sym-preview" id="stSymPreview"></div>
+      <button class="btn small light" id="stSymUpload" style="margin-bottom:8px;">Upload an SVG symbol…</button>
+      <input type="file" id="fileSymbol" accept=".svg,image/svg+xml" class="hidden">`;
   }
   if(st.mode==='cat'){
     html+=`<div class="field"><label>Category field</label>
@@ -1905,6 +2159,40 @@ function renderStyleTab(){
       <div class="kv" id="stCatInfo"></div>
       <div id="stCatList" style="max-height:280px;overflow-y:auto;margin-top:6px;"></div>
       <button class="btn small secondary" id="stCatReset">Re-assign colours</button>`;
+  }
+  if(st.mode==='dot'){
+    html+=`<div class="field"><label>Count field (numeric — the quantity being mapped)</label>
+      <select id="stField"><option value="">— choose —</option>${numFields.map(f=>'<option '+(st.field===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>
+      <div class="row3">
+        <div class="field"><label>One dot =</label><input type="number" id="stDotValue" value="${st.dotValue||100}" min="0.01" step="1"></div>
+        <div class="field"><label>Dot size</label><input type="number" id="stDotSize" value="${st.dotSize||2.2}" min="0.5" step="0.2"></div>
+        <div class="field"><label>Dot colour</label><input type="color" id="stDotColor" value="${st.dotColor||'#b3452f'}"></div>
+      </div>
+      <div class="kv" id="stDotInfo"></div>`;
+  }
+  if(st.mode==='bivariate'){
+    html+=`<div class="field"><label>Size field (numeric)</label>
+      <select id="stField"><option value="">— choose —</option>${numFields.map(f=>'<option '+(st.field===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>
+      <div class="field"><label>Colour field (numeric)</label>
+      <select id="stColorField"><option value="">— same as size —</option>${numFields.map(f=>'<option '+(st.colorField===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>
+      <div class="row2">
+        <div class="field"><label>Largest symbol</label><input type="number" id="stMaxR" value="${st.maxR}" min="4"></div>
+        <div class="field"><label>Colour classes</label><input type="number" id="stClasses" min="2" max="12" value="${st.classes}"></div>
+      </div>
+      <div class="field"><label>Colour ramp</label><select id="stRamp">${rampOptions(st.ramp,lyr.geom,'grad')}</select>
+        ${rampPreviewHtml(st.ramp, st.classes, st.reverse, st)}</div>
+      <div class="checkline"><input type="checkbox" id="stReverse" ${st.reverse?'checked':''}><label for="stReverse" style="margin:0;color:var(--text);">Reverse ramp</label></div>`;
+  }
+  if(st.mode==='prop'){
+    html+=`<div class="field"><label>Value field (numeric)</label>
+      <select id="stField"><option value="">— choose —</option>${numFields.map(f=>'<option '+(st.field===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>
+      <div class="field"><label>Normalize by (optional — makes a rate)</label>
+      <select id="stNorm"><option value="">none</option>${numFields.map(f=>'<option '+(st.normField===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>
+      <div class="row2">
+        <div class="field"><label>Largest symbol (radius px)</label><input type="number" id="stMaxR" value="${st.maxR}" min="4"></div>
+        <div class="field"><label>Symbol colour</label><input type="color" id="stColor" value="${st.color}"></div>
+      </div>
+      <div class="kv">Symbol <b>area</b> is proportional to the value, so the radius follows the square root — the standard construction for proportional symbols. No classes are used.</div>`;
   }
   if(st.mode==='grad'||st.mode==='gradSize'){
     html+=`<div class="field"><label>Value field (numeric)</label>
@@ -1921,15 +2209,20 @@ function renderStyleTab(){
           <option value="jenks" ${st.method==='jenks'?'selected':''}>Natural breaks (Jenks)</option>
           <option value="manual" ${st.method==='manual'?'selected':''}>Manual breaks</option>
         </select></div>
-      <div class="field"><label>Classes</label><input type="number" id="stClasses" min="2" max="9" value="${st.classes}"></div>
+      <div class="field"><label>Classes</label><input type="number" id="stClasses" min="2" max="12" value="${st.classes}"></div>
     </div>`;
     if(st.method==='manual'){
       html+=`<div class="field"><label>Break values (comma-separated, between min and max)</label>
         <input type="text" id="stManual" value="${esc(st.manualBreaks)}" placeholder="e.g. 10, 25, 50"></div>`;
     }
     html+=`<div class="field"><label>Colour ramp</label><select id="stRamp">${rampOptions(st.ramp,lyr.geom,'grad')}</select>
-      ${rampPreviewHtml(st.ramp, st.classes, st.reverse)}</div>
+      ${rampPreviewHtml(st.ramp, st.classes, st.reverse, st)}</div>
       <div class="checkline"><input type="checkbox" id="stReverse" ${st.reverse?'checked':''}><label for="stReverse" style="margin:0;color:var(--text);">Reverse ramp</label></div>
+      <div class="legend-add-row" style="margin-bottom:6px;">
+        <button class="btn small light" id="stRampImport">Import a ramp…</button>
+        <button class="btn small light" id="stRampReset">Reset colours</button>
+      </div>
+      <div id="stClassList"></div>
       <div id="stBreaksInfo" class="kv"></div>`;
   }
   if(st.mode==='gradSize'){
@@ -1968,7 +2261,11 @@ function renderStyleTab(){
   if(g('stField')) g('stField').onchange=()=>{ st.field=g('stField').value||null; st.catMap={}; renderStyleTab(); rerender(); };
   if(g('stNorm')) g('stNorm').onchange=()=>{ st.normField=g('stNorm').value||null; renderStyleTab(); rerender(); };
   if(g('stMethod')) g('stMethod').onchange=()=>{ st.method=g('stMethod').value; renderStyleTab(); rerender(); };
-  if(g('stClasses')) g('stClasses').onchange=()=>{ st.classes=Math.max(2,Math.min(9,parseInt(g('stClasses').value)||5)); renderStyleTab(); rerender(); };
+  if(g('stClasses')) g('stClasses').onchange=()=>{
+    st.classes=Math.max(2,Math.min(12,parseInt(g('stClasses').value)||5));
+    st.classColors=null;                     /* class count changed — overrides no longer line up */
+    renderStyleTab(); rerender();
+  };
   if(g('stManual')) g('stManual').onchange=()=>{ st.manualBreaks=g('stManual').value; renderStyleTab(); rerender(); };
   if(g('stRamp')) g('stRamp').onchange=()=>{ st.ramp=g('stRamp').value; if(st.mode==='cat'){st.catMap={};} renderStyleTab(); rerender(); };
   if(g('stReverse')) g('stReverse').onchange=()=>{ st.reverse=g('stReverse').checked; renderStyleTab(); rerender(); };
@@ -1981,6 +2278,69 @@ function renderStyleTab(){
   if(g('stDash')) g('stDash').onchange=()=>{ st.dash=g('stDash').value.trim(); rerender(); };
   g('stFillOp').oninput=()=>{ st.fillOpacity=+g('stFillOp').value; g('stOpVal').textContent=Math.round(st.fillOpacity*100)+'%'; rerender(); };
   g('stLayerOp').oninput=()=>{ lyr.opacity=+g('stLayerOp').value; g('stLOpVal').textContent=Math.round(lyr.opacity*100)+'%'; rerender(); };
+
+  /* ---- point symbols ---- */
+  if(g('stSymbol')){
+    const paintPreview=()=>{ g('stSymPreview').innerHTML=symbolPreviewHtml(st.symbol); bindChips(); };
+    const bindChips=()=>{
+      g('stSymPreview').querySelectorAll('.sym-chip').forEach(b=>{
+        b.onclick=()=>{
+          st.symbol=b.getAttribute('data-sym');
+          g('stSymbol').value=st.symbol;
+          paintPreview(); rerender();
+        };
+      });
+    };
+    g('stSymbol').onchange=()=>{ st.symbol=g('stSymbol').value; paintPreview(); rerender(); };
+    paintPreview();
+    g('stSymUpload').onclick=()=>g('fileSymbol').click();
+    g('fileSymbol').onchange=e=>{
+      const file=e.target.files[0]; e.target.value='';
+      if(!file) return;
+      file.text().then(txt=>{
+        const d=svgPathFromFile(txt);
+        if(!d){ toast('That SVG has no simple <path> to use. Try one saved as a single combined path.', 5200); return; }
+        const id=uid();
+        customSymbols[id]={name:file.name.replace(/\.svg$/i,''), d};
+        st.symbol='custom:'+id;
+        renderStyleTab(); rerender();
+        toast('Symbol added: '+customSymbols[id].name);
+      });
+    };
+  }
+
+  /* ---- dot density ---- */
+  if(g('stDotValue')){
+    const applyDots=()=>{
+      st.dotValue=Math.max(0.01, parseFloat(g('stDotValue').value)||100);
+      st.dotSize=Math.max(0.5, parseFloat(g('stDotSize').value)||2.2);
+      st.dotColor=g('stDotColor').value;
+      lyr._dotSig=null;                       /* force a re-scatter */
+      rerender();
+      updateDotInfo();
+    };
+    const updateDotInfo=()=>{
+      const info=g('stDotInfo'); if(!info) return;
+      if(!st.field){ info.innerHTML='Choose the field holding the count you want to map.'; return; }
+      /* ask for the dots rather than reading a cache that may not be filled yet —
+         the result is memoised, so this costs nothing on repeat */
+      const n=dotDensityPoints(lyr).length;
+      info.innerHTML='<b>'+n.toLocaleString()+'</b> dots placed · one dot = '+
+        fmtNum(st.dotValue)+' units of '+esc(st.field);
+    };
+    g('stDotValue').onchange=applyDots;
+    g('stDotSize').onchange=applyDots;
+    g('stDotColor').onchange=applyDots;
+    updateDotInfo();
+  }
+  if(g('stColorField')) g('stColorField').onchange=()=>{ st.colorField=g('stColorField').value||null; renderStyleTab(); rerender(); };
+
+  /* ---- colour ramp: per-class editing and import ---- */
+  if(g('stRampImport')) g('stRampImport').onclick=()=>openRampImport(lyr);
+  if(g('stRampReset')) g('stRampReset').onclick=()=>{
+    st.classColors=null; st.customRamp=null; renderStyleTab(); rerender();
+  };
+  if(g('stClassList')) renderClassColorList(lyr);
 
   /* Top N updates the category list only — rebuilding the whole tab would destroy
      this input mid-edit and drop focus, so repeated arrow-key nudges stopped working. */
@@ -2064,6 +2424,156 @@ function refreshCatList(lyr){
     };
   });
   if(g('stCatReset')) g('stCatReset').onclick=()=>{ st.catMap={}; refreshCatList(lyr); renderLayer(lyr); };
+}
+
+/* Pull a usable path out of an uploaded SVG and normalise it into the 0–100 box
+   the built-in symbols use, so it takes colour and size the same way. */
+function svgPathFromFile(text){
+  let doc;
+  try{ doc=new DOMParser().parseFromString(text,'image/svg+xml'); }catch(_){ return null; }
+  if(doc.querySelector('parsererror')) return null;
+  const paths=[...doc.querySelectorAll('path')].map(p=>p.getAttribute('d')).filter(Boolean);
+  if(!paths.length) return null;
+  const d=paths.join(' ');
+  /* work out the source coordinate box so we can scale it to 0–100 */
+  const svg=doc.querySelector('svg');
+  let vb=(svg&&svg.getAttribute('viewBox')||'').trim().split(/[\s,]+/).map(Number);
+  if(vb.length!==4||vb.some(n=>!isFinite(n))){
+    const w=parseFloat(svg&&svg.getAttribute('width'))||100;
+    const h=parseFloat(svg&&svg.getAttribute('height'))||100;
+    vb=[0,0,w,h];
+  }
+  const scale=100/Math.max(vb[2],vb[3]);
+  if(Math.abs(scale-1)<0.01 && vb[0]===0 && vb[1]===0) return d;
+  /* rewrite every number in the path — crude but reliable for simple icons */
+  let i=0;
+  return d.replace(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi, m=>{
+    const n=parseFloat(m);
+    const isX=(i++%2===0);
+    return (((n-(isX?vb[0]:vb[1]))*scale)).toFixed(2);
+  });
+}
+
+/* editable colour per class, sitting under the ramp preview */
+function renderClassColorList(lyr){
+  const host=document.getElementById('stClassList');
+  if(!host) return;
+  const st=lyr.style;
+  computeClassification(lyr);
+  if(!lyr._breaks||!lyr._colors){ host.innerHTML=''; return; }
+  host.innerHTML=lyr._colors.map((c,i)=>
+    '<div class="cat-row"><input type="color" data-i="'+i+'" value="'+toHex(c)+'">'+
+    '<span>'+fmtNum(lyr._breaks[i])+' – '+fmtNum(lyr._breaks[i+1])+'</span></div>').join('');
+  host.querySelectorAll('input[type=color]').forEach(inp=>{
+    inp.oninput=()=>{
+      const i=+inp.getAttribute('data-i');
+      st.classColors=st.classColors? st.classColors.slice() : [];
+      st.classColors[i]=inp.value;
+      renderLayer(lyr);
+      const prev=document.querySelector('#mk-tab-style .ramp-preview');
+      if(prev){
+        const cols=lyr._colors;
+        prev.innerHTML=cols.map(cc=>'<div style="background:'+cc+'"></div>').join('');
+      }
+    };
+  });
+}
+
+/* ---------- colour ramp import ---------- */
+function parseRampText(text, fileName){
+  const name=(fileName||'').toLowerCase();
+  const out=[];
+  const pushHex=h=>{ const c=String(h).trim(); if(/^#?[0-9a-f]{6}$/i.test(c)) out.push(c[0]==='#'?c:'#'+c); };
+
+  /* QGIS exports colour ramps as XML with prop entries or <item> colours */
+  if(/<qgis|<colorramp|<paletteentry|<item\b/i.test(text)){
+    let doc=null;
+    try{ doc=new DOMParser().parseFromString(text,'text/xml'); }catch(_){}
+    if(doc && !doc.querySelector('parsererror')){
+      doc.querySelectorAll('paletteentry').forEach(p=>pushHex(p.getAttribute('color')));
+      if(!out.length) doc.querySelectorAll('item').forEach(p=>pushHex(p.getAttribute('color')||p.getAttribute('value')));
+      if(!out.length){
+        doc.querySelectorAll('prop').forEach(p=>{
+          const k=p.getAttribute('k')||'', v=p.getAttribute('v')||'';
+          if(/^color\d*$/.test(k)||k==='color1'||k==='color2'){
+            const rgb=v.split(',').map(Number);
+            if(rgb.length>=3 && rgb.every(isFinite)) out.push(chroma(rgb[0],rgb[1],rgb[2]).hex());
+          }
+          if(k==='stops'){
+            v.split(':').join(';').split(';').forEach(part=>{
+              const rgb=part.split(',').map(Number);
+              if(rgb.length>=3 && rgb.every(isFinite)) out.push(chroma(rgb[0],rgb[1],rgb[2]).hex());
+            });
+          }
+        });
+      }
+    }
+    if(out.length>=2) return out;
+  }
+  /* CSS gradient: pull the colours out in order */
+  if(/gradient\s*\(/i.test(text)){
+    const inner=text.slice(text.indexOf('(')+1);
+    (inner.match(/#[0-9a-f]{3,8}|rgba?\([^)]+\)|\b[a-z]{3,20}\b/gi)||[]).forEach(tok=>{
+      if(/^(to|deg|linear|radial|conic|at|top|bottom|left|right|center|circle|ellipse|closest|farthest|side|corner)$/i.test(tok)) return;
+      try{ out.push(chroma(tok).hex()); }catch(_){}
+    });
+    if(out.length>=2) return out;
+  }
+  /* ArcGIS .clr — "index R G B" per line */
+  if(/\.clr$/.test(name) || /^\s*\d+\s+\d+\s+\d+\s+\d+\s*$/m.test(text)){
+    text.split(/\r?\n/).forEach(line=>{
+      const p=line.trim().split(/\s+/).map(Number);
+      if(p.length>=4 && p.every(isFinite)) out.push(chroma(p[1],p[2],p[3]).hex());
+    });
+    if(out.length>=2) return out;
+  }
+  /* ArcGIS .lyr is binary — pull any RGB triples we can see as a best effort */
+  /* plain hex list / CSV / one per line */
+  (text.match(/#?[0-9a-f]{6}\b/gi)||[]).forEach(pushHex);
+  return out;
+}
+function openRampImport(lyr){
+  const body=document.getElementById('rampBody');
+  body.innerHTML=`
+    <p class="kv">Paste a ramp, or choose a file. Understood: <b>QGIS</b> colour-ramp XML,
+      a plain list of hex codes (one per line or comma-separated), a CSS
+      <code>linear-gradient(...)</code>, and ArcGIS <b>.clr</b> files.</p>
+    <div class="field"><textarea id="rampText" rows="6" placeholder="#fee5d9, #fcae91, #fb6a4a, #de2d26, #a50f15"></textarea></div>
+    <div class="legend-add-row">
+      <button class="btn small light" id="rampFileBtn">Choose a file…</button>
+      <input type="file" id="rampFile" accept=".xml,.clr,.txt,.csv,.css,.lyr" class="hidden">
+    </div>
+    <div id="rampPreviewOut" style="margin-top:10px;"></div>`;
+  let parsed=null;
+  const show=cols=>{
+    parsed=cols;
+    const out=document.getElementById('rampPreviewOut');
+    if(!cols||cols.length<2){
+      out.innerHTML='<div class="kv" style="color:var(--danger)">No colours found in that. Check the format and try again.</div>';
+      return;
+    }
+    out.innerHTML='<div class="kv"><b>'+cols.length+'</b> colours found:</div>'+
+      '<div class="ramp-preview">'+cols.map(c=>'<div style="background:'+c+'"></div>').join('')+'</div>'+
+      '<button class="btn small" id="rampUse" style="margin-top:10px;">Use this ramp</button>';
+    document.getElementById('rampUse').onclick=()=>{
+      lyr.style.customRamp=cols;
+      lyr.style.classColors=null;
+      closeModal('modal-ramp');
+      renderStyleTab(); renderLayer(lyr);
+      toast('Colour ramp applied.');
+    };
+  };
+  document.getElementById('rampText').oninput=e=>show(parseRampText(e.target.value,''));
+  document.getElementById('rampFileBtn').onclick=()=>document.getElementById('rampFile').click();
+  document.getElementById('rampFile').onchange=e=>{
+    const f=e.target.files[0]; e.target.value='';
+    if(!f) return;
+    f.text().then(t=>{
+      document.getElementById('rampText').value=t.slice(0,4000);
+      show(parseRampText(t, f.name));
+    });
+  };
+  openModal('modal-ramp');
 }
 
 function renderFilterTab(){
@@ -2923,6 +3433,34 @@ document.getElementById('sendGoBtn').onclick=()=>{
   });
 };
 /* ================= PROJECTED PREVIEW (d3-geo) ================= */
+/* Point symbols are stored as SVG path data in a 0–100 box, which Path2D
+   understands directly — so map and projected view draw the same shape. */
+const symbolPathCache={};
+function symbolPath2D(name){
+  if(!symbolPathCache[name]) symbolPathCache[name]=new Path2D(symbolPath(name));
+  return symbolPathCache[name];
+}
+function drawSymbolOnCanvas(ctx, st, color, x, y, r, opacity){
+  const size=Math.max(4, r*2);
+  ctx.save();
+  ctx.translate(x-size/2, y-size/2);
+  ctx.scale(size/100, size/100);
+  const p=symbolPath2D(st.symbol);
+  if(symbolIsStroked(st.symbol)){
+    ctx.strokeStyle=chroma(color).alpha(st.fillOpacity*opacity).css();
+    ctx.lineWidth=10; ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.stroke(p);
+  } else {
+    ctx.fillStyle=chroma(color).alpha(st.fillOpacity*opacity).css();
+    ctx.fill(p);
+    if(st.strokeWeight>0){
+      ctx.strokeStyle=chroma(st.strokeColor).alpha(opacity).css();
+      ctx.lineWidth=st.strokeWeight*4; ctx.lineJoin='round';
+      ctx.stroke(p);
+    }
+  }
+  ctx.restore();
+}
 let projActive=false, projKey='mercator-edit', projTimer=null, worldLand=null, worldLandLoading=false;
 /* view state: k = zoom multiplier on the fitted scale, tx/ty = pan offset in px */
 let projView={k:1, tx:0, ty:0, fitTo:'auto'};
@@ -3061,26 +3599,30 @@ function renderProjection(){
   mkLayers.slice().reverse().forEach(lyr=>{
     if(!lyr.visible) return;
     const st=lyr.style;
-    if(st.mode==='grad'||st.mode==='gradSize'){ computeClassification(lyr); sizeRange(lyr); }
+    if(st.mode==='grad'||st.mode==='gradSize'||st.mode==='prop'){ computeClassification(lyr); sizeRange(lyr); }
+    if(st.mode==='bivariate'){ sizeRange(lyr); computeColorClassification(lyr); }
     if(st.mode==='cat') computeCategories(lyr);
     visibleFeatures(lyr).forEach(f0=>{
       if(!f0.geometry) return;
       const f = def.interrupted && !/Point/.test(f0.geometry.type) ? prepForInterrupted(f0) : f0;
-      let color=st.color;
-      if(st.mode==='cat') color=catColor(lyr,f0);
-      else if(st.mode==='grad') color=classColor(lyr, valueOf(lyr,f0));
+      const color=featureColor(lyr,f0);
       const gt=f0.geometry.type;
       try{
         if(/Point/.test(gt)){
-          let r=st.radius;
-          if(st.mode==='gradSize') r=gradRadius(lyr, valueOf(lyr,f0));
-          path.pointRadius(r);
-          ctx.beginPath(); path(f);
-          ctx.fillStyle=chroma(color).alpha(st.fillOpacity*lyr.opacity).css();
-          ctx.fill();
-          if(st.strokeWeight>0){
-            ctx.strokeStyle=chroma(st.strokeColor).alpha(lyr.opacity).css();
-            ctx.lineWidth=st.strokeWeight; ctx.stroke();
+          const r=featureRadius(lyr,f0);
+          if(st.symbol && st.symbol!=='circle'){
+            /* the same path definition the Leaflet marker uses, drawn to canvas */
+            const c=proj(f0.geometry.coordinates);
+            if(c && isFinite(c[0]) && isFinite(c[1])) drawSymbolOnCanvas(ctx, st, color, c[0], c[1], r, lyr.opacity);
+          } else {
+            path.pointRadius(r);
+            ctx.beginPath(); path(f);
+            ctx.fillStyle=chroma(color).alpha(st.fillOpacity*lyr.opacity).css();
+            ctx.fill();
+            if(st.strokeWeight>0){
+              ctx.strokeStyle=chroma(st.strokeColor).alpha(lyr.opacity).css();
+              ctx.lineWidth=st.strokeWeight; ctx.stroke();
+            }
           }
         } else if(/Polygon/.test(gt)){
           ctx.beginPath(); path(f);
@@ -3100,6 +3642,19 @@ function renderProjection(){
         }
       }catch(_){}
     });
+    /* dot density scatters the same cached dots the map uses */
+    if(st.mode==='dot'){
+      const dots=dotDensityPoints(lyr);
+      ctx.fillStyle=chroma(st.dotColor||'#b3452f').alpha(0.85*lyr.opacity).css();
+      dots.forEach(d=>{
+        const c=proj([d[1], d[0]]);
+        if(!c||!isFinite(c[0])||!isFinite(c[1])) return;
+        ctx.beginPath();
+        ctx.arc(c[0], c[1], st.dotSize||2.2, 0, Math.PI*2);
+        ctx.fill();
+      });
+    }
+
     /* labels */
     if(lyr.labels.enabled && lyr.labels.field){
       const lb=lyr.labels;
@@ -3580,7 +4135,7 @@ function fillPlaceholder(ph){
   } else {
     /* map frame slot */
     pendingPlaceholderId=ph.data.id;
-    toast('Choose a map image to fill this slot — or use Send to Layout in Map Maker.', 3800);
+    toast('Choose a map image to fill this slot — or use Send to Composer in Map Maker.', 3800);
     document.getElementById('fileMapImage').click();
   }
 }
