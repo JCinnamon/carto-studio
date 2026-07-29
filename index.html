@@ -53,6 +53,12 @@
   #mk-layerlist{flex:1;overflow-y:auto;padding:9px 10px;}
   .mk-layer{border:1px solid var(--line);border-radius:6px;margin-bottom:7px;background:#fafbfd;padding:7px 8px;}
   .mk-layer.sel{border-color:var(--teal);background:#eaf6f5;box-shadow:0 0 0 1px var(--teal) inset;}
+  .mk-layer.off{opacity:.55;}
+  .mk-layer.off .nm{cursor:default;}
+  .mk-layer .drag-grip{cursor:grab;color:var(--muted);font-size:12px;letter-spacing:-1px;user-select:none;}
+  .mk-layer.dragging{opacity:.4;}
+  .mk-layer.drop-above{box-shadow:0 -3px 0 -1px var(--teal);}
+  .mk-layer.drop-below{box-shadow:0 3px 0 -1px var(--teal);}
   .mk-layer .top{display:flex;align-items:center;gap:6px;}
   .mk-layer .nm{flex:1;font-size:12.5px;font-weight:700;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .mk-layer .geom{font-size:9.5px;color:var(--muted);background:#eceff5;border-radius:3px;padding:1px 4px;}
@@ -162,6 +168,26 @@
   .ramp-preview{display:flex;height:14px;border-radius:3px;overflow:hidden;border:1px solid var(--line);margin-top:4px;}
   .ramp-preview div{flex:1;}
   /* point symbol picker */
+  .sym-button{display:flex;align-items:center;gap:8px;width:100%;padding:5px 8px;border:1px solid var(--line);
+    background:#fff;border-radius:5px;font-size:12.5px;color:var(--text);}
+  .sym-button:hover{border-color:var(--teal);background:#f4faf9;}
+  .sym-button-icon{width:22px;height:22px;line-height:0;flex-shrink:0;}
+  .sym-button-icon svg{width:100%;height:100%;display:block;}
+  .sym-button-name{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sym-button-caret{color:var(--muted);font-size:10px;}
+  .sym-group{margin-bottom:12px;}
+  .sym-group h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+  .sym-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:6px;}
+  /* colour controls with a "none" option */
+  .colour-row{display:flex;align-items:center;gap:7px;}
+  .colour-row input[type=color]{flex:1;}
+  .colour-row input[type=color]:disabled{opacity:.35;}
+  .nocol{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap;margin:0;}
+  .nocol input{margin:0;}
+  /* manual break rows */
+  .brk-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+  .brk-row input[type=number]{flex:1;min-width:0;padding:4px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;}
+  .brk-row button{border:none;background:#f1e3e0;color:var(--danger);border-radius:3px;width:22px;height:22px;font-size:11px;flex-shrink:0;padding:0;}
   .sym-preview{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 8px;}
   .sym-chip{width:34px;height:34px;border:1px solid var(--line);background:#fff;border-radius:6px;padding:5px;line-height:0;}
   .sym-chip svg{width:100%;height:100%;display:block;}
@@ -678,6 +704,14 @@
   <div id="tableWinResize" title="Drag to resize"></div>
 </div>
 
+<div class="modal-overlay hidden" id="modal-symbol">
+  <div class="modal">
+    <h2>Choose a symbol</h2>
+    <div id="symBody"></div>
+    <div class="modal-close-row"><button class="btn light" onclick="closeModal('modal-symbol')">Close</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="modal-ramp">
   <div class="modal">
     <h2>Import a colour ramp</h2>
@@ -783,6 +817,7 @@
     <p class="kv">The current map view will be captured as a high-resolution image and placed on the layout page, with the scale calibrated automatically from the map. Pan/zoom the map to the exact extent you want first.</p>
     <div class="checkline"><input type="checkbox" id="sendLegend" checked><label for="sendLegend" style="margin:0;font-size:12.5px;color:var(--text);">Add legend built from my symbology</label></div>
     <div class="checkline"><input type="checkbox" id="sendScale" checked><label for="sendScale" style="margin:0;font-size:12.5px;color:var(--text);">Add a calibrated scale bar</label></div>
+    <div class="checkline"><input type="checkbox" id="sendLabels"><label for="sendLabels" style="margin:0;font-size:12.5px;color:var(--text);">Bring labels as editable text (so they can be moved on the page)</label></div>
     <div class="kv" id="sendStatus"></div>
     <div class="modal-close-row">
       <button class="btn ghost" onclick="closeModal('modal-send')">Cancel</button>
@@ -1088,6 +1123,32 @@ const RAMPS = {
   diverging: ['RdBu','RdYlBu','BrBG','PiYG','PuOr','Spectral'],
   qualitative: ['Set2','Set1','Dark2','Paired','Pastel1','Accent']
 };
+
+/* ---------- colour controls that can be "none" ----------
+   Cartographically you often want an unfilled symbol or an outline-free polygon,
+   so every fill/outline (and any single class colour) can be switched off. */
+const NO_COLOUR='none';
+function isNoColour(v){ return v===NO_COLOUR || v==='transparent' || v==='rgba(0,0,0,0)'; }
+function paintValue(v, fallback){ return isNoColour(v) ? 'rgba(0,0,0,0)' : (v||fallback||'#000000'); }
+function colourFieldHtml(id, label, value){
+  const off=isNoColour(value);
+  return '<div class="field"><label>'+label+'</label>'+
+    '<div class="colour-row">'+
+      '<input type="color" id="'+id+'" value="'+toHex(off?'#888888':value)+'" '+(off?'disabled':'')+'>'+
+      '<label class="nocol"><input type="checkbox" id="'+id+'None" '+(off?'checked':'')+'> none</label>'+
+    '</div></div>';
+}
+function bindColourField(id, get, set, after){
+  const c=document.getElementById(id), n=document.getElementById(id+'None');
+  if(!c||!n) return;
+  const sync=()=>{
+    c.disabled=n.checked;
+    set(n.checked ? NO_COLOUR : c.value);
+    after&&after();
+  };
+  c.oninput=sync; n.onchange=sync;
+}
+
 /* ---------- point symbols ----------
    Grouped the way cartography texts do: abstract shapes carry no resemblance to
    what they stand for, associative ones hint at it, iconic ones picture it.
@@ -1150,8 +1211,9 @@ function symbolIsStroked(name){
 function symbolSvg(name, fill, stroke, strokeW){
   const d=symbolPath(name);
   const stroked=symbolIsStroked(name);
+  const fillPaint = (stroked||!fill||fill==='rgba(0,0,0,0)') ? 'none' : fill;
   return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'+
-    '<path d="'+d+'" fill="'+(stroked?'none':fill)+'" stroke="'+(stroked?fill:(stroke||'none'))+
+    '<path d="'+d+'" fill="'+fillPaint+'" stroke="'+(stroked?(fill||'#5a6478'):(stroke||'none'))+
     '" stroke-width="'+(stroked?10:(strokeW||0)*4)+'" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 }
 const BASEMAPS = {
@@ -1516,7 +1578,7 @@ function rampColors(st, k){
   }
   if(st.reverse) base=base.slice().reverse();
   if(st.classColors){
-    base=base.map((c,i)=> st.classColors[i] || c);
+    base=base.map((c,i)=> st.classColors[i]!=null ? st.classColors[i] : c);
   }
   return base;
 }
@@ -1661,9 +1723,13 @@ function featureRadius(lyr, f){
 function featureStyle(lyr, f){
   const st=lyr.style;
   const color=featureColor(lyr,f);
-  return {color: lyr.geom==='line'? color : st.strokeColor,
-    weight: st.strokeWeight, opacity: lyr.opacity,
-    fillColor: color, fillOpacity: st.fillOpacity*lyr.opacity,
+  const strokeOff=isNoColour(st.strokeColor);
+  const fillOff=isNoColour(color);
+  return {color: lyr.geom==='line'? paintValue(color) : paintValue(st.strokeColor),
+    weight: strokeOff? 0 : st.strokeWeight,
+    opacity: strokeOff? 0 : lyr.opacity,
+    fillColor: paintValue(color),
+    fillOpacity: fillOff? 0 : st.fillOpacity*lyr.opacity,
     dashArray: st.dash||null};
 }
 /* Points are drawn as an inline SVG marker so any symbol shape can be used;
@@ -1673,14 +1739,18 @@ function pointMarker(lyr, latlng, f){
   const r=featureRadius(lyr,f);
   const color=featureColor(lyr,f);
   if(!st.symbol || st.symbol==='circle'){
-    return L.circleMarker(latlng,{radius:r, fillColor:color, color:st.strokeColor,
-      weight:st.strokeWeight, fillOpacity:st.fillOpacity*lyr.opacity, opacity:lyr.opacity});
+    const strokeOff=isNoColour(st.strokeColor), fillOff=isNoColour(color);
+    return L.circleMarker(latlng,{radius:r, fillColor:paintValue(color), color:paintValue(st.strokeColor),
+      weight:strokeOff?0:st.strokeWeight,
+      fillOpacity:fillOff?0:st.fillOpacity*lyr.opacity,
+      opacity:strokeOff?0:lyr.opacity});
   }
   const size=Math.max(4, r*2);
   const icon=L.divIcon({
     className:'mk-symbol',
     html:'<div style="width:'+size+'px;height:'+size+'px;opacity:'+(st.fillOpacity*lyr.opacity)+'">'+
-         symbolSvg(st.symbol, color, st.strokeColor, st.strokeWeight)+'</div>',
+         symbolSvg(st.symbol, paintValue(color), isNoColour(st.strokeColor)?null:st.strokeColor,
+                   isNoColour(st.strokeColor)?0:st.strokeWeight)+'</div>',
     iconSize:[size,size], iconAnchor:[size/2,size/2]
   });
   return L.marker(latlng,{icon, keyboard:false});
@@ -1749,7 +1819,24 @@ function updateLabelCss(lyr){
   if(isGoogleFont(lb.font)) ensureGoogleFonts();
 }
 function renderAllMakerLayers(){
+  /* draw bottom-up so the first entry in the list ends up on top of the map */
   mkLayers.slice().reverse().forEach(l=>renderLayer(l));
+  restackMakerLayers();
+}
+/* Leaflet keeps whatever order things were added in; nudge each pane back into
+   list order so reordering (or restyling one layer) can't leave it buried. */
+function restackMakerLayers(){
+  mkLayers.slice().reverse().forEach(l=>{
+    if(l.dotLayer && l.dotLayer.bringToFront) l.dotLayer.bringToFront();
+    if(l.leaflet && l.leaflet.bringToFront) l.leaflet.bringToFront();
+  });
+  if(selHighlight && selHighlight.bringToFront) selHighlight.bringToFront();
+}
+/* one place that changes which layer is active */
+function selectMakerLayer(id){
+  mkSelectedId=id;
+  renderMakerLayerList(); renderMakerPanels(); updateMkStatus();
+  if(tableWinOpen()) renderAttrTable();
 }
 function updateMkStatus(){
   const lyr=selectedLayer();
@@ -1764,8 +1851,9 @@ function renderMakerLayerList(){
   const el=document.getElementById('mk-layerlist');
   if(!mkLayers.length){ el.innerHTML='<div class="empty-hint">No layers yet. Click “+ Add data” to upload a dataset.</div>'; return; }
   el.innerHTML=mkLayers.map(l=>`
-    <div class="mk-layer ${l.id===mkSelectedId?'sel':''}" data-id="${l.id}">
+    <div class="mk-layer ${l.id===mkSelectedId?'sel':''} ${l.visible?'':'off'}" data-id="${l.id}" draggable="true">
       <div class="top">
+        <span class="drag-grip" title="Drag to reorder — the top layer draws on top">⠿</span>
         <input type="checkbox" ${l.visible?'checked':''} data-act="vis" title="Show/hide">
         <span class="nm" title="${esc(l.name)}">${esc(l.name)}</span>
         ${l.id===mkSelectedId?'<span class="badge-active">ACTIVE</span>':'<span class="geom">'+l.geom+'</span>'}
@@ -1773,8 +1861,6 @@ function renderMakerLayerList(){
       <div class="ops">
         <button data-act="table" title="Open the attribute table for this layer">▦</button>
         <button data-act="fields" title="List this layer's fields">≡</button>
-        <button data-act="up" title="Move up">↑</button>
-        <button data-act="down" title="Move down">↓</button>
         <button data-act="zoom" title="Zoom to layer">🔍</button>
         <button data-act="rename" title="Rename">✏️</button>
         <button data-act="dup" title="Duplicate">⧉</button>
@@ -1784,19 +1870,32 @@ function renderMakerLayerList(){
     </div>`).join('');
   el.querySelectorAll('.mk-layer').forEach(item=>{
     const id=item.getAttribute('data-id');
-    item.querySelector('.nm').onclick=()=>{ mkSelectedId=id; renderMakerLayerList(); renderMakerPanels(); updateMkStatus(); if(tableWinOpen()) renderAttrTable(); };
+    bindLayerDrag(item);
+    item.querySelector('.nm').onclick=()=>{
+      const l=mkLayers.find(x=>x.id===id);
+      if(l && !l.visible){ toast('Turn “'+l.name+'” on before editing it.'); return; }
+      selectMakerLayer(id);
+    };
     item.querySelector('[data-act=vis]').onchange=(ev)=>{
       const l=mkLayers.find(x=>x.id===id);
       l.visible=ev.target.checked;
       renderLayer(l);
+      /* a hidden layer can't be the active one — hand over to the next visible */
+      if(!l.visible && mkSelectedId===id){
+        const next=mkLayers.find(x=>x.visible);
+        mkSelectedId=next? next.id : null;
+        if(selection.layerId===id) clearSelection();
+      }
+      renderMakerLayerList(); renderMakerPanels(); updateMkStatus();
+      if(tableWinOpen()) renderAttrTable();
       if(projActive) renderProjection();
     };
     item.querySelectorAll('button').forEach(btn=>{
       btn.onclick=()=>{
         const i=mkLayers.findIndex(x=>x.id===id); const l=mkLayers[i];
         const act=btn.getAttribute('data-act');
-        if(act==='table'){ mkSelectedId=id; renderMakerLayerList(); renderMakerPanels(); updateMkStatus(); openAttrTable(); }
-        if(act==='fields'){ mkSelectedId=id; renderMakerLayerList(); renderMakerPanels(); updateMkStatus(); openFieldsModal(l); }
+        if(act==='table'){ if(!l.visible){ toast('Turn this layer on first.'); return; } selectMakerLayer(id); openAttrTable(); }
+        if(act==='fields'){ if(!l.visible){ toast('Turn this layer on first.'); return; } selectMakerLayer(id); openFieldsModal(l); }
         if(act==='zoom'){
           try{
             if(projActive){ projFitToData(); }
@@ -1804,8 +1903,6 @@ function renderMakerLayerList(){
           }catch(_){}
         }
         if(act==='rename'){ const n=window.prompt('Layer name:', l.name); if(n){ l.name=n; renderMakerLayerList(); renderMakerPanels(); } }
-        if(act==='up'&&i>0){ mkLayers.splice(i,1); mkLayers.splice(i-1,0,l); reorderAll(); }
-        if(act==='down'&&i<mkLayers.length-1){ mkLayers.splice(i,1); mkLayers.splice(i+1,0,l); reorderAll(); }
         if(act==='dup'){
           const nl={id:uid(), name:l.name+' copy', datasetId:l.datasetId, geojson:l.geojson, geom:l.geom,
             visible:true, opacity:l.opacity, style:clone(l.style), labels:clone(l.labels), filter:clone(l.filter), leaflet:null};
@@ -1831,6 +1928,49 @@ function reorderAll(){
     if(l.dotLayer){ mkMap.removeLayer(l.dotLayer); l.dotLayer=null; }
   });
   renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
+  if(projActive) scheduleProjRender();
+}
+
+/* ---------- drag to reorder ----------
+   Dropping a card above or below another moves the layer there; the list order
+   is the drawing order, top of the list nearest the viewer. */
+let dragLayerId=null;
+function bindLayerDrag(item){
+  item.addEventListener('dragstart', e=>{
+    dragLayerId=item.getAttribute('data-id');
+    item.classList.add('dragging');
+    try{ e.dataTransfer.setData('text/plain', dragLayerId); }catch(_){}
+    e.dataTransfer.effectAllowed='move';
+  });
+  item.addEventListener('dragend', ()=>{
+    dragLayerId=null;
+    document.querySelectorAll('.mk-layer').forEach(x=>x.classList.remove('dragging','drop-above','drop-below'));
+  });
+  item.addEventListener('dragover', e=>{
+    if(!dragLayerId || item.getAttribute('data-id')===dragLayerId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect='move';
+    const r=item.getBoundingClientRect();
+    const above=(e.clientY-r.top) < r.height/2;
+    item.classList.toggle('drop-above', above);
+    item.classList.toggle('drop-below', !above);
+  });
+  item.addEventListener('dragleave', ()=>item.classList.remove('drop-above','drop-below'));
+  item.addEventListener('drop', e=>{
+    e.preventDefault();
+    const targetId=item.getAttribute('data-id');
+    if(!dragLayerId || targetId===dragLayerId) return;
+    const r=item.getBoundingClientRect();
+    const above=(e.clientY-r.top) < r.height/2;
+    const from=mkLayers.findIndex(l=>l.id===dragLayerId);
+    if(from<0) return;
+    const moved=mkLayers.splice(from,1)[0];
+    let to=mkLayers.findIndex(l=>l.id===targetId);
+    if(to<0) to=mkLayers.length;
+    mkLayers.splice(above? to : to+1, 0, moved);
+    dragLayerId=null;
+    reorderAll();
+  });
 }
 
 /* ================= FEATURE SELECTION =================
@@ -1903,7 +2043,9 @@ function markSelectedRows(){
     tr.classList.toggle('rowsel', !!on && selection.set.has(i));
   });
 }
-function zoomToSelection(){
+/* named distinctly from the Composer's element zoom — they shared a scope and
+   the later declaration silently replaced this one */
+function zoomToFeatureSelection(){
   const feats=selectedFeatureList();
   if(!feats.length){ toast('Nothing selected.'); return; }
   try{
@@ -1964,7 +2106,7 @@ function featuresToCSV(lyr, feats){
       const lyr=selectionLayer();
       if(!lyr){ toast('Nothing selected.'); return; }
       const feats=selectedFeatureList();
-      if(a==='zoom') zoomToSelection();
+      if(a==='zoom') zoomToFeatureSelection();
       else if(a==='invert'){
         const all=lyr.geojson.features.map((_,i)=>i);
         setSelection(lyr, all.filter(i=>!selection.set.has(i)), 'set');
@@ -2098,6 +2240,59 @@ function rampPreviewHtml(ramp, n, reverse, st){
   return '<div class="ramp-preview">'+colors.map(c=>'<div style="background:'+c+'"></div>').join('')+'</div>'+
     (st && st.customRamp? '<div class="kv">Using an imported ramp.</div>':'');
 }
+function symbolLabel(name){
+  if(name && name.indexOf('custom:')===0){
+    const c=customSymbols[name.slice(7)];
+    return c? c.name : 'Uploaded symbol';
+  }
+  return (SYMBOL_INDEX[name]||SYMBOL_INDEX.circle).label;
+}
+/* Every symbol in one popup, grouped by category — no second list to keep in step. */
+function openSymbolPicker(lyr){
+  const st=lyr.style;
+  const body=document.getElementById('symBody');
+  const groupHtml=g=>
+    '<div class="sym-group"><h4>'+SYMBOL_GROUP_LABEL[g]+'</h4><div class="sym-grid">'+
+    SYMBOLS[g].map(sy=>
+      '<button class="sym-chip '+(st.symbol===sy[0]?'on':'')+'" data-sym="'+sy[0]+'" title="'+esc(sy[1])+'">'+
+      symbolSvg(sy[0], st.symbol===sy[0]?'#2f7d78':'#5a6478', null, 0)+'</button>').join('')+
+    '</div></div>';
+  let html=Object.keys(SYMBOLS).map(groupHtml).join('');
+  const custom=Object.keys(customSymbols);
+  if(custom.length){
+    html+='<div class="sym-group"><h4>Uploaded</h4><div class="sym-grid">'+
+      custom.map(id=>'<button class="sym-chip '+(st.symbol==='custom:'+id?'on':'')+'" data-sym="custom:'+id+'" title="'+esc(customSymbols[id].name)+'">'+
+        symbolSvg('custom:'+id, st.symbol==='custom:'+id?'#2f7d78':'#5a6478', null, 0)+'</button>').join('')+'</div></div>';
+  }
+  html+='<div class="legend-add-row" style="margin-top:10px;">'+
+        '<button class="btn small light" id="symUpload">Upload an SVG symbol…</button>'+
+        '<input type="file" id="fileSymbol" accept=".svg,image/svg+xml" class="hidden"></div>';
+  body.innerHTML=html;
+  body.querySelectorAll('.sym-chip').forEach(b=>{
+    b.onclick=()=>{
+      st.symbol=b.getAttribute('data-sym');
+      closeModal('modal-symbol');
+      renderStyleTab();
+      renderLayer(lyr);
+    };
+  });
+  document.getElementById('symUpload').onclick=()=>document.getElementById('fileSymbol').click();
+  document.getElementById('fileSymbol').onchange=e=>{
+    const file=e.target.files[0]; e.target.value='';
+    if(!file) return;
+    file.text().then(txt=>{
+      const d=svgPathFromFile(txt);
+      if(!d){ toast('That SVG has no simple <path> to use — try one saved as a single combined path.', 5200); return; }
+      const id=uid();
+      customSymbols[id]={name:file.name.replace(/\.svg$/i,''), d};
+      st.symbol='custom:'+id;
+      closeModal('modal-symbol');
+      renderStyleTab(); renderLayer(lyr);
+      toast('Symbol added: '+customSymbols[id].name);
+    });
+  };
+  openModal('modal-symbol');
+}
 function symbolOptionsHtml(sel){
   let html='';
   Object.keys(SYMBOLS).forEach(g=>{
@@ -2139,14 +2334,15 @@ function renderStyleTab(){
       <select id="stMode">${modes.map(m=>'<option value="'+m[0]+'" '+(st.mode===m[0]?'selected':'')+'>'+m[1]+'</option>').join('')}</select>
     </div>`;
   if(st.mode==='single'){
-    html+=`<div class="field"><label>${lyr.geom==='line'?'Line colour':'Fill colour'}</label><input type="color" id="stColor" value="${st.color}"></div>`;
+    html+=colourFieldHtml('stColor', lyr.geom==='line'?'Line colour':'Fill colour', st.color);
   }
   if(lyr.geom==='point'){
     html+=`<div class="field"><label>Symbol</label>
-      <select id="stSymbol">${symbolOptionsHtml(st.symbol)}</select></div>
-      <div class="sym-preview" id="stSymPreview"></div>
-      <button class="btn small light" id="stSymUpload" style="margin-bottom:8px;">Upload an SVG symbol…</button>
-      <input type="file" id="fileSymbol" accept=".svg,image/svg+xml" class="hidden">`;
+      <button class="sym-button" id="stSymBtn" title="Choose a symbol">
+        <span class="sym-button-icon">${symbolSvg(st.symbol,'#2f7d78',null,0)}</span>
+        <span class="sym-button-name">${esc(symbolLabel(st.symbol))}</span>
+        <span class="sym-button-caret">▾</span>
+      </button></div>`;
   }
   if(st.mode==='cat'){
     html+=`<div class="field"><label>Category field</label>
@@ -2212,8 +2408,12 @@ function renderStyleTab(){
       <div class="field"><label>Classes</label><input type="number" id="stClasses" min="2" max="12" value="${st.classes}"></div>
     </div>`;
     if(st.method==='manual'){
-      html+=`<div class="field"><label>Break values (comma-separated, between min and max)</label>
-        <input type="text" id="stManual" value="${esc(st.manualBreaks)}" placeholder="e.g. 10, 25, 50"></div>`;
+      html+=`<div class="field"><label>Break values</label>
+        <div id="stManualRows"></div>
+        <div class="legend-add-row">
+          <button class="btn small light" id="stManualAdd">+ Add a break</button>
+          <button class="btn small light" id="stManualEven">Space evenly</button>
+        </div></div>`;
     }
     html+=`<div class="field"><label>Colour ramp</label><select id="stRamp">${rampOptions(st.ramp,lyr.geom,'grad')}</select>
       ${rampPreviewHtml(st.ramp, st.classes, st.reverse, st)}</div>
@@ -2240,9 +2440,8 @@ function renderStyleTab(){
   }
   html+=`<div class="divider"></div><h3>Stroke & transparency</h3>`;
   if(lyr.geom!=='line'){
-    html+=`<div class="row2">
-      <div class="field"><label>Outline colour</label><input type="color" id="stStrokeColor" value="${st.strokeColor}"></div>
-      <div class="field"><label>Outline width</label><input type="number" id="stStrokeW" value="${st.strokeWeight}" min="0" step="0.5"></div></div>`;
+    html+=`<div class="row2">`+colourFieldHtml('stStrokeColor','Outline colour', st.strokeColor)+
+      `<div class="field"><label>Outline width</label><input type="number" id="stStrokeW" value="${st.strokeWeight}" min="0" step="0.5"></div></div>`;
   } else {
     html+=`<div class="row2">
       <div class="field"><label>Line width</label><input type="number" id="stStrokeW" value="${st.strokeWeight}" min="0.5" step="0.5"></div>
@@ -2257,7 +2456,7 @@ function renderStyleTab(){
   const g=id=>document.getElementById(id);
   const rerender=()=>{ renderLayer(lyr); };
   g('stMode').onchange=()=>{ st.mode=g('stMode').value; renderStyleTab(); rerender(); };
-  if(g('stColor')) g('stColor').oninput=()=>{ st.color=g('stColor').value; rerender(); };
+  bindColourField('stColor', ()=>st.color, v=>{ st.color=v; }, rerender);
   if(g('stField')) g('stField').onchange=()=>{ st.field=g('stField').value||null; st.catMap={}; renderStyleTab(); rerender(); };
   if(g('stNorm')) g('stNorm').onchange=()=>{ st.normField=g('stNorm').value||null; renderStyleTab(); rerender(); };
   if(g('stMethod')) g('stMethod').onchange=()=>{ st.method=g('stMethod').value; renderStyleTab(); rerender(); };
@@ -2266,48 +2465,21 @@ function renderStyleTab(){
     st.classColors=null;                     /* class count changed — overrides no longer line up */
     renderStyleTab(); rerender();
   };
-  if(g('stManual')) g('stManual').onchange=()=>{ st.manualBreaks=g('stManual').value; renderStyleTab(); rerender(); };
+  if(g('stManualRows')) renderManualBreaks(lyr);
   if(g('stRamp')) g('stRamp').onchange=()=>{ st.ramp=g('stRamp').value; if(st.mode==='cat'){st.catMap={};} renderStyleTab(); rerender(); };
   if(g('stReverse')) g('stReverse').onchange=()=>{ st.reverse=g('stReverse').checked; renderStyleTab(); rerender(); };
   if(g('stMinR')) g('stMinR').onchange=()=>{ st.minR=+g('stMinR').value||4; rerender(); };
   if(g('stMaxR')) g('stMaxR').onchange=()=>{ st.maxR=+g('stMaxR').value||22; rerender(); };
   if(g('stSizeScale')) g('stSizeScale').onchange=()=>{ st.sizeScale=g('stSizeScale').value; rerender(); };
   if(g('stRadius')) g('stRadius').onchange=()=>{ st.radius=+g('stRadius').value||6; rerender(); };
-  if(g('stStrokeColor')) g('stStrokeColor').oninput=()=>{ st.strokeColor=g('stStrokeColor').value; rerender(); };
+  bindColourField('stStrokeColor', ()=>st.strokeColor, v=>{ st.strokeColor=v; }, rerender);
   if(g('stStrokeW')) g('stStrokeW').onchange=()=>{ st.strokeWeight=+g('stStrokeW').value||1; rerender(); };
   if(g('stDash')) g('stDash').onchange=()=>{ st.dash=g('stDash').value.trim(); rerender(); };
   g('stFillOp').oninput=()=>{ st.fillOpacity=+g('stFillOp').value; g('stOpVal').textContent=Math.round(st.fillOpacity*100)+'%'; rerender(); };
   g('stLayerOp').oninput=()=>{ lyr.opacity=+g('stLayerOp').value; g('stLOpVal').textContent=Math.round(lyr.opacity*100)+'%'; rerender(); };
 
   /* ---- point symbols ---- */
-  if(g('stSymbol')){
-    const paintPreview=()=>{ g('stSymPreview').innerHTML=symbolPreviewHtml(st.symbol); bindChips(); };
-    const bindChips=()=>{
-      g('stSymPreview').querySelectorAll('.sym-chip').forEach(b=>{
-        b.onclick=()=>{
-          st.symbol=b.getAttribute('data-sym');
-          g('stSymbol').value=st.symbol;
-          paintPreview(); rerender();
-        };
-      });
-    };
-    g('stSymbol').onchange=()=>{ st.symbol=g('stSymbol').value; paintPreview(); rerender(); };
-    paintPreview();
-    g('stSymUpload').onclick=()=>g('fileSymbol').click();
-    g('fileSymbol').onchange=e=>{
-      const file=e.target.files[0]; e.target.value='';
-      if(!file) return;
-      file.text().then(txt=>{
-        const d=svgPathFromFile(txt);
-        if(!d){ toast('That SVG has no simple <path> to use. Try one saved as a single combined path.', 5200); return; }
-        const id=uid();
-        customSymbols[id]={name:file.name.replace(/\.svg$/i,''), d};
-        st.symbol='custom:'+id;
-        renderStyleTab(); rerender();
-        toast('Symbol added: '+customSymbols[id].name);
-      });
-    };
-  }
+  if(g('stSymBtn')) g('stSymBtn').onclick=()=>openSymbolPicker(lyr);
 
   /* ---- dot density ---- */
   if(g('stDotValue')){
@@ -2454,27 +2626,121 @@ function svgPathFromFile(text){
   });
 }
 
-/* editable colour per class, sitting under the ramp preview */
+/* Manual breaks as individual number boxes — typing into a comma-separated
+   string was fiddly and easy to get wrong. */
+function manualBreakValues(lyr){
+  const st=lyr.style;
+  let vals=String(st.manualBreaks||'').split(',').map(v=>parseFloat(v)).filter(v=>isFinite(v));
+  if(!vals.length){
+    /* seed from the current classification so there's something to edit */
+    computeClassification(lyr);
+    if(lyr._breaks && lyr._breaks.length>2) vals=lyr._breaks.slice(1,-1);
+  }
+  return vals.sort((a,b)=>a-b);
+}
+function writeManualBreaks(lyr, vals){
+  lyr.style.manualBreaks=vals.filter(v=>isFinite(v)).sort((a,b)=>a-b).join(',');
+}
+function renderManualBreaks(lyr){
+  const host=document.getElementById('stManualRows');
+  if(!host) return;
+  const vals=manualBreakValues(lyr);
+  const dataVals=visibleFeatures(lyr).map(f=>valueOf(lyr,f)).filter(v=>isFinite(v)).sort((a,b)=>a-b);
+  const lo=dataVals[0], hi=dataVals[dataVals.length-1];
+  host.innerHTML=vals.map((v,i)=>
+    '<div class="brk-row"><span class="kv" style="margin:0;">break '+(i+1)+'</span>'+
+    '<input type="number" step="any" data-i="'+i+'" value="'+v+'">'+
+    '<button data-del="'+i+'" title="Remove this break">✕</button></div>').join('')
+    + (isFinite(lo)? '<div class="kv">Data runs '+fmtNum(lo)+' to '+fmtNum(hi)+'.</div>' : '');
+  const apply=()=>{
+    renderLayer(lyr);
+    renderClassColorList(lyr);
+    const info=document.getElementById('stBreaksInfo');
+    if(info && lyr._breaks) info.innerHTML='<b>Class breaks:</b> '+lyr._breaks.map(b=>fmtNum(b)).join(' | ');
+  };
+  host.querySelectorAll('input[type=number]').forEach(inp=>{
+    inp.onchange=()=>{
+      const cur=manualBreakValues(lyr);
+      cur[+inp.getAttribute('data-i')]=parseFloat(inp.value);
+      writeManualBreaks(lyr, cur);
+      renderManualBreaks(lyr); apply();
+    };
+  });
+  host.querySelectorAll('button[data-del]').forEach(b=>{
+    b.onclick=()=>{
+      const cur=manualBreakValues(lyr);
+      cur.splice(+b.getAttribute('data-del'),1);
+      writeManualBreaks(lyr, cur);
+      renderManualBreaks(lyr); apply();
+    };
+  });
+  const addBtn=document.getElementById('stManualAdd');
+  if(addBtn) addBtn.onclick=()=>{
+    const cur=manualBreakValues(lyr);
+    const last=cur.length? cur[cur.length-1] : (isFinite(lo)?lo:0);
+    cur.push(+(last + (isFinite(hi)? (hi-last)/2 : 1)).toFixed(2));
+    writeManualBreaks(lyr, cur);
+    renderManualBreaks(lyr); apply();
+  };
+  const evenBtn=document.getElementById('stManualEven');
+  if(evenBtn) evenBtn.onclick=()=>{
+    const n=Math.max(2, lyr.style.classes||5);
+    const out=[];
+    for(let i=1;i<n;i++) out.push(+(lo+(hi-lo)*i/n).toFixed(2));
+    writeManualBreaks(lyr, out);
+    renderManualBreaks(lyr); apply();
+  };
+}
+
+/* Class ranges are printed so that neighbouring classes can't both claim the
+   same number: every class after the first starts one decimal place above the
+   break it shares with the class below. */
+function classRangeLabel(lyr, i){
+  const b=lyr._breaks;
+  const step=classLabelStep(b);
+  const lo = i===0 ? b[i] : b[i]+step;
+  return fmtNum(lo)+' – '+fmtNum(b[i+1]);
+}
+function classLabelStep(breaks){
+  /* one decimal place unless the data is coarser than that */
+  const span=Math.abs(breaks[breaks.length-1]-breaks[0]);
+  return span>=100 ? 1 : 0.1;
+}
+/* editable colour per class, highest class first (as it reads on a legend) */
 function renderClassColorList(lyr){
   const host=document.getElementById('stClassList');
   if(!host) return;
   const st=lyr.style;
   computeClassification(lyr);
   if(!lyr._breaks||!lyr._colors){ host.innerHTML=''; return; }
-  host.innerHTML=lyr._colors.map((c,i)=>
-    '<div class="cat-row"><input type="color" data-i="'+i+'" value="'+toHex(c)+'">'+
-    '<span>'+fmtNum(lyr._breaks[i])+' – '+fmtNum(lyr._breaks[i+1])+'</span></div>').join('');
+  const idx=lyr._colors.map((_,i)=>i).reverse();      /* largest values at the top */
+  host.innerHTML=idx.map(i=>
+    '<div class="cat-row">'+
+      '<input type="color" data-i="'+i+'" value="'+toHex(isNoColour(lyr._colors[i])?'#888888':lyr._colors[i])+'" '+
+        (isNoColour(lyr._colors[i])?'disabled':'')+'>'+
+      '<span>'+classRangeLabel(lyr,i)+'</span>'+
+      '<label class="nocol"><input type="checkbox" data-none="'+i+'" '+(isNoColour(lyr._colors[i])?'checked':'')+'> none</label>'+
+    '</div>').join('');
+  const refresh=()=>{
+    renderLayer(lyr);
+    const prev=document.querySelector('#mk-tab-style .ramp-preview');
+    if(prev) prev.innerHTML=lyr._colors.map(cc=>'<div style="background:'+(isNoColour(cc)?'transparent':cc)+'"></div>').join('');
+  };
+  const setClass=(i,val)=>{
+    st.classColors=st.classColors? st.classColors.slice() : [];
+    st.classColors[i]=val;
+    computeClassification(lyr);
+    refresh();
+  };
   host.querySelectorAll('input[type=color]').forEach(inp=>{
-    inp.oninput=()=>{
-      const i=+inp.getAttribute('data-i');
-      st.classColors=st.classColors? st.classColors.slice() : [];
-      st.classColors[i]=inp.value;
-      renderLayer(lyr);
-      const prev=document.querySelector('#mk-tab-style .ramp-preview');
-      if(prev){
-        const cols=lyr._colors;
-        prev.innerHTML=cols.map(cc=>'<div style="background:'+cc+'"></div>').join('');
-      }
+    inp.oninput=()=>setClass(+inp.getAttribute('data-i'), inp.value);
+  });
+  host.querySelectorAll('input[data-none]').forEach(chk=>{
+    chk.onchange=()=>{
+      const i=+chk.getAttribute('data-none');
+      const picker=host.querySelector('input[type=color][data-i="'+i+'"]');
+      picker.disabled=chk.checked;
+      setClass(i, chk.checked ? NO_COLOUR : picker.value);
     };
   });
 }
@@ -3297,14 +3563,31 @@ function legendSpecForLayer(lyr){
   } else if(st.mode==='grad'){
     computeClassification(lyr);
     if(lyr._breaks){
-      for(let i=0;i<lyr._breaks.length-1;i++){
-        items.push({color:lyr._colors[i], label:fmtNum(lyr._breaks[i])+' – '+fmtNum(lyr._breaks[i+1]), shape:shp_});
+      /* highest class first, and ranges that don't share an endpoint */
+      for(let i=lyr._breaks.length-2;i>=0;i--){
+        items.push({color:lyr._colors[i], label:classRangeLabel(lyr,i), shape:shp_});
+      }
+    }
+  } else if(st.mode==='prop'){
+    sizeRange(lyr);
+    if(lyr._vmax!=null){
+      [lyr._vmax, (lyr._vmin+lyr._vmax)/2, lyr._vmin].forEach(v=>{
+        items.push({color:st.color, label:fmtNum(v), shape:'circle', size:Math.round(propRadius(lyr,v)*2)});
+      });
+    }
+  } else if(st.mode==='dot'){
+    items.push({color:st.dotColor||'#b3452f', label:'1 dot = '+fmtNum(st.dotValue)+' '+(st.field||''), shape:'circle', size:Math.max(4,(st.dotSize||2.2)*2)});
+  } else if(st.mode==='bivariate'){
+    computeColorClassification(lyr); sizeRange(lyr);
+    if(lyr._cBreaks){
+      for(let i=lyr._cBreaks.length-2;i>=0;i--){
+        items.push({color:lyr._cColors[i], label:fmtNum(lyr._cBreaks[i])+' – '+fmtNum(lyr._cBreaks[i+1]), shape:shp_});
       }
     }
   } else if(st.mode==='gradSize'){
     sizeRange(lyr);
     if(lyr._vmax!=null){
-      [[lyr._vmin,st.minR],[(lyr._vmin+lyr._vmax)/2, gradRadius(lyr,(lyr._vmin+lyr._vmax)/2)],[lyr._vmax,st.maxR]].forEach(([v,r])=>{
+      [[lyr._vmax,st.maxR],[(lyr._vmin+lyr._vmax)/2, gradRadius(lyr,(lyr._vmin+lyr._vmax)/2)],[lyr._vmin,st.minR]].forEach(([v,r])=>{
         items.push({color:st.color, label:fmtNum(v), shape:'circle', size:Math.round(r*2)});
       });
     }
@@ -3401,16 +3684,47 @@ document.getElementById('mkSendBtn').onclick=()=>{
   openModal('modal-send');
   document.getElementById('sendStatus').textContent='';
 };
+/* Labels are drawn into the captured image by default. Sending them as separate
+   text objects instead lets them be nudged, restyled or deleted on the page. */
+function collectLabelPlacements(){
+  const out=[];
+  const mapEl=document.getElementById('mk-map');
+  const mr=mapEl.getBoundingClientRect();
+  mkLayers.filter(l=>l.visible && l.labels && l.labels.enabled && l.labels.field).forEach(l=>{
+    visibleFeatures(l).forEach(f=>{
+      const v=(f.properties||{})[l.labels.field];
+      if(v==null||v==='') return;
+      let c;
+      try{ c=turf.center(f).geometry.coordinates; }catch(_){ return; }
+      const pt=mkMap.latLngToContainerPoint([c[1],c[0]]);
+      if(pt.x<0||pt.y<0||pt.x>mr.width||pt.y>mr.height) return;   /* off the capture */
+      out.push({text:String(v), xFrac:pt.x/mr.width, yFrac:pt.y/mr.height,
+        size:l.labels.size, color:l.labels.color, font:l.labels.font,
+        bold:l.labels.bold, italic:l.labels.italic, halo:l.labels.halo});
+    });
+  });
+  return out.slice(0, 400);       /* a sane ceiling for a printed page */
+}
+function hideLabelsForCapture(on){
+  mkLayers.forEach(l=>{
+    const el=document.getElementById('labelcss-'+l.id);
+    if(!el) return;
+    if(on) el.dataset.saved=el.textContent, el.textContent='.mk-label-'+l.id+'{display:none !important;}';
+    else if(el.dataset.saved!=null){ el.textContent=el.dataset.saved; delete el.dataset.saved; }
+  });
+}
 document.getElementById('sendGoBtn').onclick=()=>{
   const status=document.getElementById('sendStatus');
   const wantLegend=document.getElementById('sendLegend').checked;
   const wantScale=document.getElementById('sendScale').checked;
+  const wantLabels=document.getElementById('sendLabels').checked;
   const specs = wantLegend ? mkLayers.filter(l=>l.visible).map(legendSpecForLayer).filter(s=>s.items.length) : [];
+  const labels = wantLabels ? collectLabelPlacements() : [];
   if(projActive){
     /* projected view: capture the projection canvas directly */
     const dataURL=document.getElementById('projCanvas').toDataURL('image/png');
     closeModal('modal-send');
-    window.__layout.receiveFromMaker(dataURL, null, specs, false);
+    window.__layout.receiveFromMaker(dataURL, null, specs, false, labels);
     if(wantScale) toast('No scale bar added — scale varies across a projected map.', 4200);
     return;
   }
@@ -3419,16 +3733,19 @@ document.getElementById('sendGoBtn').onclick=()=>{
   mapEl.classList.add('capturing');
   mkMap.closePopup();
   const CAPSCALE=2;
+  if(wantLabels) hideLabelsForCapture(true);      /* they arrive as text instead */
   const center=mkMap.getCenter(), zoom=mkMap.getZoom();
   const metersPerScreenPx = 156543.03392 * Math.cos(center.lat*Math.PI/180) / Math.pow(2, zoom);
   html2canvas(mapEl, {useCORS:true, scale:CAPSCALE, logging:false}).then(snap=>{
     mapEl.classList.remove('capturing');
+    if(wantLabels) hideLabelsForCapture(false);
     const dataURL=snap.toDataURL('image/png');
     const metersPerImagePx = metersPerScreenPx / CAPSCALE;
     closeModal('modal-send');
-    window.__layout.receiveFromMaker(dataURL, metersPerImagePx, specs, wantScale);
+    window.__layout.receiveFromMaker(dataURL, metersPerImagePx, specs, wantScale, labels);
   }).catch(err=>{
     mapEl.classList.remove('capturing');
+    if(wantLabels) hideLabelsForCapture(false);
     status.textContent='Capture failed: '+err.message+'. Try a different basemap (some tile servers block capture).';
   });
 };
@@ -3957,7 +4274,7 @@ function zoomFit(mode){
   applyLayoutZoom(mode==='fitwidth' ? availW/w : Math.min(availW/w, availH/h));
   wrap.scrollTop=0;
 }
-function zoomToSelection(){
+function zoomToElementSelection(){
   const o=canvas.getActiveObject();
   if(!o){ toast('Select something first.'); return; }
   const wrap=document.getElementById('stage-wrap');
@@ -3987,7 +4304,7 @@ function zoomToSelection(){
       menu.classList.add('hidden');
       const z=b.getAttribute('data-z');
       if(z==='fitpage'||z==='fitwidth') zoomFit(z);
-      else if(z==='selection') zoomToSelection();
+      else if(z==='selection') zoomToElementSelection();
       else applyLayoutZoom(parseFloat(z));
     };
   });
@@ -4226,7 +4543,22 @@ function buildLegendGroup(title, items, frame, text){
   const fr=Object.assign({}, LEGEND_FRAME_DEFAULT, frame||{});
   const tx=legendTextOf({text:text});
   if(isGoogleFont(tx.title.font)||isGoogleFont(tx.heading.font)||isGoogleFont(tx.label.font)) ensureGoogleFonts();
-  const padding=10, swW=tx.swatch, width=Math.max(150, 210+(swW-14));
+  const padding=10, swW=tx.swatch;
+  /* measure the widest row so the panel can hug its contents rather than
+     always being 210px wide — a border then sits tight around the text */
+  const measure=(txt, role)=>{
+    const t=new fabric.Text(String(txt), legendFontOpts(role));
+    return t.width;
+  };
+  let widest=measure(title||'Legend', tx.title);
+  items.forEach(it=>{
+    const w = it.header ? measure(it.label, tx.heading)
+                        : swW+10+measure(it.label, tx.label);
+    if(w>widest) widest=w;
+  });
+  const fitWidth = (fr.fit!==false);
+  const width = fitWidth ? Math.max(90, Math.round(widest+padding*2))
+                         : Math.max(150, 210+(swW-14));
   const gap=tx.rowSpacing;
   let y=padding+tx.title.size+12;
   const parts=[];
@@ -4922,6 +5254,7 @@ function showPropertiesForSelection(e){
           <div class="field"><label>Swatch size</label><input type="number" id="pLegSwatch" value="${legendTextOf(obj.data).swatch}" min="6" max="40" step="1"></div>
         </div>
       <div class="divider"></div><h3>Legend panel</h3>
+      <div class="checkline"><input type="checkbox" id="pLegFit" ${fr.fit!==false?'checked':''}><label for="pLegFit" style="margin:0;color:var(--text);">Trim the panel to fit its contents</label></div>
       <div class="checkline"><input type="checkbox" id="pLegBg" ${fr.bg?'checked':''}><label for="pLegBg" style="margin:0;color:var(--text);">Background fill</label></div>
       <div class="row2" id="pLegBgRow" ${fr.bg?'':'style="display:none"'}>
         <div class="field"><label>Fill colour</label><input type="color" id="pLegBgColor" value="${fr.bgColor}"></div>
@@ -5098,6 +5431,7 @@ function showPropertiesForSelection(e){
     const applyFrame=()=>{
       const b=readBorderControls('pLegB');
       obj.data.frame={
+        fit: g('pLegFit') ? g('pLegFit').checked : true,
         bg: g('pLegBg').checked,
         bgColor: g('pLegBgColor').value,
         bgOpacity: parseFloat(g('pLegBgOp').value),
@@ -5108,6 +5442,7 @@ function showPropertiesForSelection(e){
       const ng=rebuildLegendOnCanvas(obj);
       showPropertiesForSelection({selected:[ng]});
     };
+    if(g('pLegFit')) g('pLegFit').onchange=applyFrame;
     g('pLegBg').onchange=applyFrame;
     g('pLegBgColor').onchange=applyFrame;
     g('pLegBgOp').onchange=applyFrame;
@@ -5385,7 +5720,7 @@ document.getElementById('insetAddToLayoutBtn').onclick=()=>{
 };
 
 /* ---------- receive from Map Maker ---------- */
-function receiveFromMaker(dataURL, metersPerImagePx, legendSpecs, wantScale){
+function receiveFromMaker(dataURL, metersPerImagePx, legendSpecs, wantScale, labelPlacements){
   switchModule('layout');
   fabric.Image.fromURL(dataURL, img=>{
     const calibration = metersPerImagePx!=null ? {constant:metersPerImagePx, calibratedAt:Date.now()} : null;
@@ -5399,6 +5734,24 @@ function receiveFromMaker(dataURL, metersPerImagePx, legendSpecs, wantScale){
     }
     const s=img.scaleX;
     const frame=addObj(img,{type:'mapFrame', calibration, fromMaker:true});
+    /* labels asked for as text land on top of the frame, each movable */
+    if(labelPlacements && labelPlacements.length){
+      const fw=img.width*s, fh=img.height*s;
+      labelPlacements.forEach(lp=>{
+        const t=new fabric.IText(lp.text,{
+          left: img.left + lp.xFrac*fw,
+          top:  img.top  + lp.yFrac*fh,
+          originX:'center', originY:'center',
+          fontSize: lp.size||11, fill: lp.color||'#22293a',
+          fontFamily: lp.font||'Arial', fontWeight: lp.bold?'700':'400',
+          fontStyle: lp.italic?'italic':'normal'
+        });
+        if(lp.halo) t.set({stroke:'#ffffff', strokeWidth:2.4, paintFirst:'stroke'});
+        addObj(t,{type:'text', fromMakerLabel:true});
+      });
+      canvas.setActiveObject(frame);
+      toast(labelPlacements.length+' labels added as text — drag any of them to reposition.', 4600);
+    }
     let yCursor=img.top+img.height*s+14;
     const legendPh=firstPlaceholder('legend');
     if(legendSpecs.length){
