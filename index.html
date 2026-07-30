@@ -1009,9 +1009,10 @@
     <h2>Share this map</h2>
     <p class="kv" id="shareIntro">Your styled, interactive map is packed into a link — no upload, no account, nothing sent to a server. Anyone who opens the link sees the live map: pan, zoom and click. Paste the embed code into ArcGIS StoryMaps (an <b>Embed</b> block) or any web page.</p>
     <div class="field"><label>Share link</label>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;gap:6px;align-items:center;">
         <input type="text" id="shareLink" readonly style="flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:6px;font-size:11.5px;">
         <button class="btn small secondary" id="shareCopyLink">Copy</button>
+        <a id="shareOpenLink" href="#" target="_blank" rel="noopener" class="btn small light" style="text-decoration:none;">View in browser ↗</a>
       </div>
     </div>
     <div class="field"><label>Embed code (iframe)</label>
@@ -8328,7 +8329,11 @@ function captureMakerMap(){
    a legend and an open basemap. Because the styling is precomputed, the file
    doesn't need any of Carto Studio's engine — it just reads the baked styles.
    The result is hostable anywhere and embeddable via an <iframe>. */
-function bakeFeatureStyle(lyr, f){
+/* compact=true is for the share link, which runs inside Carto Studio and so can
+   rebuild a symbol from its name — storing the marker name (a few bytes) instead
+   of a full SVG string on every feature. The standalone embed file has no engine,
+   so it keeps the baked SVG (compact=false). */
+function bakeFeatureStyle(lyr, f, compact){
   const st=lyr.style;
   const s=featureStyle(lyr, f);
   const cs={ stroke:s.color, w:s.weight, fo:s.fillOpacity, so:s.opacity,
@@ -8338,24 +8343,31 @@ function bakeFeatureStyle(lyr, f){
     if(st.symbol && st.symbol!=='circle'){
       cs.t='i';
       cs.size=Math.round(cs.r*2.4);
-      cs.svg=symbolSvg(st.symbol, paintValue(cs.fill), isNoColour(st.strokeColor)?null:st.strokeColor, st.strokeWeight);
+      if(compact){ cs.sym=st.symbol; cs.sw=st.strokeWeight; }   /* rebuilt in the viewer */
+      else cs.svg=symbolSvg(st.symbol, paintValue(cs.fill), isNoColour(st.strokeColor)?null:st.strokeColor, st.strokeWeight);
     } else cs.t='c';
   }
   return cs;
 }
-function embedLayerData(lyr){
+/* trim coordinate precision for the share link (~1 m at 5 decimals) to save room */
+function roundGeom(g, dp){
+  const m=Math.pow(10,dp);
+  const rnd=a=>Array.isArray(a[0]) ? a.map(rnd) : [Math.round(a[0]*m)/m, Math.round(a[1]*m)/m];
+  try{ return {type:g.type, coordinates:rnd(g.coordinates)}; }catch(_){ return g; }
+}
+function embedLayerData(lyr, compact){
   const st=lyr.style;
   /* dot-density draws as scattered points, so bake it that way */
   if(lyr.geom==='polygon' && st.mode==='dot'){
     const dots=dotDensityPoints(lyr).map(([lat,lng])=>({type:'Feature',
       properties:{_cs:{t:'c', r:Math.max(1,st.dotSize||2.2), fill:st.dotColor||'#b3452f', stroke:st.dotColor||'#b3452f', w:0, fo:1, so:1}},
-      geometry:{type:'Point', coordinates:[lng,lat]}}));
+      geometry:{type:'Point', coordinates:compact?[Math.round(lng*1e5)/1e5,Math.round(lat*1e5)/1e5]:[lng,lat]}}));
     return {name:lyr.name, geom:'point', fc:{type:'FeatureCollection', features:dots}};
   }
   const feats=visibleFeatures(lyr).map(f=>({
     type:'Feature',
-    properties:Object.assign({}, f.properties, {_cs:bakeFeatureStyle(lyr,f)}),
-    geometry:f.geometry
+    properties:Object.assign({}, f.properties, {_cs:bakeFeatureStyle(lyr,f,compact)}),
+    geometry: compact ? roundGeom(f.geometry, 5) : f.geometry
   }));
   return {name:lyr.name, geom:lyr.geom, fc:{type:'FeatureCollection', features:feats}};
 }
@@ -8551,7 +8563,7 @@ async function decodeShare(str){
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 function buildSharePayload(){
-  const layers=mkLayers.filter(l=>l.visible).map(embedLayerData).filter(d=>d.fc.features.length);
+  const layers=mkLayers.filter(l=>l.visible).map(l=>embedLayerData(l, true)).filter(d=>d.fc.features.length);
   const view = mkMap ? {c:[+mkMap.getCenter().lat.toFixed(5), +mkMap.getCenter().lng.toFixed(5)], z:mkMap.getZoom()} : {c:[20,0], z:2};
   const rec=projectsCache.find(p=>p.id===currentProjectId);
   return {v:21, title:(rec?rec.name:'Map'), basemap:mkBasemapKey, view, legend:embedLegendHtml(), layers};
@@ -8573,16 +8585,21 @@ async function openShareDialog(){
   try{ enc=await encodeShare(buildSharePayload()); }
   catch(e){ toast('Could not build the share link: '+e.message, 4000); return; }
   const url=shareBaseURL()+'#s='+enc;
-  const linkEl=document.getElementById('shareLink'), embEl=document.getElementById('shareEmbed'), noteEl=document.getElementById('shareNote');
-  const LIMIT=30000;    /* keep well inside iframe-src / StoryMaps limits */
-  if(url.length>LIMIT){
-    linkEl.value=''; embEl.value='';
-    noteEl.innerHTML='This map is a little too big to fit in a link ('+Math.round(url.length/1024)+' KB). Use <b>Export ▸ Interactive web map</b> to save an HTML file and publish it to a free host instead — that works at any size.';
+  const linkEl=document.getElementById('shareLink'), embEl=document.getElementById('shareEmbed'),
+        noteEl=document.getElementById('shareNote'), openEl=document.getElementById('shareOpenLink');
+  const HARD=600000;   /* modern browsers handle very long hash URLs; keep a generous ceiling */
+  const SOFT=120000;   /* above this, some embed hosts may balk — warn but still allow */
+  if(url.length>HARD){
+    linkEl.value=''; embEl.value=''; if(openEl) openEl.style.display='none';
+    noteEl.innerHTML='This map is too big to fit in a link ('+Math.round(url.length/1024)+' KB). Use <b>Export ▸ Interactive web map</b> to save an HTML file and publish it to a free host instead — that works at any size.';
     openModal('modal-share'); return;
   }
   linkEl.value=url;
   embEl.value='<iframe src="'+esc(url)+'" width="100%" height="500" style="border:0;" loading="lazy" allowfullscreen title="Interactive map"></iframe>';
-  noteEl.innerHTML='The whole map rides inside the link, so it opens anywhere you paste it. For others to open it, Carto Studio must be online at a stable address (your published copy) — a link made from a file on your own computer only works on your computer.';
+  if(openEl){ openEl.style.display=''; openEl.href=url; }
+  let note='The whole map rides inside the link, so it opens anywhere you paste it. For others to open it, Carto Studio must be online at a stable address (your published copy) — a link made from a file on your own computer only works on your computer.';
+  if(url.length>SOFT) note='This is a large map, so the link is long ('+Math.round(url.length/1024)+' KB). It works in a browser, but a few embed platforms may reject very long links — if one does, use <b>Export ▸ Interactive web map</b> instead. '+note;
+  noteEl.innerHTML=note;
   openModal('modal-share');
 }
 (function(){
@@ -8601,7 +8618,11 @@ const SV_BM_LABELS={'ofm-positron':'Positron (light)','ofm-bright':'Bright','ofm
 function svStyleFn(f){ const s=f.properties._cs||{}; return {color:s.stroke||'#333', weight:s.w==null?1:s.w,
   opacity:s.so==null?1:s.so, fillColor:s.fill||'#3388ff', fillOpacity:s.fo==null?0.6:s.fo, dashArray:s.dash||null}; }
 function svPtLayer(f,ll){ const s=f.properties._cs||{};
-  if(s.t==='i') return L.marker(ll,{icon:L.divIcon({className:'sv-mk',html:s.svg,iconSize:[s.size,s.size],iconAnchor:[s.size/2,s.size/2]})});
+  if(s.t==='i'){
+    /* a compact share stores the symbol name; rebuild its SVG here */
+    const html = s.svg || (s.sym ? symbolSvg(s.sym, paintValue(s.fill), isNoColour(s.stroke)?null:s.stroke, s.sw) : '');
+    return L.marker(ll,{icon:L.divIcon({className:'sv-mk',html:html,iconSize:[s.size,s.size],iconAnchor:[s.size/2,s.size/2]})});
+  }
   return L.circleMarker(ll,{radius:s.r||5, color:s.stroke||'#333', weight:s.w==null?1:s.w, opacity:s.so==null?1:s.so,
     fillColor:s.fill||'#3388ff', fillOpacity:s.fo==null?0.8:s.fo}); }
 function svPopup(f,layer){ const p=f.properties||{}; let r='';
