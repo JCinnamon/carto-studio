@@ -185,6 +185,22 @@
   .colour-row input[type=color]:disabled{opacity:.35;}
   .nocol{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap;margin:0;}
   .nocol input{margin:0;}
+  /* ---- share viewer (a read-only map opened from a share link) ---- */
+  #shareViewer{position:fixed;inset:0;z-index:3000;background:#fff;}
+  #shareViewer .sv-map{position:absolute;inset:0;}
+  .sv-legend{background:rgba(255,255,255,.93);padding:8px 10px;border-radius:6px;
+    box-shadow:0 1px 6px rgba(0,0,0,.25);font-size:12px;max-height:46%;overflow:auto;line-height:1.5;}
+  .sv-legend .lg-title{font-weight:700;margin:4px 0 3px;} .sv-legend .lg-title:first-child{margin-top:0;}
+  .sv-legend .lg-row{display:flex;align-items:center;gap:6px;}
+  .sv-legend .lg-sw{display:inline-block;width:13px;height:13px;border:1px solid rgba(0,0,0,.35);flex-shrink:0;}
+  .sv-legend .lg-line{height:3px;border:none;}
+  .sv-basemap{background:rgba(255,255,255,.93);padding:5px 7px;border-radius:6px;box-shadow:0 1px 6px rgba(0,0,0,.25);}
+  .sv-basemap select{font-size:12px;border:1px solid var(--line);border-radius:4px;padding:3px 5px;max-width:190px;}
+  .sv-brand{background:rgba(255,255,255,.9);padding:3px 8px;border-radius:5px;font-size:11px;color:var(--muted);
+    box-shadow:0 1px 4px rgba(0,0,0,.2);}
+  .sv-mk svg{width:100%;height:100%;display:block;}
+  .sv-popup table{border-collapse:collapse;} .sv-popup td{padding:2px 6px;border-bottom:1px solid #eee;vertical-align:top;}
+  .sv-popup td.k{color:#666;font-weight:600;}
   /* ---- custom colour picker ----
      The native <input type=color> can't carry a "no colour" swatch, so every one
      of them is replaced by this button, and the input itself is kept offscreen
@@ -480,10 +496,14 @@
     <button class="btn ghost small" id="btnSync" title="Save projects to a synced folder as well as this browser">☁ <span id="syncState">Sync off</span></button>
   </div>
   <div class="grp">
+    <button class="btn small" id="btnShareOpen" title="Share this map as a live link or embed">🔗 Share</button>
     <button class="btn small" id="btnExportOpen">Export ▸</button>
     <button class="btn ghost small" id="btnHelp">Help</button>
   </div>
 </div>
+
+<!-- ================= SHARE VIEWER (read-only, opened from a share link) ================= -->
+<div id="shareViewer" class="hidden"></div>
 
 <!-- ================= HOME / PROJECTS ================= -->
 <div id="module-home" class="module hidden">
@@ -980,6 +1000,29 @@
     <div class="modal-close-row">
       <button class="btn ghost" onclick="closeModal('modal-export')">Cancel</button>
       <button class="btn" id="doExportBtn">Export</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-share">
+  <div class="modal">
+    <h2>Share this map</h2>
+    <p class="kv" id="shareIntro">Your styled, interactive map is packed into a link — no upload, no account, nothing sent to a server. Anyone who opens the link sees the live map: pan, zoom and click. Paste the embed code into ArcGIS StoryMaps (an <b>Embed</b> block) or any web page.</p>
+    <div class="field"><label>Share link</label>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="shareLink" readonly style="flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:6px;font-size:11.5px;">
+        <button class="btn small secondary" id="shareCopyLink">Copy</button>
+      </div>
+    </div>
+    <div class="field"><label>Embed code (iframe)</label>
+      <div style="display:flex;gap:6px;">
+        <textarea id="shareEmbed" readonly style="flex:1;min-width:0;height:70px;padding:8px;border:1px solid var(--line);border-radius:6px;font-family:ui-monospace,Menlo,monospace;font-size:11px;"></textarea>
+        <button class="btn small secondary" id="shareCopyEmbed">Copy</button>
+      </div>
+    </div>
+    <p class="kv" id="shareNote"></p>
+    <div class="modal-close-row">
+      <button class="btn ghost" onclick="closeModal('modal-share')">Done</button>
     </div>
   </div>
 </div>
@@ -8475,7 +8518,138 @@ document.getElementById('doExportBtn').onclick=()=>{
   }
 };
 
+/* ---------- share: a whole map packed into a link ----------
+   The visible layers (with styles baked in), the basemap, the view and a legend
+   are gzipped into the URL hash. Opening that link runs Carto Studio in a
+   read-only viewer that renders the map live — no upload, no host, no account,
+   nothing sent anywhere. Big maps overflow a URL, so there's a size guard that
+   points to the file export instead. */
+function bytesToB64url(bytes){
+  let bin=''; const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk) bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk));
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64urlToBytes(s){
+  s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='=';
+  const bin=atob(s); const out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out;
+}
+async function encodeShare(obj){
+  const json=JSON.stringify(obj);
+  if(typeof CompressionStream==='function'){
+    const buf=await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+    return 'g'+bytesToB64url(new Uint8Array(buf));
+  }
+  return 'p'+bytesToB64url(new TextEncoder().encode(json));
+}
+async function decodeShare(str){
+  const tag=str[0], bytes=b64urlToBytes(str.slice(1));
+  if(tag==='g' && typeof DecompressionStream==='function'){
+    const text=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    return JSON.parse(text);
+  }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+function buildSharePayload(){
+  const layers=mkLayers.filter(l=>l.visible).map(embedLayerData).filter(d=>d.fc.features.length);
+  const view = mkMap ? {c:[+mkMap.getCenter().lat.toFixed(5), +mkMap.getCenter().lng.toFixed(5)], z:mkMap.getZoom()} : {c:[20,0], z:2};
+  const rec=projectsCache.find(p=>p.id===currentProjectId);
+  return {v:21, title:(rec?rec.name:'Map'), basemap:mkBasemapKey, view, legend:embedLegendHtml(), layers};
+}
+function shareBaseURL(){
+  return (location.protocol==='file:' || location.origin==='null')
+    ? location.href.split('#')[0]
+    : location.origin+location.pathname;
+}
+function copyToClipboard(text, btn){
+  const done=()=>{ if(btn){ const t=btn.textContent; btn.textContent='Copied ✓'; setTimeout(()=>btn.textContent=t,1500);} };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done,()=>done());
+  else done();
+}
+async function openShareDialog(){
+  if(!mkLayers.some(l=>l.visible)){ toast('Turn on at least one layer to share.'); return; }
+  toast('Packing the map…');
+  let enc;
+  try{ enc=await encodeShare(buildSharePayload()); }
+  catch(e){ toast('Could not build the share link: '+e.message, 4000); return; }
+  const url=shareBaseURL()+'#s='+enc;
+  const linkEl=document.getElementById('shareLink'), embEl=document.getElementById('shareEmbed'), noteEl=document.getElementById('shareNote');
+  const LIMIT=30000;    /* keep well inside iframe-src / StoryMaps limits */
+  if(url.length>LIMIT){
+    linkEl.value=''; embEl.value='';
+    noteEl.innerHTML='This map is a little too big to fit in a link ('+Math.round(url.length/1024)+' KB). Use <b>Export ▸ Interactive web map</b> to save an HTML file and publish it to a free host instead — that works at any size.';
+    openModal('modal-share'); return;
+  }
+  linkEl.value=url;
+  embEl.value='<iframe src="'+esc(url)+'" width="100%" height="500" style="border:0;" loading="lazy" allowfullscreen title="Interactive map"></iframe>';
+  noteEl.innerHTML='The whole map rides inside the link, so it opens anywhere you paste it. For others to open it, Carto Studio must be online at a stable address (your published copy) — a link made from a file on your own computer only works on your computer.';
+  openModal('modal-share');
+}
+(function(){
+  const b=document.getElementById('btnShareOpen');
+  if(b) b.onclick=()=>requireProject(openShareDialog);
+  const cl=document.getElementById('shareCopyLink'); if(cl) cl.onclick=()=>copyToClipboard(document.getElementById('shareLink').value, cl);
+  const ce=document.getElementById('shareCopyEmbed'); if(ce) ce.onclick=()=>copyToClipboard(document.getElementById('shareEmbed').value, ce);
+})();
+
+/* ---------- the read-only share viewer ---------- */
+function isShareMode(){ return /[#&]s=[^&]+/.test(location.hash); }
+function shareHashPayload(){ const m=location.hash.match(/[#&]s=([^&]+)/); return m? m[1] : null; }
+const SV_BM_LABELS={'ofm-positron':'Positron (light)','ofm-bright':'Bright','ofm-liberty':'Liberty (streets)',
+  'ofm-dark':'Dark','ofm-fiord':'Fiord','osm':'OpenStreetMap','s2cloudless':'Sentinel-2 Cloudless',
+  'satellite':'Satellite','satellite-hybrid':'Satellite Hybrid','none':'None'};
+function svStyleFn(f){ const s=f.properties._cs||{}; return {color:s.stroke||'#333', weight:s.w==null?1:s.w,
+  opacity:s.so==null?1:s.so, fillColor:s.fill||'#3388ff', fillOpacity:s.fo==null?0.6:s.fo, dashArray:s.dash||null}; }
+function svPtLayer(f,ll){ const s=f.properties._cs||{};
+  if(s.t==='i') return L.marker(ll,{icon:L.divIcon({className:'sv-mk',html:s.svg,iconSize:[s.size,s.size],iconAnchor:[s.size/2,s.size/2]})});
+  return L.circleMarker(ll,{radius:s.r||5, color:s.stroke||'#333', weight:s.w==null?1:s.w, opacity:s.so==null?1:s.so,
+    fillColor:s.fill||'#3388ff', fillOpacity:s.fo==null?0.8:s.fo}); }
+function svPopup(f,layer){ const p=f.properties||{}; let r='';
+  for(const k in p){ if(k.charAt(0)==='_') continue; r+='<tr><td class="k">'+esc(k)+'</td><td>'+(p[k]==null?'':esc(String(p[k])))+'</td></tr>'; }
+  if(r) layer.bindPopup('<div class="sv-popup"><table>'+r+'</table></div>'); }
+let svMap=null, svBmLayers=[];
+function svSetBasemap(key){
+  svBmLayers.forEach(l=>{ try{ svMap.removeLayer(l); }catch(_){} }); svBmLayers=[];
+  const bm=BASEMAPS[key];
+  if(bm && bm.kind==='vector'){
+    const gl=(typeof makeVectorBasemap==='function') ? makeVectorBasemap(bm) : null;
+    if(gl){ try{ gl.addTo(svMap); svBmLayers.push(gl); }catch(_){ gl && svMap.removeLayer(gl); } }
+    if(!svBmLayers.length){ const t=L.tileLayer(BASEMAPS.osm.urls[0],{maxZoom:19,attribution:OSM_ATTR}); t.addTo(svMap); svBmLayers.push(t); }
+  } else if(bm && bm.kind==='raster'){
+    bm.urls.forEach((u,i)=>{ const t=L.tileLayer(u,{maxZoom:bm.max,maxNativeZoom:bm.maxNative||bm.max,attribution:i===0?bm.attr:''}); t.addTo(svMap); svBmLayers.push(t); });
+  }
+}
+async function enterShareViewer(){
+  let payload;
+  try{ payload=await decodeShare(shareHashPayload()); }
+  catch(e){ document.body.innerHTML='<div style="font-family:sans-serif;padding:40px;color:#22293a;">This share link could not be read — it may be incomplete. Ask for the link again.</div>'; return; }
+  document.getElementById('topbar').classList.add('hidden');
+  document.querySelectorAll('.module').forEach(m=>m.classList.add('hidden'));
+  const host=document.getElementById('shareViewer'); host.classList.remove('hidden');
+  const mapDiv=document.createElement('div'); mapDiv.className='sv-map'; host.appendChild(mapDiv);
+  document.title=(payload.title||'Map')+' — Carto Studio';
+  svMap=L.map(mapDiv,{preferCanvas:true});
+  const view=payload.view||{c:[20,0],z:2}; svMap.setView(view.c, view.z);
+  svSetBasemap(BASEMAPS[payload.basemap]?payload.basemap:'ofm-positron');
+  const group=L.featureGroup().addTo(svMap);
+  (payload.layers||[]).forEach(L2=>{ L.geoJSON(L2.fc,{style:svStyleFn, pointToLayer:svPtLayer, onEachFeature:svPopup}).addTo(group); });
+  try{ const b=group.getBounds(); if(b.isValid()) svMap.fitBounds(b,{padding:[24,24]}); }catch(_){}
+  if(payload.legend){ const lg=L.control({position:'bottomright'}); lg.onAdd=()=>{ const d=L.DomUtil.create('div','sv-legend'); d.innerHTML=payload.legend; L.DomEvent.disableScrollPropagation(d); return d; }; lg.addTo(svMap); }
+  const bmCtl=L.control({position:'topright'}); bmCtl.onAdd=()=>{
+    const d=L.DomUtil.create('div','sv-basemap');
+    d.innerHTML='<select title="Basemap">'+Object.keys(BASEMAPS).map(k=>'<option value="'+k+'"'+(k===payload.basemap?' selected':'')+'>'+(SV_BM_LABELS[k]||k)+'</option>').join('')+'</select>';
+    L.DomEvent.disableClickPropagation(d);
+    d.querySelector('select').onchange=e=>svSetBasemap(e.target.value);
+    return d;
+  }; bmCtl.addTo(svMap);
+  const brand=L.control({position:'bottomleft'}); brand.onAdd=()=>{ const d=L.DomUtil.create('div','sv-brand'); d.textContent='Made with Carto Studio'; return d; }; brand.addTo(svMap);
+  window.__svMap=svMap;            /* testing hook */
+  setTimeout(()=>svMap.invalidateSize(), 150);
+}
+
 /* ---------- boot ---------- */
+if(isShareMode()){ enterShareViewer(); }
+else {
 initCanvas();
 initMakerMap();
 
@@ -8545,6 +8719,8 @@ window.addEventListener('beforeunload', ()=>{ if(currentProjectId) saveCurrentPr
 canvas.on('object:modified', markProjectDirty);
 canvas.on('object:added', ()=>{ if(!restoring) markProjectDirty(); });
 canvas.on('object:removed', ()=>{ if(!restoring) markProjectDirty(); });
+
+}  /* end normal (non-share) boot */
 
 })();
 </script>
