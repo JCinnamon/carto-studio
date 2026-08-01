@@ -3,15 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Carto Studio</title>
+<title>Map-O-Matic</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css">
+<!-- Orbitron: the retro-futuristic title face. To try a 1970s-computer look
+     instead, swap the family here and in --title-font below (e.g. 'VT323',
+     'Wallpoet', 'Share Tech Mono'). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap">
 <style>
   :root{
     --navy:#1b2a4a; --navy2:#243660; --teal:#2f7d78; --teal2:#3a9a93;
     --bg:#eef1f5; --panel:#ffffff; --line:#d7dce3; --text:#22293a; --muted:#6b7386;
     --danger:#b3452f; --accent:#e8b23a;
+    --title-font:'Orbitron', 'Segoe UI', system-ui, sans-serif;
   }
+  /* the Map-O-Matic wordmark */
+  #topbar h1, .home-head h2{font-family:var(--title-font);letter-spacing:.06em;}
+  .home-head h2{font-weight:800;}
+  .sv-brand{font-family:var(--title-font);letter-spacing:.04em;}
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--text);background:var(--bg);}
   button{font-family:inherit;cursor:pointer;}
@@ -441,6 +451,14 @@
   #attr-table tr[data-i]{cursor:pointer;}
   #attr-table tr[data-i]:hover td{background:#eef4f3;}
   #attr-table tr.rowsel td,#attr-table tr.rowsel:nth-child(even) td{background:#ffeec2;box-shadow:inset 0 0 0 9999px rgba(255,176,0,.14);}
+  #attr-table.editing td{cursor:text;}
+  #attr-table.editing td[contenteditable]:focus{outline:2px solid var(--teal);outline-offset:-2px;background:#fff;}
+  #attr-table.editing tr[data-i]{cursor:default;}
+  #tblStatsWrap{margin-bottom:8px;overflow:auto;}
+  .stats-table{border-collapse:collapse;font-size:11.5px;width:100%;}
+  .stats-table th{background:var(--navy);color:#fff;padding:4px 8px;text-align:left;white-space:nowrap;}
+  .stats-table td{padding:3px 8px;border-bottom:1px solid #edf0f5;white-space:nowrap;text-align:right;}
+  .stats-table td:first-child{text-align:left;}
 
   #inset-leaflet{width:100%;height:400px;border:1px solid var(--line);border-radius:6px;background:#dde3ea;}
   .inset-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;align-items:center;}
@@ -456,7 +474,7 @@
 <body>
 
 <div id="topbar">
-  <h1>🗺️ Carto Studio</h1>
+  <h1>🗺️ Map-O-Matic</h1>
   <div class="mod-tabs">
     <button id="modMakerBtn" class="active">Map Maker</button>
     <button id="modLayoutBtn">Map Composer</button>
@@ -513,7 +531,7 @@
 <div id="module-home" class="module hidden">
   <div id="home-wrap">
     <div class="home-head">
-      <h2>🗺️ Carto Studio</h2>
+      <h2>🗺️ Map-O-Matic</h2>
       <div style="display:flex;gap:8px;">
         <button class="btn" id="homeNewBtn">+ New project</button>
         <button class="btn secondary" id="homeImportBtn">Import project file</button>
@@ -617,6 +635,8 @@
   <div id="mk-center">
     <div id="mk-toolbar">
       <button class="btn light small" id="mkToggleLeft" title="Show or hide the layers panel">⟨ Layers</button>
+      <button class="btn light small" id="mkUndo" title="Undo (Ctrl+Z)" disabled>↩</button>
+      <button class="btn light small" id="mkRedo" title="Redo (Ctrl+Shift+Z)" disabled>↪</button>
       <span id="geoSearchWrap">
         <input type="text" id="geoSearchInput" placeholder="🔍 Go to place…" autocomplete="off">
         <div id="geoResults" class="hidden"></div>
@@ -741,7 +761,7 @@
       <p><b>Export</b> covers everything: the layout as print-ready PDF/PNG; the Map Maker view as a georeferenced PNG with world file (usable in other GIS software); all data layers as a zip of GeoJSON files; or a full project archive (layout + layers + project file) — the complete package in one download.</p>
     </div>
     <div class="help-step"><b>About this tool.</b>
-      <p>Carto Studio was created by <a href="https://www.jonathancinnamon.com" target="_blank" rel="noopener">Jonathan Cinnamon</a> (Geography, UBC Okanagan). It's free to use and runs entirely in your browser — your data stays on your computer. Basemap tiles and online data sources are the only network requests your data workflow makes.</p>
+      <p>Map-O-Matic was created by <a href="https://www.jonathancinnamon.com" target="_blank" rel="noopener">Jonathan Cinnamon</a> (Geography, UBC Okanagan). It's free to use and runs entirely in your browser — your data stays on your computer. Basemap tiles and online data sources are the only network requests your data workflow makes.</p>
     </div>
     <div class="modal-close-row"><button class="btn" onclick="closeModal('modal-help')">Got it</button></div>
   </div>
@@ -802,11 +822,14 @@
   <div id="tableWinBody">
     <div class="tbl-toolbar">
       <button class="btn small secondary" id="tblCalcBtn">ƒx Field calculator</button>
+      <button class="btn small light" id="tblStatsBtn" title="Show summary statistics for the numeric fields">Σ Statistics</button>
       <button class="btn small light" id="tblFilterBtn">▾ Filter</button>
       <span class="checkline" style="margin:0;"><input type="checkbox" id="attrRespectFilter" checked><label for="attrRespectFilter" style="margin:0;font-size:12px;color:var(--text);">Apply filter to table</label></span>
+      <span class="checkline" style="margin:0;"><input type="checkbox" id="attrEdit"><label for="attrEdit" style="margin:0;font-size:12px;color:var(--text);">Edit cells</label></span>
       <span class="kv" id="attrCount"></span>
     </div>
     <div id="tblFilterWrap" class="hidden"></div>
+    <div id="tblStatsWrap" class="hidden"></div>
     <div id="attr-table-wrap"><table id="attr-table"></table></div>
   </div>
   <div id="tableWinResize" title="Drag to resize"></div>
@@ -1217,7 +1240,7 @@ window.CARTO_PUBLISH = {
 </script>
 <script>
 /* ============================================================
-   Carto Studio
+   Map-O-Matic
    Map Maker (build & symbolize) + Map Composer (compose & export)
    Single-file, client-side. No accounts, no server.
    ============================================================ */
@@ -1910,6 +1933,75 @@ function handleMakerFile(file){
     });
   }
 }
+/* ---------- Map Maker undo / redo ----------
+   Snapshots the whole maker state — layer order, styling, labels, filters and
+   the feature data itself — so styling changes and attribute edits can both be
+   undone. Feature data is cloned up to a cap; beyond it, structure is still
+   undoable but bulk data edits on very large layers are not. */
+const mkHistory={stack:[], idx:-1, max:30};
+let mkRestoring=false, mkBulk=false, mkTouchTimer=null;
+const MK_SNAP_CAP=20000;
+function mkSnapshot(){
+  let total=0; mkLayers.forEach(l=>total+=(l.geojson&&l.geojson.features?l.geojson.features.length:0));
+  const withData=total<=MK_SNAP_CAP;
+  return {sel:mkSelectedId, basemap:mkBasemapKey, withData,
+    layers:mkLayers.map(l=>({id:l.id, datasetId:l.datasetId, name:l.name, geom:l.geom,
+      visible:l.visible, opacity:l.opacity, style:clone(l.style), labels:clone(l.labels), filter:clone(l.filter),
+      geojson: withData? clone(l.geojson) : null}))};
+}
+function updateMkUndoButtons(){
+  const u=document.getElementById('mkUndo'), r=document.getElementById('mkRedo');
+  if(u) u.disabled=mkHistory.idx<=0;
+  if(r) r.disabled=mkHistory.idx>=mkHistory.stack.length-1;
+}
+function mkPushHistory(){
+  if(mkRestoring||mkBulk) return;
+  clearTimeout(mkTouchTimer);
+  const s=mkSnapshot();
+  mkHistory.stack=mkHistory.stack.slice(0, mkHistory.idx+1);
+  mkHistory.stack.push(s);
+  if(mkHistory.stack.length>mkHistory.max){ mkHistory.stack.shift(); }
+  mkHistory.idx=mkHistory.stack.length-1;
+  updateMkUndoButtons();
+}
+function mkTouch(){ if(mkRestoring||mkBulk) return; clearTimeout(mkTouchTimer); mkTouchTimer=setTimeout(mkPushHistory, 350); }
+function mkResetHistory(){ mkHistory.stack=[]; mkHistory.idx=-1; mkRestoring=false; mkBulk=false; mkPushHistory(); }
+function restoreMkSnapshot(s){
+  mkRestoring=true; clearTimeout(mkTouchTimer);
+  mkLayers.forEach(l=>{ try{ if(l.leaflet) mkMap.removeLayer(l.leaflet); }catch(_){}
+    try{ if(l.dotLayer) mkMap.removeLayer(l.dotLayer); }catch(_){}
+    const css=document.getElementById('labelcss-'+l.id); if(css) css.remove(); });
+  mkLayers=s.layers.map(sl=>{
+    const ds=(typeof datasetById==='function')?datasetById(sl.datasetId):null;
+    const gj=sl.geojson ? sl.geojson : (ds? ds.geojson : {type:'FeatureCollection',features:[]});
+    if(sl.geojson && ds) ds.geojson=sl.geojson;   /* keep the shared dataset in step after a data-edit undo */
+    return {id:sl.id, name:sl.name, datasetId:sl.datasetId, geojson:gj, geom:sl.geom,
+      visible:sl.visible, opacity:sl.opacity, style:clone(sl.style), labels:clone(sl.labels), filter:clone(sl.filter),
+      leaflet:null, _fieldsCache:null, _fieldsCacheN:-1};
+  });
+  mkSelectedId = (s.sel && mkLayers.some(l=>l.id===s.sel)) ? s.sel : (mkLayers[0]?mkLayers[0].id:null);
+  if(s.basemap && s.basemap!==mkBasemapKey) setBasemap(s.basemap);
+  renderAllMakerLayers();
+  renderMakerLayerList();
+  renderMakerPanels();
+  updateMkStatus();
+  if(typeof tableWinOpen==='function' && tableWinOpen()) renderAttrTable();
+  if(projActive) renderProjection();
+  mkRestoring=false;
+  updateMkUndoButtons();
+}
+function mkUndo(){ if(mkHistory.idx>0){ mkHistory.idx--; restoreMkSnapshot(mkHistory.stack[mkHistory.idx]); toast('Undo'); } }
+function mkRedo(){ if(mkHistory.idx<mkHistory.stack.length-1){ mkHistory.idx++; restoreMkSnapshot(mkHistory.stack[mkHistory.idx]); toast('Redo'); } }
+document.getElementById('mkUndo').onclick=mkUndo;
+document.getElementById('mkRedo').onclick=mkRedo;
+document.addEventListener('keydown', e=>{
+  if(document.getElementById('module-maker').classList.contains('hidden')) return;
+  const tag=(document.activeElement&&document.activeElement.tagName)||'';
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (document.activeElement&&document.activeElement.isContentEditable)) return;
+  if((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key.toLowerCase()==='z'){ mkUndo(); e.preventDefault(); }
+  else if((e.ctrlKey||e.metaKey) && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ mkRedo(); e.preventDefault(); }
+});
+
 function addMakerLayer(gj, name, opts){
   if(gj && gj.type==='Feature') gj={type:'FeatureCollection',features:[gj]};
   if(!gj || !gj.features){ toast('That file does not look like GeoJSON.'); return; }
@@ -1928,6 +2020,7 @@ function addMakerLayer(gj, name, opts){
   try{ mkMap.fitBounds(L.geoJSON(gj).getBounds(), {maxZoom:14, padding:[20,20]}); }catch(_){}
   toast('Added layer: '+ds.name+' ('+gj.features.length+' features)');
   markProjectDirty();
+  mkPushHistory();
   return lyr;
 }
 function selectedLayer(){ return mkLayers.find(l=>l.id===mkSelectedId)||null; }
@@ -2348,6 +2441,7 @@ function renderLayer(lyr){
   updateMkStatus();
   if(selHighlight && selHighlight.bringToFront) selHighlight.bringToFront();
   if(projActive) scheduleProjRender();
+  mkTouch();   /* debounced undo snapshot: catches style / label / filter / edit changes */
 }
 function updateLabelCss(lyr){
   const id='labelcss-'+lyr.id;
@@ -2361,9 +2455,12 @@ function updateLabelCss(lyr){
   if(isGoogleFont(lb.font)) ensureGoogleFonts();
 }
 function renderAllMakerLayers(){
-  /* draw bottom-up so the first entry in the list ends up on top of the map */
+  /* draw bottom-up so the first entry in the list ends up on top of the map;
+     suppress per-layer undo snapshots during this bulk redraw */
+  const wasBulk=mkBulk; mkBulk=true;
   mkLayers.slice().reverse().forEach(l=>renderLayer(l));
   restackMakerLayers();
+  mkBulk=wasBulk;
 }
 /* Leaflet keeps whatever order things were added in; nudge each pane back into
    list order so reordering (or restyling one layer) can't leave it buried. */
@@ -2413,11 +2510,15 @@ function renderMakerLayerList(){
   el.querySelectorAll('.mk-layer').forEach(item=>{
     const id=item.getAttribute('data-id');
     bindLayerDrag(item);
-    item.querySelector('.nm').onclick=()=>{
+    /* click anywhere on the card's top row (not a control) to make it active */
+    const activate=ev=>{
+      if(ev.target.closest('.ops,button,input,.drag-grip')) return;
       const l=mkLayers.find(x=>x.id===id);
       if(l && !l.visible){ toast('Turn “'+l.name+'” on before editing it.'); return; }
       selectMakerLayer(id);
     };
+    const topRow=item.querySelector('.top');
+    if(topRow){ topRow.style.cursor='pointer'; topRow.onclick=activate; }
     item.querySelector('[data-act=vis]').onchange=(ev)=>{
       const l=mkLayers.find(x=>x.id===id);
       l.visible=ev.target.checked;
@@ -2444,11 +2545,11 @@ function renderMakerLayerList(){
             else mkMap.fitBounds(L.geoJSON(l.geojson).getBounds(),{padding:[20,20]});
           }catch(_){}
         }
-        if(act==='rename'){ const n=window.prompt('Layer name:', l.name); if(n){ l.name=n; renderMakerLayerList(); renderMakerPanels(); } }
+        if(act==='rename'){ const n=window.prompt('Layer name:', l.name); if(n){ l.name=n; renderMakerLayerList(); renderMakerPanels(); mkPushHistory(); } }
         if(act==='dup'){
           const nl={id:uid(), name:l.name+' copy', datasetId:l.datasetId, geojson:l.geojson, geom:l.geom,
             visible:true, opacity:l.opacity, style:clone(l.style), labels:clone(l.labels), filter:clone(l.filter), leaflet:null};
-          mkLayers.splice(i,0,nl); mkSelectedId=nl.id; reorderAll();
+          mkLayers.splice(i,0,nl); mkSelectedId=nl.id; reorderAll(); mkPushHistory();
         }
         if(act==='exp'){ openExportLayer(id); }
         if(act==='del'){
@@ -2459,6 +2560,7 @@ function renderMakerLayerList(){
           if(selection.layerId===id) clearSelection();
           if(mkSelectedId===id) mkSelectedId=mkLayers.length?mkLayers[0].id:null;
           renderMakerLayerList(); renderMakerPanels(); updateMkStatus();
+          mkPushHistory();
         }
       };
     });
@@ -2512,6 +2614,7 @@ function bindLayerDrag(item){
     mkLayers.splice(above? to : to+1, 0, moved);
     dragLayerId=null;
     reorderAll();
+    mkPushHistory();
   });
 }
 
@@ -3558,6 +3661,39 @@ function openFieldsModal(lyr){
   openModal('modal-fields');
 }
 document.getElementById('attrRespectFilter').onchange=renderAttrTable;
+document.getElementById('attrEdit').onchange=()=>{
+  const on=document.getElementById('attrEdit').checked;
+  if(on) toast('Edit mode — click a cell to change its value. Enter commits, Esc cancels.', 3600);
+  renderAttrTable();
+};
+/* ---------- field statistics ---------- */
+function fieldStats(values){
+  const v=values.filter(x=>isFinite(x)).sort((a,b)=>a-b);
+  const n=v.length; if(!n) return null;
+  const sum=v.reduce((a,b)=>a+b,0), mean=sum/n;
+  const median=n%2? v[(n-1)/2] : (v[n/2-1]+v[n/2])/2;
+  const variance=v.reduce((a,b)=>a+(b-mean)*(b-mean),0)/n;
+  return {n, min:v[0], max:v[n-1], sum, mean, median, sd:Math.sqrt(variance)};
+}
+document.getElementById('tblStatsBtn').onclick=()=>{
+  const wrap=document.getElementById('tblStatsWrap');
+  const lyr=selectedLayer(); if(!lyr) return;
+  wrap.classList.toggle('hidden');
+  if(wrap.classList.contains('hidden')) return;
+  const respect=document.getElementById('attrRespectFilter').checked;
+  const feats=respect? visibleFeatures(lyr) : lyr.geojson.features;
+  const numFields=numericFieldsOf(lyr);
+  if(!numFields.length){ wrap.innerHTML='<div class="kv" style="padding:8px;">No numeric fields to summarise in this layer.</div>'; return; }
+  const fmt=x=>x==null?'—':(Math.abs(x)>=1000||Number.isInteger(x)? Math.round(x*100)/100 : +x.toFixed(4)).toLocaleString();
+  let html='<table class="stats-table"><tr><th>Field</th><th>Count</th><th>Min</th><th>Max</th><th>Mean</th><th>Median</th><th>Sum</th><th>Std dev</th></tr>';
+  numFields.forEach(fld=>{
+    const s=fieldStats(feats.map(f=>parseFloat((f.properties||{})[fld])));
+    if(!s){ html+='<tr><td>'+esc(fld)+'</td><td colspan="7" class="kv">no numeric values</td></tr>'; return; }
+    html+='<tr><td><b>'+esc(fld)+'</b></td><td>'+s.n+'</td><td>'+fmt(s.min)+'</td><td>'+fmt(s.max)+'</td><td>'+fmt(s.mean)+'</td><td>'+fmt(s.median)+'</td><td>'+fmt(s.sum)+'</td><td>'+fmt(s.sd)+'</td></tr>';
+  });
+  html+='</table>';
+  wrap.innerHTML=html;
+};
 document.getElementById('tblFilterBtn').onclick=()=>{
   const wrap=document.getElementById('tblFilterWrap');
   const lyr=selectedLayer(); if(!lyr) return;
@@ -3592,8 +3728,10 @@ function renderAttrTable(){
   document.getElementById('attrCount').textContent=feats.length+' features'+(feats.length>MAXROWS?' (showing first '+MAXROWS+')':'');
   const tbl=document.getElementById('attr-table');
   const shown=feats.slice(0,MAXROWS);
+  const editMode=!!(document.getElementById('attrEdit')&&document.getElementById('attrEdit').checked);
+  tbl.classList.toggle('editing', editMode);
   tbl.innerHTML='<tr>'+cols.map(c=>'<th data-c="'+esc(c)+'">'+esc(c)+(attrSort.col===c?'<span class="arrow">'+(attrSort.asc?'▲':'▼')+'</span>':'')+'</th>').join('')+'</tr>'
-    + shown.map(f=>'<tr data-i="'+fidOf(lyr,f)+'">'+cols.map(c=>'<td>'+esc((f.properties||{})[c])+'</td>').join('')+'</tr>').join('');
+    + shown.map(f=>'<tr data-i="'+fidOf(lyr,f)+'">'+cols.map(c=>'<td data-c="'+esc(c)+'"'+(editMode?' contenteditable="true"':'')+'>'+esc((f.properties||{})[c])+'</td>').join('')+'</tr>').join('');
   tbl.querySelectorAll('th').forEach(th=>{
     th.onclick=()=>{
       const c=th.getAttribute('data-c');
@@ -3601,6 +3739,33 @@ function renderAttrTable(){
       renderAttrTable();
     };
   });
+  if(editMode){
+    /* editing a cell writes back to the feature, coercing to a number where the
+       field is numeric, and records an undo step */
+    tbl.querySelectorAll('td[contenteditable]').forEach(td=>{
+      const commit=()=>{
+        const tr=td.parentElement; const i=+tr.getAttribute('data-i'); const c=td.getAttribute('data-c');
+        const f=lyr.geojson.features[i]; if(!f) return;
+        f.properties=f.properties||{};
+        let raw=td.textContent.trim();
+        const numeric=fieldTypeOf(lyr,c).type==='number';
+        let val = raw==='' ? null : (numeric && isFinite(parseFloat(raw)) ? parseFloat(raw) : raw);
+        if(String(f.properties[c]==null?'':f.properties[c])===String(val==null?'':val)) return;   /* no change */
+        f.properties[c]=val;
+        invalidateFieldCache(lyr);
+        renderLayer(lyr);                 /* style/labels/classes may depend on it; also snapshots undo */
+        markProjectDirty();
+      };
+      let orig=td.textContent;
+      td.addEventListener('focus', ()=>{ orig=td.textContent; });
+      td.addEventListener('blur', commit);
+      td.addEventListener('keydown', e=>{
+        if(e.key==='Enter'){ e.preventDefault(); td.blur(); }
+        if(e.key==='Escape'){ td.textContent=orig; td.blur(); }
+      });
+    });
+    return;   /* in edit mode, cells are for typing — skip row-select handlers */
+  }
   /* row click selects the feature on the map; Ctrl/Cmd toggles, Shift extends */
   const order=shown.map(f=>fidOf(lyr,f));
   tbl.querySelectorAll('tr[data-i]').forEach(tr=>{
@@ -5898,9 +6063,10 @@ function renderLayersTab(){
   const objs=canvas.getObjects().filter(o=>!(o.data&&(o.data.guide||o.data.type==='elementBorder'))).slice().reverse();
   if(!objs.length){ el.innerHTML='<div class="empty-hint">Nothing on the page yet.</div>'; return; }
   const active=canvas.getActiveObject();
+  const sel=(active && active.type==='activeSelection') ? active.getObjects() : (active?[active]:[]);
   el.innerHTML=objs.map(o=>{
     const lk=!!(o.data&&o.data.locked);
-    return `<div class="layer-item ${active===o?'active':''} ${lk?'locked':''}" data-id="${o.data?o.data.id:''}">
+    return `<div class="layer-item ${sel.indexOf(o)>=0?'active':''} ${lk?'locked':''}" data-id="${o.data?o.data.id:''}">
       <span class="lname">${typeLabel(o.data?o.data.type:'object')}${lk?' '+LOCK_SHUT:''}</span>
       <button data-act="lock" title="${lk?'Unlock':'Lock'}">${lk?LOCK_OPEN:LOCK_SHUT}</button>
       <button data-act="front" title="Bring to front">⬆</button>
@@ -5909,10 +6075,29 @@ function renderLayersTab(){
     </div>`;}).join('');
   el.querySelectorAll('.layer-item').forEach(item=>{
     const id=item.getAttribute('data-id');
-    item.querySelector('.lname').onclick=()=>{
+    item.querySelector('.lname').onclick=(ev)=>{
       const o=findById(id);
       if(!o) return;
       if(o.data&&o.data.locked){ toast('That object is locked — use the 🔓 button to unlock it.'); return; }
+      /* Ctrl/Cmd/Shift-click builds a multi-selection so you can group straight
+         from the list; a plain click selects just this one */
+      const additive=ev.ctrlKey||ev.metaKey||ev.shiftKey;
+      if(additive){
+        const cur=canvas.getActiveObject();
+        let set=[];
+        if(cur && cur.type==='activeSelection') set=cur.getObjects().slice();
+        else if(cur) set=[cur];
+        const ix=set.indexOf(o);
+        if(ix>=0) set.splice(ix,1); else set.push(o);       /* toggle */
+        set=set.filter(x=>!(x.data&&x.data.locked));
+        canvas.discardActiveObject();
+        if(set.length>1){ canvas.setActiveObject(new fabric.ActiveSelection(set,{canvas})); }
+        else if(set.length===1){ canvas.setActiveObject(set[0]); }
+        canvas.requestRenderAll();
+        showPropertiesForSelection({selected:canvas.getActiveObject()?[canvas.getActiveObject()]:[]});
+        renderLayersTab();
+        return;
+      }
       canvas.setActiveObject(o);
       canvas.renderAll();
       /* a programmatic selection doesn't always raise Fabric's selection event,
@@ -6561,10 +6746,11 @@ function receiveFromMaker(dataURL, metersPerImagePx, legendSpecs, wantScale, lab
     if(labelPlacements && labelPlacements.length){
       const fw=img.width*s, fh=img.height*s;
       labelPlacements.forEach(lp=>{
+        const ox=(lp.align==='left'||lp.align==='right')?lp.align:'center';
         const t=new fabric.IText(lp.text,{
           left: img.left + lp.xFrac*fw,
           top:  img.top  + lp.yFrac*fh,
-          originX:'center', originY:'center',
+          originX:ox, originY:'center', textAlign:ox,
           fontSize: lp.size||11, fill: lp.color||'#22293a',
           fontFamily: lp.font||'Arial', fontWeight: lp.bold?'700':'400',
           fontStyle: lp.italic?'italic':'normal'
@@ -6650,6 +6836,7 @@ function loadProjectData(data){
     if(data.maker.view&&mkMap) mkMap.setView(data.maker.view.center, data.maker.view.zoom);
     renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels(); updateMkStatus();
   }
+  if(typeof mkResetHistory==='function') mkResetHistory();   /* fresh undo baseline per project */
 }
 
 /* ---------- module switching ---------- */
@@ -7732,7 +7919,7 @@ async function syncOpenFile(file, replaceCurrent){
   const text=await file.text();
   let data;
   try{ data=JSON.parse(text); }catch(_){ toast('That file could not be read.'); return; }
-  if(!data.project){ toast('That is not a Carto Studio project file.'); return; }
+  if(!data.project){ toast('That is not a Map-O-Matic project file.'); return; }
   const idMap={};
   (data.datasets||[]).forEach(d=>{
     const existing=datasetById(d.id);
@@ -8064,7 +8251,7 @@ function importProjectFile(file){
       renderHome(); renderProjectSwitcher();
       toast('Project imported (upgraded from older format): '+rec.name);
     } else {
-      toast('That file is not a Carto Studio project.');
+      toast('That file is not a Map-O-Matic project.');
     }
   });
 }
@@ -8247,6 +8434,7 @@ function addLayerFromDataset(dsId){
   renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
   try{ mkMap.fitBounds(L.geoJSON(ds.geojson).getBounds(), {maxZoom:14, padding:[20,20]}); }catch(_){}
   markProjectDirty();
+  if(typeof mkPushHistory==='function') mkPushHistory();
   toast('Added "'+ds.name+'" from the library.');
 }
 
@@ -8404,9 +8592,9 @@ function captureMakerMap(){
    Produces one self-contained HTML file: Leaflet from a CDN, the visible layers'
    data with each feature's computed style baked into a `_cs` property, popups,
    a legend and an open basemap. Because the styling is precomputed, the file
-   doesn't need any of Carto Studio's engine — it just reads the baked styles.
+   doesn't need any of Map-O-Matic's engine — it just reads the baked styles.
    The result is hostable anywhere and embeddable via an <iframe>. */
-/* compact=true is for the share link, which runs inside Carto Studio and so can
+/* compact=true is for the share link, which runs inside Map-O-Matic and so can
    rebuild a symbol from its name — storing the marker name (a few bytes) instead
    of a full SVG string on every feature. The standalone embed file has no engine,
    so it keeps the baked SVG (compact=false). */
@@ -8499,7 +8687,7 @@ function buildEmbedHtml(opts){
   const js=`
 var LAYERS=${dataJSON};
 var map=L.map('map',{preferCanvas:true}).setView([${view.c[0]},${view.c[1]}], ${view.z});
-${bmSpec ? bmSpec.urls.map((u,i)=>`L.tileLayer(${JSON.stringify(u)},{maxZoom:${bmSpec.max},maxNativeZoom:${bmSpec.maxNative},attribution:${i===0?JSON.stringify(bmSpec.attr):'""'}}).addTo(map);`).join('\n') : `map.attributionControl.addAttribution('Carto Studio');`}
+${bmSpec ? bmSpec.urls.map((u,i)=>`L.tileLayer(${JSON.stringify(u)},{maxZoom:${bmSpec.max},maxNativeZoom:${bmSpec.maxNative},attribution:${i===0?JSON.stringify(bmSpec.attr):'""'}}).addTo(map);`).join('\n') : `map.attributionControl.addAttribution('Map-O-Matic');`}
 function styleFn(f){var s=f.properties._cs||{};return{color:s.stroke||'#333',weight:s.w==null?1:s.w,opacity:s.so==null?1:s.so,fillColor:s.fill||'#3388ff',fillOpacity:s.fo==null?0.6:s.fo,dashArray:s.dash||null};}
 function ptLayer(f,ll){var s=f.properties._cs||{};if(s.t==='i'){return L.marker(ll,{icon:L.divIcon({className:'cs-mk',html:s.svg,iconSize:[s.size,s.size],iconAnchor:[s.size/2,s.size/2]})});}return L.circleMarker(ll,{radius:s.r||5,color:s.stroke||'#333',weight:s.w==null?1:s.w,opacity:s.so==null?1:s.so,fillColor:s.fill||'#3388ff',fillOpacity:s.fo==null?0.8:s.fo});}
 function popup(f,layer){${opts.popups ? `var p=f.properties||{},r='';for(var k in p){if(k.charAt(0)==='_')continue;r+='<tr><td class=\"k\">'+k+'</td><td>'+(p[k]==null?'':String(p[k]))+'</td></tr>';}if(r)layer.bindPopup('<div class=\"cs-embed-popup\"><table>'+r+'</table></div>');` : ''}}
@@ -8523,7 +8711,7 @@ ${legendHtml ? `var lg=L.control({position:'bottomright'});lg.onAdd=function(){v
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>
 <script>${js}
 <\/script>
-<!-- Interactive map made with Carto Studio. Data © OpenStreetMap contributors where a basemap is shown. -->
+<!-- Interactive map made with Map-O-Matic. Data © OpenStreetMap contributors where a basemap is shown. -->
 </body>
 </html>`;
   return html;
@@ -8615,7 +8803,7 @@ document.getElementById('doExportBtn').onclick=()=>{
 
 /* ---------- share: a whole map packed into a link ----------
    The visible layers (with styles baked in), the basemap, the view and a legend
-   are gzipped into the URL hash. Opening that link runs Carto Studio in a
+   are gzipped into the URL hash. Opening that link runs Map-O-Matic in a
    read-only viewer that renders the map live — no upload, no host, no account,
    nothing sent anywhere. Big maps overflow a URL, so there's a size guard that
    points to the file export instead. */
@@ -8687,7 +8875,7 @@ async function openShareDialog(){
   linkEl.value=url;
   embEl.value='<iframe src="'+esc(url)+'" width="100%" height="500" style="border:0;" loading="lazy" allowfullscreen title="Interactive map"></iframe>';
   if(openEl){ openEl.style.display=''; openEl.href=url; }
-  let note='The whole map rides inside the link, so it opens anywhere you paste it. For others to open it, Carto Studio must be online at a stable address (your published copy) — a link made from a file on your own computer only works on your computer.';
+  let note='The whole map rides inside the link, so it opens anywhere you paste it. For others to open it, Map-O-Matic must be online at a stable address (your published copy) — a link made from a file on your own computer only works on your computer.';
   if(url.length>SOFT) note='This is a large map, so the link is long ('+Math.round(url.length/1024)+' KB). It works in a browser, but a few embed platforms may reject very long links — if one does, use <b>Export ▸ Interactive web map</b> instead. '+note;
   noteEl.innerHTML=note;
   openModal('modal-share');
@@ -8756,7 +8944,7 @@ async function enterShareViewer(){
   document.querySelectorAll('.module').forEach(m=>m.classList.add('hidden'));
   const host=document.getElementById('shareViewer'); host.classList.remove('hidden');
   const mapDiv=document.createElement('div'); mapDiv.className='sv-map'; host.appendChild(mapDiv);
-  document.title=(payload.title||'Map')+' — Carto Studio';
+  document.title=(payload.title||'Map')+' — Map-O-Matic';
   svMap=L.map(mapDiv,{preferCanvas:true});
   const view=payload.view||{c:[20,0],z:2}; svMap.setView(view.c, view.z);
   svSetBasemap(BASEMAPS[payload.basemap]?payload.basemap:'ofm-positron');
@@ -8775,7 +8963,7 @@ async function enterShareViewer(){
     d.querySelector('select').onchange=e=>svSetBasemap(e.target.value);
     return d;
   }; bmCtl.addTo(svMap);
-  const brand=L.control({position:'bottomleft'}); brand.onAdd=()=>{ const d=L.DomUtil.create('div','sv-brand'); d.textContent='Made with Carto Studio'; return d; }; brand.addTo(svMap);
+  const brand=L.control({position:'bottomleft'}); brand.onAdd=()=>{ const d=L.DomUtil.create('div','sv-brand'); d.textContent='Made with Map-O-Matic'; return d; }; brand.addTo(svMap);
   window.__svMap=svMap;            /* testing hook */
   setTimeout(()=>svMap.invalidateSize(), 150);
 }
@@ -8839,7 +9027,7 @@ async function ghPublish(token, html, fileName, repo, onStep){
   const repoRes=await fetch('https://api.github.com/repos/'+login+'/'+repo,{headers:H});
   if(repoRes.status===404){
     const mk=await fetch('https://api.github.com/user/repos',{method:'POST',headers:H,
-      body:JSON.stringify({name:repo, auto_init:true, description:'Interactive maps published from Carto Studio'})});
+      body:JSON.stringify({name:repo, auto_init:true, description:'Interactive maps published from Map-O-Matic'})});
     if(!mk.ok){ const j=await mk.json().catch(()=>({})); throw new Error(j.message||'could not create the repository'); }
     await new Promise(r=>setTimeout(r,1600));
   }
@@ -8848,7 +9036,7 @@ async function ghPublish(token, html, fileName, repo, onStep){
   let sha=null;
   const ex=await fetch('https://api.github.com/repos/'+login+'/'+repo+'/contents/'+encodeURIComponent(path),{headers:H});
   if(ex.status===200){ const j=await ex.json(); sha=j.sha; }
-  const body={message:'Publish '+path+' from Carto Studio', content:b64EncodeUtf8(html)};
+  const body={message:'Publish '+path+' from Map-O-Matic', content:b64EncodeUtf8(html)};
   if(sha) body.sha=sha;
   const put=await fetch('https://api.github.com/repos/'+login+'/'+repo+'/contents/'+encodeURIComponent(path),
     {method:'PUT',headers:H,body:JSON.stringify(body)});
