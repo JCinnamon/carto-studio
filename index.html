@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Map-O-Matic</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.6.1/maplibre-gl.css">
 <!-- Orbitron: the retro-futuristic title face. To try a 1970s-computer look
      instead, swap the family here and in --title-font below (e.g. 'VT323',
      'Wallpoet', 'Share Tech Mono'). -->
@@ -53,6 +53,13 @@
   .btn:disabled{opacity:.45;cursor:not-allowed;}
 
   .module{height:calc(100% - 46px);}
+  /* the wordmark doubles as a "home" button */
+  #topbar h1{cursor:pointer;}
+  #topbar h1:hover{opacity:.85;}
+  /* on the landing screen, project-scoped topbar controls aren't relevant */
+  body.on-home #btnHome,
+  body.on-home #projectSwitcher,
+  body.on-home #btnSave{display:none !important;}
 
   /* ---------- Map Maker module ---------- */
   #module-maker{display:flex;}
@@ -74,6 +81,9 @@
   .mk-layer .nm{flex:1;font-size:12.5px;font-weight:700;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .mk-layer .geom{font-size:9.5px;color:var(--muted);background:#eceff5;border-radius:3px;padding:1px 4px;}
   .mk-layer .badge-active{font-size:8.5px;font-weight:800;letter-spacing:.04em;color:#fff;background:var(--teal);border-radius:3px;padding:2px 5px;}
+  .mk-layer .btn-activate{font-size:9.5px;font-weight:700;color:#5a6478;background:#e7ebf1;border:1px solid var(--line);
+    border-radius:3px;padding:2px 7px;flex-shrink:0;}
+  .mk-layer .btn-activate:hover{background:var(--teal);color:#fff;border-color:var(--teal);}
   .mk-layer .ops{display:flex;gap:2px;margin-top:6px;flex-wrap:wrap;}
   .mk-layer .ops button{border:none;background:none;font-size:13px;padding:4px 6px;color:var(--muted);border-radius:4px;line-height:1;}
   .mk-layer .ops button:hover{background:#e4e9f2;color:var(--text);}
@@ -195,6 +205,28 @@
   .colour-row input[type=color]:disabled{opacity:.35;}
   .nocol{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap;margin:0;}
   .nocol input{margin:0;}
+  /* on-map tool controls (globe / measure / basemap-layers), stacked under zoom */
+  .mk-mapctl a{font-size:15px;line-height:28px;text-align:center;text-decoration:none;background:#fff;}
+  .mk-mapctl a.on{background:var(--teal);}
+  #mk-map.measuring{cursor:crosshair;}
+  /* globe view overlay (a standalone MapLibre globe on top of the flat map) */
+  #mk-center{position:relative;}
+  #mk-globe{display:none;position:absolute;inset:0;z-index:860;background:#0b1e3a;}
+  /* while the globe is up, the flat map's own controls shouldn't float over it */
+  #mk-center.globe-open .leaflet-control-container,
+  #mk-center.globe-open .mk-mapctl{display:none !important;}
+  #mk-globe-map{position:absolute;inset:0;}
+  .mk-globe-hint{position:absolute;left:12px;bottom:12px;z-index:5;background:rgba(15,25,50,.82);color:#eef2fb;
+    font-size:12px;padding:7px 11px;border-radius:7px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.35);}
+  .mk-globe-hint button{background:var(--teal);color:#fff;border:none;border-radius:5px;padding:5px 10px;font-size:11.5px;font-weight:700;}
+  .mk-globe-hint button:hover{background:var(--teal2);}
+  .leaflet-tooltip.measure-tip{background:#1b2a4a;color:#fff;border:none;font-size:12px;font-weight:600;padding:3px 7px;border-radius:4px;box-shadow:0 1px 5px rgba(0,0,0,.3);}
+  .leaflet-tooltip.measure-tip:before{border-right-color:#1b2a4a;}
+  .mk-basemap-panel{position:absolute;left:52px;top:96px;z-index:800;background:#fff;border:1px solid var(--line);
+    border-radius:7px;box-shadow:0 6px 20px rgba(20,30,60,.22);padding:9px 11px;width:230px;}
+  .mk-basemap-panel .mbp-title{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:6px;}
+  .mk-basemap-panel .mbp-row{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text);padding:3px 0;cursor:pointer;}
+  .mk-basemap-panel .mbp-row input{margin:0;}
   /* map labels: strip Leaflet's tooltip box and arrow so only the text shows,
      at whatever offset/position the label uses */
   .leaflet-tooltip.cs-maplabel{background:none;border:none;box-shadow:none;padding:0;white-space:nowrap;pointer-events:none;}
@@ -292,7 +324,22 @@
 
   /* ---------- home / projects ---------- */
   #module-home{overflow-y:auto;background:var(--bg);}
-  #home-wrap{max-width:1060px;margin:0 auto;padding:34px 26px 60px;}
+  /* hero ribbon (short blurb) */
+  .home-hero{background:var(--navy);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15);}
+  .home-hero-in{max-width:1060px;margin:0 auto;padding:26px 26px 30px;}
+  .home-hero h1{font-family:var(--title-font);letter-spacing:.06em;font-weight:800;font-size:27px;margin:0 0 12px;line-height:1.2;}
+  .home-hero p{font-size:14px;line-height:1.7;max-width:760px;color:#dfe5f2;margin:0;}
+  .home-hero-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:16px;}
+  .home-hero-tags span{font-size:11px;background:rgba(255,255,255,.14);color:#eef2fb;padding:3px 10px;border-radius:99px;}
+  /* credits ribbon (footer) */
+  .home-foot{border-top:1px solid var(--line);background:#e7ebf2;color:var(--muted);}
+  .home-foot-in{max-width:1060px;margin:0 auto;padding:20px 26px 28px;font-size:12px;line-height:1.9;text-align:center;}
+  .home-foot strong{color:var(--navy);font-family:var(--title-font);letter-spacing:.03em;}
+  .home-foot a{color:var(--teal);text-decoration:none;}
+  .home-foot a:hover{text-decoration:underline;}
+  .home-foot .sep{opacity:.45;margin:0 .35rem;}
+  .home-foot-libs{display:inline-block;margin-top:8px;font-size:11px;color:#8a92a6;line-height:1.8;}
+  #home-wrap{max-width:1060px;margin:0 auto;padding:26px 26px 40px;}
   .home-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px;}
   .home-head h2{margin:0;font-size:22px;color:var(--navy);}
   .home-tabs{display:flex;gap:4px;margin:16px 0 18px;border-bottom:1px solid var(--line);}
@@ -317,9 +364,13 @@
   #lib-table .lib-ops button{border:none;background:none;font-size:12px;color:var(--muted);padding:2px 5px;border-radius:3px;}
   #lib-table .lib-ops button:hover{background:#eef2f8;color:var(--text);}
   #projectSwitcher{padding:3px 5px;border-radius:4px;border:1px solid #465a86;background:#2a3b64;color:#fff;font-size:12px;max-width:160px;}
-  .libpick-row{display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid #eef1f6;font-size:12.5px;}
+  .lib-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .libpick-row{display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid #eef1f6;font-size:12.5px;cursor:pointer;}
+  .libpick-row:hover{background:#f5f8fb;}
   .libpick-row .nm{flex:1;font-weight:600;}
   .libpick-row .meta{color:var(--muted);font-size:11px;}
+  .libpick-bar{display:flex;align-items:center;gap:14px;padding:4px 4px 8px;border-bottom:1px solid var(--line);margin-bottom:6px;}
+  .libpick-bar label{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
 
   /* add-data dropdown */
   .add-menu{position:relative;}
@@ -385,6 +436,9 @@
   .vertex-hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#1b2a4a;color:#fff;font-size:11.5px;
     padding:5px 12px;border-radius:5px;z-index:60;pointer-events:none;}
 
+  .ll-help{margin:0 0 8px;line-height:1.4;}
+  .ll-selbar{display:flex;align-items:center;gap:6px;margin:0 0 8px;padding:6px 8px;background:#eaf6f5;border:1px solid var(--teal);border-radius:6px;}
+  .ll-selbar span{font-size:11.5px;font-weight:700;color:var(--teal);margin-right:auto;}
   .layer-item{display:flex;align-items:center;gap:6px;padding:6px 7px;border:1px solid var(--line);border-radius:5px;margin-bottom:5px;background:#fafbfd;}
   .layer-item.active{border-color:var(--teal);background:#eaf6f5;}
   .layer-item.locked{background:#f4f4f6;}
@@ -468,13 +522,14 @@
 
   #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1b2a4a;color:#fff;padding:9px 18px;border-radius:6px;font-size:13px;z-index:2000;box-shadow:0 4px 16px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s;max-width:80vw;}
   #toast.show{opacity:1;}
-  .capturing .leaflet-control-zoom,.capturing .leaflet-control-scale{display:none !important;}
+  .capturing .leaflet-control-zoom,.capturing .leaflet-control-scale,
+  .capturing .mk-mapctl,.capturing #mkBasemapPanel{display:none !important;}
 </style>
 </head>
 <body>
 
 <div id="topbar">
-  <h1>🗺️ Map-O-Matic</h1>
+  <h1 id="wordmark" title="Back to projects home" role="button" tabindex="0">🗺️ Map-O-Matic</h1>
   <div class="mod-tabs">
     <button id="modMakerBtn" class="active">Map Maker</button>
     <button id="modLayoutBtn">Map Composer</button>
@@ -529,9 +584,19 @@
 
 <!-- ================= HOME / PROJECTS ================= -->
 <div id="module-home" class="module hidden">
+  <!-- hero ribbon: short blurb explaining the tool (Vis-O-Matic style) -->
+  <section class="home-hero">
+    <div class="home-hero-in">
+      <h1>🗺️ Map-O-Matic</h1>
+      <p>A free, browser-based cartography studio. Build a map from your own spatial data, style it with proper GIS symbology and classification, then compose a finished, print-ready layout with a legend, scale bar and north arrow — or share it as a live, interactive web map. Everything runs in your browser: nothing is installed, and your data never leaves your computer.</p>
+      <div class="home-hero-tags">
+        <span>Runs in the browser</span><span>Nothing uploaded</span><span>No installation</span><span>No account</span><span>Free &amp; open</span>
+      </div>
+    </div>
+  </section>
   <div id="home-wrap">
     <div class="home-head">
-      <h2>🗺️ Map-O-Matic</h2>
+      <h2>Your projects</h2>
       <div style="display:flex;gap:8px;">
         <button class="btn" id="homeNewBtn">+ New project</button>
         <button class="btn secondary" id="homeImportBtn">Import project file</button>
@@ -544,8 +609,19 @@
     <div id="home-projects" class="home-grid"></div>
     <div id="home-sync"></div>
     <div id="home-library" class="hidden"></div>
-    <p class="kv home-note"><b>Where your work lives:</b> projects and datasets are stored in this browser on this computer — nothing is uploaded to a server. On a shared or lab computer, always download a project file (card menu → Export) or a project archive as your backup, and take it with you.</p>
+    <p class="kv home-note"><b>Where your work lives:</b> projects and datasets are saved in this browser, on this computer — nothing is uploaded to a server. To carry your work between machines, use <b>☁ Sync</b> in the top bar: point Map-O-Matic at a folder you already sync (OneDrive, Google&nbsp;Drive or Dropbox) and every project is written there as a file whenever it saves, so you can pick up on another computer. Sync needs Chrome or Edge. Either way, on a shared or lab computer it's wise to also download a project file (card menu → Export) or a full project archive as a portable backup, and take it with you.</p>
   </div>
+  <!-- credits ribbon (Vis-O-Matic style footer) -->
+  <footer class="home-foot">
+    <div class="home-foot-in">
+      <strong>Map-O-Matic</strong><span class="sep">·</span>
+      <a href="https://www.jonathancinnamon.com" target="_blank" rel="noopener">Jonathan Cinnamon</a>, Geography, UBC Okanagan<span class="sep">·</span>
+      <a href="https://github.com/jcinnamon" target="_blank" rel="noopener">GitHub</a><br>
+      Built for research and teaching · a single HTML file, MIT licensed. Part of the
+      <a href="https://www.jonathancinnamon.com/vis-o-matic/" target="_blank" rel="noopener">Vis-O-Matic</a> family of visual-research tools.<br>
+      <span class="home-foot-libs">Built with open tools: Leaflet · MapLibre GL · OpenFreeMap &amp; OpenMapTiles · Turf.js · Fabric.js · D3 &amp; d3-geo-projection · chroma.js · simple-statistics · PapaParse · JSZip · shpjs · jsPDF · html2canvas · Natural Earth &amp; OpenStreetMap data · title face Orbitron.</span>
+    </div>
+  </footer>
 </div>
 
 <!-- ================= MAP MAKER ================= -->
@@ -1184,9 +1260,16 @@
 <div class="modal-overlay hidden" id="modal-libpick">
   <div class="modal">
     <h2>Add from data library</h2>
-    <p class="kv">Datasets from all your projects. Adding one creates a new layer in the current project that references the shared dataset.</p>
+    <p class="kv">Datasets from all your projects. Tick every one you want, then <b>Add selected</b> — each becomes a new layer in the current project that references the shared dataset.</p>
+    <div id="libpickBar" class="libpick-bar hidden">
+      <label><input type="checkbox" id="libpickAll"> Select all</label>
+      <span id="libpickCount" class="kv"></span>
+    </div>
     <div id="libpickList" style="max-height:50vh;overflow-y:auto;"></div>
-    <div class="modal-close-row"><button class="btn ghost" onclick="closeModal('modal-libpick')">Close</button></div>
+    <div class="modal-close-row" style="justify-content:space-between;">
+      <button class="btn" id="libpickAddSel" disabled>Add selected</button>
+      <button class="btn ghost" onclick="closeModal('modal-libpick')">Close</button>
+    </div>
   </div>
 </div>
 
@@ -1212,8 +1295,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <!-- MapLibre GL renders OpenFreeMap's open vector basemaps; the leaflet plugin puts them in the Leaflet map -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.6.1/maplibre-gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/shpjs@4.0.4/dist/shp.js"></script>
@@ -1821,11 +1904,262 @@ function initMakerMap(){
   window.__mkmap=mkMap;               /* debugging / automated-testing hook */
   L.control.scale({imperial:false}).addTo(mkMap);
   setBasemap(DEFAULT_BASEMAP);
+  addMapToolControls();
   const mapEl = document.getElementById('mk-map');
   mapEl.addEventListener('dragover', e=>{e.preventDefault();});
   mapEl.addEventListener('drop', e=>{
     e.preventDefault();
     Array.from(e.dataTransfer.files||[]).forEach(handleMakerFile);
+  });
+}
+/* ---------- on-map tool controls (under the zoom control) ----------
+   Globe view (orthographic), Measure distance, and a Basemap-layers panel that
+   turns parts of the vector basemap on and off. */
+function addMapToolControls(){
+  const Ctl=L.Control.extend({options:{position:'topleft'}, onAdd(){
+    const c=L.DomUtil.create('div','leaflet-bar mk-mapctl');
+    c.innerHTML=
+      '<a href="#" id="mkGlobeBtn" title="Globe view (orthographic)">🌐</a>'+
+      '<a href="#" id="mkMeasureBtn" title="Measure distance">📏</a>'+
+      '<a href="#" id="mkBasemapBtn" title="Basemap layers — turn parts on/off">🗺️</a>';
+    L.DomEvent.disableClickPropagation(c); L.DomEvent.disableScrollPropagation(c);
+    return c;
+  }});
+  mkMap.addControl(new Ctl());
+  setTimeout(()=>{
+    const g=document.getElementById('mkGlobeBtn'); if(g) g.onclick=e=>{ e.preventDefault(); toggleGlobeView(); };
+    const m=document.getElementById('mkMeasureBtn'); if(m) m.onclick=e=>{ e.preventDefault(); toggleMeasure(); };
+    const b=document.getElementById('mkBasemapBtn'); if(b) b.onclick=e=>{ e.preventDefault(); toggleBasemapPanel(); };
+  }, 0);
+}
+/* --- globe view (MapLibre GL v5 native globe) ---
+   Rather than reprojecting to a flat orthographic canvas, this wraps the actual
+   vector/raster basemap onto a true 3-D globe (like geolibre.app), keeping the
+   basemap's own styling, and overlays the user's layers with their symbology. */
+let mkGlobe=null;               /* the standalone maplibregl.Map instance */
+function globeVectorStyleUrl(key){
+  const bm=BASEMAPS[key];
+  return (bm && bm.kind==='vector') ? bm.style : null;
+}
+/* build a MapLibre style object for a raster / none basemap */
+function globeRasterStyle(key){
+  const bm=BASEMAPS[key];
+  if(!bm){                       /* 'none' — a plain blue marble with graticule */
+    return {version:8, glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+      sources:{}, layers:[{id:'bg', type:'background', paint:{'background-color':'#0f2748'}}]};
+  }
+  const sources={}, layers=[{id:'bg', type:'background', paint:{'background-color':'#0b1e3a'}}];
+  (bm.urls||[]).forEach((u,i)=>{
+    sources['r'+i]={type:'raster', tiles:[u.replace('{z}/{y}/{x}','{z}/{y}/{x}')], tileSize:256,
+      maxzoom:bm.max||19, attribution:bm.attr||''};
+    layers.push({id:'r'+i, type:'raster', source:'r'+i});
+  });
+  return {version:8, sources, layers};
+}
+/* per-feature GeoJSON carrying baked style properties the globe can data-drive */
+function globeFeatureCollection(lyr){
+  const feats=[];
+  visibleFeatures(lyr).forEach(f=>{
+    if(!f.geometry) return;
+    const col=featureColor(lyr,f);
+    const fillOff=isNoColour(col), strokeOff=isNoColour(lyr.style.strokeColor);
+    const props=Object.assign({}, f.properties, {
+      _fill: fillOff? '#000000' : (col||'#000000'),
+      _fo: fillOff? 0 : (lyr.style.fillOpacity*lyr.opacity),
+      _stroke: strokeOff? '#000000' : (lyr.style.strokeColor||'#000000'),
+      _sw: strokeOff? 0 : (lyr.style.strokeWeight||1),
+      _so: strokeOff? 0 : lyr.opacity,
+      _r: featureRadius(lyr,f)||6
+    });
+    feats.push({type:'Feature', geometry:f.geometry, properties:props});
+  });
+  return {type:'FeatureCollection', features:feats};
+}
+function globeAddUserLayers(map){
+  /* draw bottom layer first so the list's top layer stays on top, matching Leaflet */
+  mkLayers.slice().reverse().forEach(lyr=>{
+    if(!lyr.visible) return;
+    const src='u_'+lyr.id;
+    try{ map.addSource(src, {type:'geojson', data:globeFeatureCollection(lyr)}); }catch(_){ return; }
+    if(lyr.geom==='polygon'){
+      map.addLayer({id:src+'_f', type:'fill', source:src,
+        paint:{'fill-color':['get','_fill'], 'fill-opacity':['get','_fo']}});
+      map.addLayer({id:src+'_l', type:'line', source:src,
+        paint:{'line-color':['get','_stroke'], 'line-width':['get','_sw'], 'line-opacity':['get','_so']}});
+    } else if(lyr.geom==='line'){
+      map.addLayer({id:src+'_l', type:'line', source:src,
+        paint:{'line-color':['get','_stroke'], 'line-width':['coalesce',['get','_sw'],2], 'line-opacity':['get','_so']}});
+    } else {
+      map.addLayer({id:src+'_c', type:'circle', source:src,
+        paint:{'circle-radius':['get','_r'], 'circle-color':['get','_fill'], 'circle-opacity':['get','_fo'],
+          'circle-stroke-color':['get','_stroke'], 'circle-stroke-width':['get','_sw'], 'circle-stroke-opacity':['get','_so']}});
+    }
+  });
+}
+function globeApplyParts(map){
+  try{
+    const style=map.getStyle(); if(!style||!style.layers) return;
+    style.layers.forEach(ly=>{
+      const sl=ly['source-layer']; if(!sl) return;
+      for(const k in BM_PART_GROUPS){
+        if(BM_PART_GROUPS[k].src.includes(sl)){
+          try{ map.setLayoutProperty(ly.id,'visibility', basemapParts[k]?'visible':'none'); }catch(_){}
+        }
+      }
+    });
+  }catch(_){}
+}
+function globeOpen(){
+  if(mkGlobe) return;
+  if(typeof maplibregl==='undefined'){ toast('The globe needs MapLibre, which failed to load.'); return; }
+  if(measureActive) measureClear();
+  let host=document.getElementById('mk-globe');
+  if(!host){
+    host=document.createElement('div'); host.id='mk-globe';
+    host.innerHTML='<div id="mk-globe-map"></div>'+
+      '<div class="mk-globe-hint">🌐 Globe view — drag to spin, scroll to zoom. '+
+      '<button id="mkGlobeClose">Back to flat map</button></div>';
+    document.getElementById('mk-center').appendChild(host);
+    host.querySelector('#mkGlobeClose').onclick=()=>toggleGlobeView();
+  }
+  host.style.display='block';
+  document.getElementById('mk-center').classList.add('globe-open');
+  const btn=document.getElementById('mkGlobeBtn'); if(btn) btn.classList.add('on');
+  const c=mkMap.getCenter(), z=mkMap.getZoom();
+  const styleUrl=globeVectorStyleUrl(mkBasemapKey);
+  const style=styleUrl || globeRasterStyle(mkBasemapKey);
+  try{
+    mkGlobe=new maplibregl.Map({
+      container:'mk-globe-map',
+      style,
+      center:[c.lng, c.lat],
+      zoom:Math.max(0.5, Math.min(z-2.2, 3.1)),
+      attributionControl:{compact:true},
+      dragRotate:true, preserveDrawingBuffer:true
+    });
+  }catch(err){
+    toast('The globe needs WebGL, which this browser/tab could not start.');
+    globeClose(); return;
+  }
+  mkGlobe.addControl(new maplibregl.NavigationControl({visualizePitch:true}), 'top-right');
+  const onReady=()=>{
+    try{ mkGlobe.setProjection({type:'globe'}); }catch(_){}
+    try{ mkGlobe.setFog({}); }catch(_){}
+    globeApplyParts(mkGlobe);
+    globeAddUserLayers(mkGlobe);
+  };
+  mkGlobe.on('load', onReady);
+  mkGlobe.on('error', ()=>{});   /* tile errors shouldn't spam the console */
+}
+function globeClose(){
+  const btn=document.getElementById('mkGlobeBtn'); if(btn) btn.classList.remove('on');
+  document.getElementById('mk-center').classList.remove('globe-open');
+  if(mkGlobe){ try{ mkGlobe.remove(); }catch(_){} mkGlobe=null; }
+  const host=document.getElementById('mk-globe'); if(host) host.style.display='none';
+  setTimeout(()=>{ if(mkMap) mkMap.invalidateSize(); }, 60);
+}
+function toggleGlobeView(){
+  if(projActive){ toast('Leave the projection preview first, then open the globe.'); return; }
+  if(mkGlobe) globeClose(); else globeOpen();
+}
+/* testing hook */
+window.__globeInfo=()=>({open:!!mkGlobe,
+  proj: (mkGlobe&&mkGlobe.getProjection)? (mkGlobe.getProjection().type||mkGlobe.getProjection().name) : null,
+  layers: mkGlobe? mkGlobe.getStyle().layers.filter(l=>/^u_/.test(l.id)).length : 0});
+/* --- measure distance --- */
+let measureActive=false, measurePts=[], measureLine=null, measureMarkers=[], measureTip=null;
+function toggleMeasure(){
+  if(projActive){ toast('Measuring works in the flat Web Mercator view.'); return; }
+  measureActive=!measureActive;
+  const btn=document.getElementById('mkMeasureBtn'); if(btn) btn.classList.toggle('on', measureActive);
+  const mapEl=document.getElementById('mk-map');
+  if(measureActive){
+    mapEl.classList.add('measuring');
+    mkMap.on('click', measureClick); mkMap.on('mousemove', measureMove); mkMap.doubleClickZoom.disable(); mkMap.on('dblclick', measureFinish);
+    toast('Click points on the map to measure. Double-click to finish, or the ruler again to clear.', 4200);
+  } else { measureClear(); }
+}
+function measureClear(){
+  const mapEl=document.getElementById('mk-map'); mapEl.classList.remove('measuring');
+  mkMap.off('click', measureClick); mkMap.off('mousemove', measureMove); mkMap.off('dblclick', measureFinish);
+  mkMap.doubleClickZoom.enable();
+  if(measureLine){ mkMap.removeLayer(measureLine); measureLine=null; }
+  measureMarkers.forEach(m=>mkMap.removeLayer(m)); measureMarkers=[];
+  if(measureTip){ mkMap.removeLayer(measureTip); measureTip=null; }
+  measurePts=[];
+  const btn=document.getElementById('mkMeasureBtn'); if(btn) btn.classList.remove('on');
+  measureActive=false;
+}
+function measureTotalKm(pts){
+  try{ if(pts.length<2) return 0;
+    const line=turf.lineString(pts.map(p=>[p.lng,p.lat]));
+    return turf.length(line, {units:'kilometers'});
+  }catch(_){ let d=0; for(let i=1;i<pts.length;i++) d+=pts[i-1].distanceTo(pts[i]); return d/1000; }
+}
+function measureFmt(km){ return km<1 ? Math.round(km*1000)+' m' : (km<100? km.toFixed(2) : Math.round(km))+' km'; }
+function measureClick(e){
+  measurePts.push(e.latlng);
+  const m=L.circleMarker(e.latlng,{radius:4, color:'#b3452f', fillColor:'#fff', fillOpacity:1, weight:2}); m.addTo(mkMap); measureMarkers.push(m);
+  measureRedraw(e.latlng);
+}
+function measureMove(e){ if(measurePts.length) measureRedraw(e.latlng); }
+function measureRedraw(hoverLatLng){
+  const pts=measurePts.slice(); if(hoverLatLng && measureActive) pts.push(hoverLatLng);
+  if(measureLine) mkMap.removeLayer(measureLine);
+  measureLine=L.polyline(pts,{color:'#b3452f', weight:2.5, dashArray:'6 4'}).addTo(mkMap);
+  const km=measureTotalKm(pts);
+  const last=pts[pts.length-1];
+  if(!measureTip){ measureTip=L.tooltip({permanent:true, direction:'right', offset:[10,0], className:'measure-tip'}); }
+  measureTip.setLatLng(last).setContent('Total: '+measureFmt(km)).addTo(mkMap);
+}
+function measureFinish(){ /* keep the finished line; stop adding */ mkMap.off('mousemove', measureMove); if(measurePts.length) measureRedraw(null); }
+/* --- basemap layer toggles --- */
+const BM_PART_GROUPS={
+  boundary:{label:'Country & admin borders', src:['boundary']},
+  place:{label:'Place labels (cities, towns)', src:['place']},
+  transportation:{label:'Roads & railways', src:['transportation','transportation_name']},
+  water:{label:'Water & rivers', src:['water','waterway']},
+  building:{label:'Buildings', src:['building']},
+  landuse:{label:'Land use & parks', src:['landuse','landcover','park']},
+  poi:{label:'Points of interest', src:['poi']}
+};
+let basemapParts=Object.keys(BM_PART_GROUPS).reduce((o,k)=>(o[k]=true,o),{});
+function currentGlMap(){
+  const l=mkBasemapLayers.find(x=>x && typeof x.getMaplibreMap==='function');
+  try{ return l? l.getMaplibreMap() : null; }catch(_){ return null; }
+}
+function applyBasemapParts(){
+  const gl=currentGlMap(); if(!gl) return;
+  const run=()=>{
+    let style; try{ style=gl.getStyle(); }catch(_){ return; }
+    if(!style||!style.layers) return;
+    style.layers.forEach(ly=>{
+      const sl=ly['source-layer']; if(!sl) return;
+      for(const k in BM_PART_GROUPS){
+        if(BM_PART_GROUPS[k].src.includes(sl)){
+          try{ gl.setLayoutProperty(ly.id,'visibility', basemapParts[k]?'visible':'none'); }catch(_){}
+        }
+      }
+    });
+  };
+  if(gl.isStyleLoaded && gl.isStyleLoaded()) run(); else gl.once('idle', run);
+}
+function toggleBasemapPanel(){
+  let panel=document.getElementById('mkBasemapPanel');
+  if(panel){ panel.remove(); return; }
+  panel=document.createElement('div'); panel.id='mkBasemapPanel'; panel.className='mk-basemap-panel';
+  const gl=currentGlMap();
+  if(!gl){
+    panel.innerHTML='<div class="kv" style="padding:4px 2px;">Turning parts on and off works on the <b>open vector basemaps</b> (Positron, Bright, Liberty, Dark, Fiord). Pick one of those, then reopen this panel.</div>';
+  } else {
+    panel.innerHTML='<div class="mbp-title">Show basemap parts</div>'+
+      Object.keys(BM_PART_GROUPS).map(k=>
+        '<label class="mbp-row"><input type="checkbox" data-part="'+k+'" '+(basemapParts[k]?'checked':'')+'> '+esc(BM_PART_GROUPS[k].label)+'</label>').join('');
+  }
+  document.getElementById('mk-map').appendChild(panel);
+  L.DomEvent.disableClickPropagation(panel); L.DomEvent.disableScrollPropagation(panel);
+  panel.querySelectorAll('input[data-part]').forEach(cb=>{
+    cb.onchange=()=>{ basemapParts[cb.getAttribute('data-part')]=cb.checked; applyBasemapParts(); };
   });
 }
 /* A vector basemap is a MapLibre GL layer inside Leaflet. preserveDrawingBuffer
@@ -1862,8 +2196,11 @@ function setBasemap(key){
     if(!ok){   /* MapLibre / WebGL unavailable — fall back to OSM raster so the map still works */
       const tl=L.tileLayer(BASEMAPS.osm.urls[0],{crossOrigin:true, maxZoom:19, attribution:OSM_ATTR});
       tl.addTo(mkMap); mkBasemapLayers.push(tl);
+    } else if(typeof applyBasemapParts==='function'){
+      setTimeout(applyBasemapParts, 1200);   /* re-apply any part toggles once the style loads */
     }
     if(attrEl) attrEl.textContent=bm.attr;
+    const bp=document.getElementById('mkBasemapPanel'); if(bp) bp.remove();   /* stale for the new basemap */
   } else if(bm && bm.kind==='raster'){
     bm.urls.forEach((u,i)=>{
       const tl=L.tileLayer(u,{crossOrigin:true, maxZoom:bm.max, maxNativeZoom:bm.maxNative||bm.max, attribution:i===0?bm.attr:''});
@@ -2495,7 +2832,7 @@ function renderMakerLayerList(){
         <span class="drag-grip" title="Drag to reorder — the top layer draws on top">⠿</span>
         <input type="checkbox" ${l.visible?'checked':''} data-act="vis" title="Show/hide">
         <span class="nm" title="${esc(l.name)}">${esc(l.name)}</span>
-        ${l.id===mkSelectedId?'<span class="badge-active">ACTIVE</span>':'<span class="geom">'+l.geom+'</span>'}
+        ${l.id===mkSelectedId?'<span class="badge-active">ACTIVE</span>':'<button class="btn-activate" data-act="activate" title="Make this the active layer">Activate</button>'}
       </div>
       <div class="ops">
         <button data-act="table" title="Open the attribute table for this layer">▦</button>
@@ -2519,6 +2856,13 @@ function renderMakerLayerList(){
     };
     const topRow=item.querySelector('.top');
     if(topRow){ topRow.style.cursor='pointer'; topRow.onclick=activate; }
+    const actBtn=item.querySelector('[data-act=activate]');
+    if(actBtn) actBtn.onclick=ev=>{
+      ev.stopPropagation();
+      const l=mkLayers.find(x=>x.id===id);
+      if(l && !l.visible){ toast('Turn “'+l.name+'” on before editing it.'); return; }
+      selectMakerLayer(id);
+    };
     item.querySelector('[data-act=vis]').onchange=(ev)=>{
       const l=mkLayers.find(x=>x.id===id);
       l.visible=ev.target.checked;
@@ -2533,7 +2877,7 @@ function renderMakerLayerList(){
       if(tableWinOpen()) renderAttrTable();
       if(projActive) renderProjection();
     };
-    item.querySelectorAll('button').forEach(btn=>{
+    item.querySelectorAll('.ops button').forEach(btn=>{
       btn.onclick=()=>{
         const i=mkLayers.findIndex(x=>x.id===id); const l=mkLayers[i];
         const act=btn.getAttribute('data-act');
@@ -5296,7 +5640,7 @@ function showMultiSelectionPanel(sel){
     <div class="row2" style="margin-top:6px;">
       <button class="btn small danger" id="pDelMulti">Delete all</button>
     </div>`;
-  showTab('props');
+  if(!keepLayersTab) showTab('props');   /* stay on Layers while picking from the list */
   document.getElementById('pGroup').onclick=groupSelection;
   document.getElementById('pDupMulti').onclick=duplicateSelected;
   document.getElementById('pDelMulti').onclick=deleteSelected;
@@ -6058,51 +6402,66 @@ function refreshLayersTab(){
   const el=document.getElementById('tab-layers');
   if(el.style.display!=='none') renderLayersTab();
 }
+/* suppress the automatic jump to the Properties tab while the user is picking
+   objects in the Layers list, so they can keep selecting */
+let keepLayersTab=false;
+let lastLayerListIdx=null;
+function selectObjects(list){
+  const set=list.filter(x=>x && !(x.data&&x.data.locked));
+  keepLayersTab=true;
+  canvas.discardActiveObject();
+  if(set.length>1) canvas.setActiveObject(new fabric.ActiveSelection(set,{canvas}));
+  else if(set.length===1) canvas.setActiveObject(set[0]);
+  canvas.requestRenderAll();
+  keepLayersTab=false;
+  renderLayersTab();
+}
 function renderLayersTab(){
   const el=document.getElementById('tab-layers');
   const objs=canvas.getObjects().filter(o=>!(o.data&&(o.data.guide||o.data.type==='elementBorder'))).slice().reverse();
   if(!objs.length){ el.innerHTML='<div class="empty-hint">Nothing on the page yet.</div>'; return; }
   const active=canvas.getActiveObject();
   const sel=(active && active.type==='activeSelection') ? active.getObjects() : (active?[active]:[]);
-  el.innerHTML=objs.map(o=>{
+  const selCount=sel.length;
+  const bar=`<div class="ll-help kv">Click to select. <b>Ctrl/Cmd-click</b> adds more, <b>Shift-click</b> selects a range. Then group them below.</div>`+
+    (selCount>=2
+      ? `<div class="ll-selbar"><span>${selCount} selected</span><button class="btn small" id="llGroup">⧉ Group selected</button><button class="btn small ghost" id="llClear">Clear</button></div>`
+      : '');
+  el.innerHTML=bar+objs.map((o,idx)=>{
     const lk=!!(o.data&&o.data.locked);
-    return `<div class="layer-item ${sel.indexOf(o)>=0?'active':''} ${lk?'locked':''}" data-id="${o.data?o.data.id:''}">
+    return `<div class="layer-item ${sel.indexOf(o)>=0?'active':''} ${lk?'locked':''}" data-id="${o.data?o.data.id:''}" data-idx="${idx}">
       <span class="lname">${typeLabel(o.data?o.data.type:'object')}${lk?' '+LOCK_SHUT:''}</span>
       <button data-act="lock" title="${lk?'Unlock':'Lock'}">${lk?LOCK_OPEN:LOCK_SHUT}</button>
       <button data-act="front" title="Bring to front">⬆</button>
       <button data-act="back" title="Send to back">⬇</button>
       <button data-act="del" title="Delete">✕</button>
     </div>`;}).join('');
+  const g=document.getElementById('llGroup'); if(g) g.onclick=()=>{ groupSelection(); showTab('props'); };
+  const c=document.getElementById('llClear'); if(c) c.onclick=()=>{ canvas.discardActiveObject(); canvas.requestRenderAll(); renderLayersTab(); };
   el.querySelectorAll('.layer-item').forEach(item=>{
     const id=item.getAttribute('data-id');
+    const idx=+item.getAttribute('data-idx');
     item.querySelector('.lname').onclick=(ev)=>{
       const o=findById(id);
       if(!o) return;
       if(o.data&&o.data.locked){ toast('That object is locked — use the 🔓 button to unlock it.'); return; }
-      /* Ctrl/Cmd/Shift-click builds a multi-selection so you can group straight
-         from the list; a plain click selects just this one */
-      const additive=ev.ctrlKey||ev.metaKey||ev.shiftKey;
-      if(additive){
-        const cur=canvas.getActiveObject();
-        let set=[];
-        if(cur && cur.type==='activeSelection') set=cur.getObjects().slice();
-        else if(cur) set=[cur];
-        const ix=set.indexOf(o);
-        if(ix>=0) set.splice(ix,1); else set.push(o);       /* toggle */
-        set=set.filter(x=>!(x.data&&x.data.locked));
-        canvas.discardActiveObject();
-        if(set.length>1){ canvas.setActiveObject(new fabric.ActiveSelection(set,{canvas})); }
-        else if(set.length===1){ canvas.setActiveObject(set[0]); }
-        canvas.requestRenderAll();
-        showPropertiesForSelection({selected:canvas.getActiveObject()?[canvas.getActiveObject()]:[]});
-        renderLayersTab();
-        return;
+      const cur=canvas.getActiveObject();
+      let set=(cur && cur.type==='activeSelection') ? cur.getObjects().slice() : (cur?[cur]:[]);
+      if(ev.shiftKey && lastLayerListIdx!=null){
+        /* select the whole run between the last click and this one */
+        const [lo,hi]=lastLayerListIdx<idx?[lastLayerListIdx,idx]:[idx,lastLayerListIdx];
+        selectObjects(objs.slice(lo,hi+1));
+      } else if(ev.ctrlKey||ev.metaKey){
+        const i=set.indexOf(o);
+        if(i>=0) set.splice(i,1); else set.push(o);   /* toggle */
+        selectObjects(set);
+        lastLayerListIdx=idx;
+      } else {
+        /* plain click: select just this one, and stay on the Layers tab so a
+           multi-selection can be built up from here */
+        selectObjects([o]);
+        lastLayerListIdx=idx;
       }
-      canvas.setActiveObject(o);
-      canvas.renderAll();
-      /* a programmatic selection doesn't always raise Fabric's selection event,
-         so refresh the panel here or the Properties tab stays on the old object */
-      showPropertiesForSelection({selected:[o]});
     };
     item.querySelectorAll('button').forEach(btn=>{
       btn.onclick=ev=>{
@@ -6847,6 +7206,7 @@ function switchModule(which){
   document.getElementById('modMakerBtn').classList.toggle('active', which==='maker');
   document.getElementById('modLayoutBtn').classList.toggle('active', which==='layout');
   document.getElementById('grp-page').style.display=which==='layout'?'flex':'none';
+  document.body.classList.toggle('on-home', which==='home');
   if(which==='maker' && mkMap) setTimeout(()=>mkMap.invalidateSize(), 60);
   if(which==='layout'){ canvas.calcOffset(); canvas.renderAll(); }
   positionEmbedFrames();
@@ -8362,7 +8722,9 @@ function renderLibrary(){
     el.innerHTML='<div class="empty-hint">No datasets yet. Upload data inside a project — it lands here automatically and becomes reusable across all your projects.</div>';
     return;
   }
-  el.innerHTML=`<table id="lib-table"><tr><th>Dataset</th><th>Type</th><th>Features</th><th>Fields</th><th>Used by</th><th></th></tr>
+  el.innerHTML=`<div class="lib-toolbar"><span class="kv">${datasetsCache.length} dataset${datasetsCache.length===1?'':'s'} in your library</span>
+    <button class="btn small danger" id="libRemoveAll">🗑 Remove all</button></div>
+    <table id="lib-table"><tr><th>Dataset</th><th>Type</th><th>Features</th><th>Fields</th><th>Used by</th><th></th></tr>
     ${datasetsCache.slice().sort((a,b)=>(b.added||0)-(a.added||0)).map(d=>{
       const used=datasetUsedBy(d.id);
       return `<tr data-id="${d.id}">
@@ -8401,30 +8763,81 @@ function renderLibrary(){
       };
     });
   });
+  const rmAll=document.getElementById('libRemoveAll');
+  if(rmAll) rmAll.onclick=removeAllDatasets;
+}
+function removeAllDatasets(){
+  if(!datasetsCache.length) return;
+  const inUse=datasetsCache.filter(d=>datasetUsedBy(d.id).length);
+  const free=datasetsCache.filter(d=>!datasetUsedBy(d.id).length);
+  if(!free.length){
+    window.alert('Every dataset in the library is currently used by a project. Remove those layers (or delete those projects) first, then try again.');
+    return;
+  }
+  let msg='Remove all '+free.length+' unused dataset'+(free.length===1?'':'s')+' from the library? This cannot be undone.';
+  if(inUse.length) msg+='\n\n'+inUse.length+' dataset'+(inUse.length===1?' is':'s are')+' in use and will be kept.';
+  if(!window.confirm(msg)) return;
+  free.forEach(d=>idbDel('datasets', d.id));
+  const freeIds=new Set(free.map(d=>d.id));
+  datasetsCache=datasetsCache.filter(d=>!freeIds.has(d.id));
+  renderLibrary();
+  toast('Removed '+free.length+' dataset'+(free.length===1?'':'s')+' from the library.'+(inUse.length?' Kept '+inUse.length+' still in use.':''));
 }
 
 /* ---------- library picker (inside Map Maker) ---------- */
 function openLibPick(){
   const el=document.getElementById('libpickList');
+  const bar=document.getElementById('libpickBar');
+  const addBtn=document.getElementById('libpickAddSel');
+  const allCb=document.getElementById('libpickAll');
+  const countEl=document.getElementById('libpickCount');
   if(!datasetsCache.length){
     el.innerHTML='<div class="empty-hint">The library is empty — upload data with “+ Add data” first.</div>';
-  } else {
-    el.innerHTML=datasetsCache.slice().sort((a,b)=>(b.added||0)-(a.added||0)).map(d=>`
-      <div class="libpick-row" data-id="${d.id}">
-        <span class="nm">${esc(d.name)}</span>
-        <span class="meta">${d.geom} · ${d.featureCount} features</span>
-        <button class="btn small">Add</button>
-      </div>`).join('');
-    el.querySelectorAll('.libpick-row').forEach(row=>{
-      row.querySelector('button').onclick=()=>{
-        addLayerFromDataset(row.getAttribute('data-id'));
-        closeModal('modal-libpick');
-      };
-    });
+    bar.classList.add('hidden');
+    addBtn.disabled=true;
+    openModal('modal-libpick');
+    return;
   }
+  bar.classList.remove('hidden');
+  el.innerHTML=datasetsCache.slice().sort((a,b)=>(b.added||0)-(a.added||0)).map(d=>`
+    <label class="libpick-row" data-id="${d.id}">
+      <input type="checkbox" class="libpick-cb" data-id="${d.id}">
+      <span class="nm">${esc(d.name)}</span>
+      <span class="meta">${d.geom} · ${d.featureCount} features</span>
+    </label>`).join('');
+  const cbs=[...el.querySelectorAll('.libpick-cb')];
+  const refresh=()=>{
+    const n=cbs.filter(c=>c.checked).length;
+    addBtn.disabled=!n;
+    addBtn.textContent=n? 'Add selected ('+n+')' : 'Add selected';
+    countEl.textContent=n? n+' of '+cbs.length+' selected' : '';
+    allCb.checked=n===cbs.length && n>0;
+  };
+  cbs.forEach(cb=>cb.onchange=refresh);
+  allCb.checked=false;
+  allCb.onchange=()=>{ cbs.forEach(c=>c.checked=allCb.checked); refresh(); };
+  addBtn.onclick=()=>{
+    const ids=cbs.filter(c=>c.checked).map(c=>c.getAttribute('data-id'));
+    if(!ids.length) return;
+    ids.forEach(id=>addLayerFromDataset(id, {quiet:true, keepView:true}));
+    closeModal('modal-libpick');
+    fitMakerToLayers();
+    toast('Added '+ids.length+' dataset'+(ids.length===1?'':'s')+' from the library.');
+  };
+  refresh();
   openModal('modal-libpick');
 }
-function addLayerFromDataset(dsId){
+/* zoom the Maker map to fit all current layers */
+function fitMakerToLayers(){
+  try{
+    const g=L.geoJSON({type:'FeatureCollection',features:[]});
+    mkLayers.forEach(l=>{ if(l.visible && l.geojson) g.addData(l.geojson); });
+    const b=g.getBounds();
+    if(b.isValid()) mkMap.fitBounds(b, {maxZoom:14, padding:[24,24]});
+  }catch(_){}
+}
+function addLayerFromDataset(dsId, opts){
+  opts=opts||{};
   const ds=datasetById(dsId); if(!ds) return;
   const lyr={id:uid(), name:ds.name, datasetId:ds.id, geojson:ds.geojson, geom:ds.geom,
     visible:true, opacity:1, style:defaultStyle(ds.geom), labels:defaultLabels(),
@@ -8432,10 +8845,10 @@ function addLayerFromDataset(dsId){
   mkLayers.unshift(lyr);
   mkSelectedId=lyr.id;
   renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
-  try{ mkMap.fitBounds(L.geoJSON(ds.geojson).getBounds(), {maxZoom:14, padding:[20,20]}); }catch(_){}
+  if(!opts.keepView){ try{ mkMap.fitBounds(L.geoJSON(ds.geojson).getBounds(), {maxZoom:14, padding:[20,20]}); }catch(_){} }
   markProjectDirty();
   if(typeof mkPushHistory==='function') mkPushHistory();
-  toast('Added "'+ds.name+'" from the library.');
+  if(!opts.quiet) toast('Added "'+ds.name+'" from the library.');
 }
 
 /* ---------- topbar controls ---------- */
@@ -8447,6 +8860,17 @@ document.getElementById('btnHome').onclick=()=>{
   if(currentProjectId) saveCurrentProject(false).then(()=>switchModule('home'));
   else switchModule('home');
 };
+/* the wordmark is a second route back to the landing screen */
+(function(){
+  const wm=document.getElementById('wordmark');
+  if(!wm) return;
+  const goHome=()=>{
+    if(currentProjectId) saveCurrentProject(false).then(()=>switchModule('home'));
+    else switchModule('home');
+  };
+  wm.onclick=goHome;
+  wm.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); goHome(); } };
+})();
 function renderProjectSwitcher(){
   const sel=document.getElementById('projectSwitcher');
   const sorted=projectsCache.slice().sort((a,b)=>(b.modified||0)-(a.modified||0));
