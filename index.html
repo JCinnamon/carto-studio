@@ -220,6 +220,8 @@
     font-size:12px;padding:7px 11px;border-radius:7px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.35);}
   .mk-globe-hint button{background:var(--teal);color:#fff;border:none;border-radius:5px;padding:5px 10px;font-size:11.5px;font-weight:700;}
   .mk-globe-hint button:hover{background:var(--teal2);}
+  /* projection picker is inert while the globe is up */
+  #mkProjection:disabled{opacity:.5;cursor:not-allowed;background:#eef1f5;color:#9aa3b4;}
   .leaflet-tooltip.measure-tip{background:#1b2a4a;color:#fff;border:none;font-size:12px;font-weight:600;padding:3px 7px;border-radius:4px;box-shadow:0 1px 5px rgba(0,0,0,.3);}
   .leaflet-tooltip.measure-tip:before{border-right-color:#1b2a4a;}
   .mk-basemap-panel{position:absolute;left:52px;top:96px;z-index:800;background:#fff;border:1px solid var(--line);
@@ -617,7 +619,8 @@
       <strong>Map-O-Matic</strong><span class="sep">·</span>
       <a href="https://www.jonathancinnamon.com" target="_blank" rel="noopener">Jonathan Cinnamon</a>, Geography, UBC Okanagan<span class="sep">·</span>
       <a href="https://github.com/jcinnamon" target="_blank" rel="noopener">GitHub</a><br>
-      Built for research and teaching · a single HTML file, MIT licensed. 
+      Built for research and teaching · a single HTML file, MIT licensed. Part of the
+      <a href="https://www.jonathancinnamon.com/vis-o-matic/" target="_blank" rel="noopener">Vis-O-Matic</a> family of visual-research tools.<br>
       <span class="home-foot-libs">Built with open tools: Leaflet · MapLibre GL · OpenFreeMap &amp; OpenMapTiles · Turf.js · Fabric.js · D3 &amp; d3-geo-projection · chroma.js · simple-statistics · PapaParse · JSZip · shpjs · jsPDF · html2canvas · Natural Earth &amp; OpenStreetMap data · title face Orbitron.</span>
     </div>
   </footer>
@@ -1974,7 +1977,16 @@ function globeFeatureCollection(lyr){
   });
   return {type:'FeatureCollection', features:feats};
 }
+/* remove any previously-added user layers/sources so they can be re-added cleanly */
+function globeClearUserLayers(map){
+  mkLayers.forEach(lyr=>{
+    ['_f','_l','_c'].forEach(suf=>{ const id='u_'+lyr.id+suf; try{ if(map.getLayer(id)) map.removeLayer(id); }catch(_){} });
+    const src='u_'+lyr.id; try{ if(map.getSource(src)) map.removeSource(src); }catch(_){}
+  });
+}
 function globeAddUserLayers(map){
+  if(!map || !map.isStyleLoaded || !map.isStyleLoaded()) return;
+  globeClearUserLayers(map);
   /* draw bottom layer first so the list's top layer stays on top, matching Leaflet */
   mkLayers.slice().reverse().forEach(lyr=>{
     if(!lyr.visible) return;
@@ -2008,6 +2020,48 @@ function globeApplyParts(map){
     });
   }catch(_){}
 }
+/* everything that has to run each time a style finishes loading — on first open
+   AND after a basemap switch (setStyle wipes the style, so the user layers and
+   the part-visibility must be re-applied every time). This is what fixes the
+   data layers not appearing on the globe. */
+function globeOnStyle(){
+  if(!mkGlobe) return;
+  try{ mkGlobe.setProjection({type:'globe'}); }catch(_){}
+  try{ mkGlobe.setSky && mkGlobe.setSky({}); }catch(_){}
+  globeApplyParts(mkGlobe);
+  globeAddUserLayers(mkGlobe);
+}
+function globeDataBounds(){
+  const g=L.geoJSON({type:'FeatureCollection', features:[]});
+  mkLayers.forEach(l=>{ if(l.visible && l.geojson) try{ g.addData(l.geojson); }catch(_){} });
+  const b=g.getBounds();
+  return b.isValid()? b : null;
+}
+function globeFitBounds(b, dur){
+  if(!mkGlobe || !b) return;
+  try{ mkGlobe.fitBounds([[b.getWest(),b.getSouth()],[b.getEast(),b.getNorth()]],
+    {padding:50, maxZoom:6, duration:dur==null?800:dur}); }catch(_){}
+}
+function globeFitData(){ globeFitBounds(globeDataBounds()); }
+function globeFitLayer(lyr){
+  if(!mkGlobe || !lyr || !lyr.geojson) return;
+  try{ globeFitBounds(L.geoJSON(lyr.geojson).getBounds()); }catch(_){}
+}
+/* rebuild the globe's basemap when the user changes the basemap while it's open */
+function globeApplyBasemap(){
+  if(!mkGlobe) return;
+  const styleUrl=globeVectorStyleUrl(mkBasemapKey);
+  const style=styleUrl || globeRasterStyle(mkBasemapKey);
+  /* diff:false forces a full reload (a diffed update would keep the old basemap
+     shapes and silently drop the user layers). 'style.load' isn't reliable after
+     setStyle in MapLibre v5, so poll isStyleLoaded and re-apply once ready. */
+  try{ mkGlobe.setStyle(style, {diff:false}); }catch(_){ return; }
+  const t=setInterval(()=>{
+    if(!mkGlobe){ clearInterval(t); return; }
+    if(mkGlobe.isStyleLoaded()){ clearInterval(t); globeOnStyle(); }
+  }, 120);
+  setTimeout(()=>clearInterval(t), 5000);
+}
 function globeOpen(){
   if(mkGlobe) return;
   if(typeof maplibregl==='undefined'){ toast('The globe needs MapLibre, which failed to load.'); return; }
@@ -2016,14 +2070,18 @@ function globeOpen(){
   if(!host){
     host=document.createElement('div'); host.id='mk-globe';
     host.innerHTML='<div id="mk-globe-map"></div>'+
-      '<div class="mk-globe-hint">🌐 Globe view — drag to spin, scroll to zoom. '+
+      '<div class="mk-globe-hint">🌐 Globe view — drag to spin, scroll to zoom.'+
+      '<button id="mkGlobeFit" title="Zoom the globe to your data">Fit data</button>'+
       '<button id="mkGlobeClose">Back to flat map</button></div>';
     document.getElementById('mk-center').appendChild(host);
     host.querySelector('#mkGlobeClose').onclick=()=>toggleGlobeView();
+    host.querySelector('#mkGlobeFit').onclick=()=>globeFitData();
   }
   host.style.display='block';
   document.getElementById('mk-center').classList.add('globe-open');
   const btn=document.getElementById('mkGlobeBtn'); if(btn) btn.classList.add('on');
+  /* the flat-map projection picker doesn't apply while the globe is up */
+  const proj=document.getElementById('mkProjection'); if(proj) proj.disabled=true;
   const c=mkMap.getCenter(), z=mkMap.getZoom();
   const styleUrl=globeVectorStyleUrl(mkBasemapKey);
   const style=styleUrl || globeRasterStyle(mkBasemapKey);
@@ -2031,6 +2089,7 @@ function globeOpen(){
     mkGlobe=new maplibregl.Map({
       container:'mk-globe-map',
       style,
+      projection:{type:'globe'},
       center:[c.lng, c.lat],
       zoom:Math.max(0.5, Math.min(z-2.2, 3.1)),
       attributionControl:{compact:true},
@@ -2041,18 +2100,14 @@ function globeOpen(){
     globeClose(); return;
   }
   mkGlobe.addControl(new maplibregl.NavigationControl({visualizePitch:true}), 'top-right');
-  const onReady=()=>{
-    try{ mkGlobe.setProjection({type:'globe'}); }catch(_){}
-    try{ mkGlobe.setFog({}); }catch(_){}
-    globeApplyParts(mkGlobe);
-    globeAddUserLayers(mkGlobe);
-  };
-  mkGlobe.on('load', onReady);
+  /* style.load fires on first load AND after every setStyle (basemap switch) */
+  mkGlobe.on('style.load', globeOnStyle);
   mkGlobe.on('error', ()=>{});   /* tile errors shouldn't spam the console */
 }
 function globeClose(){
   const btn=document.getElementById('mkGlobeBtn'); if(btn) btn.classList.remove('on');
   document.getElementById('mk-center').classList.remove('globe-open');
+  const proj=document.getElementById('mkProjection'); if(proj) proj.disabled=false;
   if(mkGlobe){ try{ mkGlobe.remove(); }catch(_){} mkGlobe=null; }
   const host=document.getElementById('mk-globe'); if(host) host.style.display='none';
   setTimeout(()=>{ if(mkMap) mkMap.invalidateSize(); }, 60);
@@ -2064,7 +2119,9 @@ function toggleGlobeView(){
 /* testing hook */
 window.__globeInfo=()=>({open:!!mkGlobe,
   proj: (mkGlobe&&mkGlobe.getProjection)? (mkGlobe.getProjection().type||mkGlobe.getProjection().name) : null,
-  layers: mkGlobe? mkGlobe.getStyle().layers.filter(l=>/^u_/.test(l.id)).length : 0});
+  styleLoaded: mkGlobe? mkGlobe.isStyleLoaded() : false,
+  layers: mkGlobe? mkGlobe.getStyle().layers.filter(l=>/^u_/.test(l.id)).length : 0,
+  projDisabled: (document.getElementById('mkProjection')||{}).disabled});
 /* --- measure distance --- */
 let measureActive=false, measurePts=[], measureLine=null, measureMarkers=[], measureTip=null;
 function toggleMeasure(){
@@ -2180,6 +2237,28 @@ function makeVectorBasemap(bm){
     glOptions:{ preserveDrawingBuffer:true, antialias:true }
   });
 }
+/* html2canvas can't read a MapLibre WebGL canvas back reliably (under MapLibre
+   GL v5 it comes back blank), which is why the vector basemap vanished from
+   Send-to-Composer captures. This returns html2canvas options that, at clone
+   time, swap each live GL canvas inside `root` for a PNG snapshot of it — so the
+   basemap is baked into the capture as an ordinary image. Works for any map
+   (main, inset), and is a no-op when there's no GL basemap (raster/none). */
+function glCaptureOptions(root){
+  const live=[...root.querySelectorAll('canvas.maplibregl-canvas')];
+  const urls=live.map(cv=>{ try{ return cv.toDataURL('image/png'); }catch(_){ return null; } });
+  return { onclone:(doc, clonedRoot)=>{
+    const scope=clonedRoot && clonedRoot.querySelectorAll ? clonedRoot : doc;
+    const clones=[...scope.querySelectorAll('canvas.maplibregl-canvas')];
+    clones.forEach((cc,i)=>{
+      const url=urls[i]; if(!url) return;
+      const img=doc.createElement('img'); img.src=url;
+      const st=cc.getAttribute('style')||''; img.setAttribute('style', st);
+      if(!/width\s*:/.test(st))  img.style.width =(cc.clientWidth ||cc.width )+'px';
+      if(!/height\s*:/.test(st)) img.style.height=(cc.clientHeight||cc.height)+'px';
+      if(cc.parentNode) cc.parentNode.replaceChild(img, cc);
+    });
+  }};
+}
 /* projects saved before v19 named Esri/CARTO basemaps that no longer exist */
 const BASEMAP_LEGACY={'esri-gray':'ofm-positron','esri-dark':'ofm-dark','esri-topo':'ofm-liberty',
   'esri-streets':'ofm-liberty','esri-imagery':'satellite','carto-light':'ofm-positron','carto-dark':'ofm-dark'};
@@ -2219,6 +2298,8 @@ function setBasemap(key){
   const sel=document.getElementById('mkBasemap');
   if(sel) sel.value=key;
   restackMakerLayers && restackMakerLayers();
+  /* keep an open globe in step with the basemap the user just chose */
+  if(typeof globeApplyBasemap==='function' && mkGlobe) globeApplyBasemap();
 }
 document.getElementById('mkBasemap').addEventListener('change', e=>setBasemap(e.target.value));
 window.__setBasemap=setBasemap;      /* automated-testing hook */
@@ -2891,7 +2972,8 @@ function renderMakerLayerList(){
         if(act==='fields'){ if(!l.visible){ toast('Turn this layer on first.'); return; } selectMakerLayer(id); openFieldsModal(l); }
         if(act==='zoom'){
           try{
-            if(projActive){ projFitToData(); }
+            if(mkGlobe){ globeFitLayer(l); }
+            else if(projActive){ projFitToData(); }
             else mkMap.fitBounds(L.geoJSON(l.geojson).getBounds(),{padding:[20,20]});
           }catch(_){}
         }
@@ -4780,6 +4862,16 @@ document.getElementById('sendGoBtn').onclick=()=>{
   const wantLabels=document.getElementById('sendLabels').checked;
   const specs = wantLegend ? mkLayers.filter(l=>l.visible).map(legendSpecForLayer).filter(s=>s.items.length) : [];
   const labels = wantLabels ? collectLabelPlacements() : [];
+  if(mkGlobe){
+    /* globe view: the basemap and data are already baked into the WebGL canvas */
+    let dataURL;
+    try{ mkGlobe.triggerRepaint(); dataURL=mkGlobe.getCanvas().toDataURL('image/png'); }
+    catch(e){ status.textContent='Could not capture the globe: '+e.message; return; }
+    closeModal('modal-send');
+    window.__layout.receiveFromMaker(dataURL, null, specs, false, []);
+    if(wantScale) toast('No scale bar added — scale isn’t constant across a globe.', 4200);
+    return;
+  }
   if(projActive){
     /* projected view: capture the projection canvas directly */
     const dataURL=document.getElementById('projCanvas').toDataURL('image/png');
@@ -4796,7 +4888,7 @@ document.getElementById('sendGoBtn').onclick=()=>{
   if(wantLabels) hideLabelsForCapture(true);      /* they arrive as text instead */
   const center=mkMap.getCenter(), zoom=mkMap.getZoom();
   const metersPerScreenPx = 156543.03392 * Math.cos(center.lat*Math.PI/180) / Math.pow(2, zoom);
-  html2canvas(mapEl, {useCORS:true, scale:CAPSCALE, logging:false}).then(snap=>{
+  html2canvas(mapEl, Object.assign({useCORS:true, scale:CAPSCALE, logging:false}, glCaptureOptions(mapEl))).then(snap=>{
     mapEl.classList.remove('capturing');
     if(wantLabels) hideLabelsForCapture(false);
     const dataURL=snap.toDataURL('image/png');
@@ -7074,7 +7166,7 @@ document.getElementById('insetAddToLayoutBtn').onclick=()=>{
   el.classList.add('capturing');
   const center=insetMap.getCenter(), zoom=insetMap.getZoom();
   const mPerPx=156543.03392*Math.cos(center.lat*Math.PI/180)/Math.pow(2,zoom);
-  html2canvas(el,{useCORS:true, scale:2, logging:false}).then(snap=>{
+  html2canvas(el, Object.assign({useCORS:true, scale:2, logging:false}, (typeof glCaptureOptions==='function'?glCaptureOptions(el):{}))).then(snap=>{
     el.classList.remove('capturing');
     fabric.Image.fromURL(snap.toDataURL('image/png'), img=>{
       const maxW=canvas.getWidth()*0.4;
@@ -9007,7 +9099,7 @@ function captureMakerMap(){
       const nw=L.CRS.EPSG3857.project(b.getNorthWest());
       const se=L.CRS.EPSG3857.project(b.getSouthEast());
       const size=mkMap.getSize();
-      html2canvas(mapEl,{useCORS:true, scale:2, logging:false}).then(snap=>{
+      html2canvas(mapEl, Object.assign({useCORS:true, scale:2, logging:false}, (typeof glCaptureOptions==='function'?glCaptureOptions(mapEl):{}))).then(snap=>{
         mapEl.classList.remove('capturing');
         const wpx=size.x*2, hpx=size.y*2;
         const pxW=(se.x-nw.x)/wpx;
