@@ -393,7 +393,17 @@
   #rightpanel.collapsed .tabs .tab-btn{display:none !important;}
   #rightpanel.collapsed .tabs{justify-content:center;}
   #rightpanel.collapsed .panel-tools{padding-right:0;}
-  .tbl-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
+  .tbl-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
+  /* one consistent button style across the attribute-table toolbar:
+     light when idle, dark (navy) when the panel is open / the toggle is on */
+  .tbtn{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
+    padding:4px 9px;border:1px solid var(--line);border-radius:5px;background:#eef1f6;color:var(--navy);white-space:nowrap;}
+  .tbtn:hover{background:#e2e7ef;}
+  .tbtn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .tbtn.on:hover{background:#243660;}
+  .tbtn .car{display:inline-block;font-size:9px;transition:transform .12s;opacity:.75;}
+  .tbtn.on .car{transform:rotate(90deg);}
+  .tbtn-sep{width:1px;height:18px;background:var(--line);margin:0 2px;}
   #tblFilterWrap{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:8px;background:#fafbfd;}
   .legend-row select{width:70px;padding:3px;border:1px solid var(--line);border-radius:4px;font-size:11px;flex-shrink:0;}
   .legend-add-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;}
@@ -514,7 +524,13 @@
   #attr-table.editing td{cursor:text;}
   #attr-table.editing td[contenteditable]:focus{outline:2px solid var(--teal);outline-offset:-2px;background:#fff;}
   #attr-table.editing tr[data-i]{cursor:default;}
-  #tblStatsWrap{margin-bottom:8px;overflow:auto;}
+  #tblStatsWrap,#tblCalcWrap{margin-bottom:8px;overflow:auto;}
+  .tbl-panel{border:1px solid var(--line);border-radius:6px;background:#f8fafc;padding:9px 10px;}
+  .tbl-panel .calc-row{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;}
+  .tbl-panel .calc-row label{font-size:11px;font-weight:700;color:var(--muted);}
+  .tbl-panel input[type=text],.tbl-panel textarea{width:100%;padding:5px 7px;border:1px solid var(--line);
+    border-radius:4px;font-size:12px;font-family:inherit;}
+  .tbl-panel textarea{font-family:ui-monospace,Menlo,Consolas,monospace;resize:vertical;}
   .stats-chooser{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:8px;}
   .stats-choose-lbl{font-size:11px;font-weight:700;color:var(--muted);margin-right:2px;}
   .stats-chip{font-size:11px;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border:1px solid var(--line);border-radius:12px;background:#f3f5f9;cursor:pointer;}
@@ -911,13 +927,15 @@
   </div>
   <div id="tableWinBody">
     <div class="tbl-toolbar">
-      <button class="btn small secondary" id="tblCalcBtn">ƒx Field calculator</button>
-      <button class="btn small light" id="tblStatsBtn" title="Show summary statistics for the numeric fields">Σ Statistics</button>
-      <button class="btn small light" id="tblFilterBtn">▾ Filter</button>
-      <span class="checkline" style="margin:0;"><input type="checkbox" id="attrRespectFilter" checked><label for="attrRespectFilter" style="margin:0;font-size:12px;color:var(--text);">Apply filter to table</label></span>
-      <span class="checkline" style="margin:0;"><input type="checkbox" id="attrEdit"><label for="attrEdit" style="margin:0;font-size:12px;color:var(--text);">Edit cells</label></span>
+      <button class="tbtn" id="tblCalcBtn" title="Create a new field from an expression"><span class="car">▸</span> ƒx Field calculator</button>
+      <button class="tbtn" id="tblStatsBtn" title="Show summary statistics for the numeric fields"><span class="car">▸</span> Σ Statistics</button>
+      <button class="tbtn" id="tblFilterBtn" title="Build a filter for this layer"><span class="car">▸</span> ▼ Filter</button>
+      <span class="tbtn-sep"></span>
+      <button class="tbtn on" id="attrRespectFilter" aria-pressed="true" title="Apply the layer's filter to the rows shown">Apply filter to table</button>
+      <button class="tbtn" id="attrEdit" aria-pressed="false" title="Edit values directly in the table">Edit cells</button>
       <span class="kv" id="attrCount"></span>
     </div>
+    <div id="tblCalcWrap" class="hidden"></div>
     <div id="tblFilterWrap" class="hidden"></div>
     <div id="tblStatsWrap" class="hidden"></div>
     <div id="attr-table-wrap"><table id="attr-table"></table></div>
@@ -976,22 +994,7 @@
   </div>
 </div>
 
-<div class="modal-overlay hidden" id="modal-calc">
-  <div class="modal">
-    <h2>Field calculator</h2>
-    <p class="kv" id="calcLayerName"></p>
-    <div class="field"><label>New field name</label><input type="text" id="calcFieldName" placeholder="e.g. rate_per_1000"></div>
-    <div class="field"><label>Expression (JavaScript; use field names directly)</label>
-      <textarea id="calcExpr" rows="3" placeholder="e.g. crimes / pop * 1000"></textarea></div>
-    <div class="kv" id="calcFields"></div>
-    <div class="kv" id="calcPreview" style="margin-top:6px;"></div>
-    <div class="modal-close-row">
-      <button class="btn ghost" onclick="closeModal('modal-calc')">Cancel</button>
-      <button class="btn secondary" id="calcTestBtn">Test</button>
-      <button class="btn" id="calcApplyBtn">Apply</button>
-    </div>
-  </div>
-</div>
+<!-- the field calculator now lives inside the attribute-table window (#tblCalcWrap) -->
 
 <div class="modal-overlay hidden" id="modal-spatial">
   <div class="modal">
@@ -2306,9 +2309,54 @@ function makeVectorBasemap(bm){
    time, swap each live GL canvas inside `root` for a PNG snapshot of it — so the
    basemap is baked into the capture as an ordinary image. Works for any map
    (main, inset), and is a no-op when there's no GL basemap (raster/none). */
+/* Collect the live MapLibre Map objects whose canvas sits inside `root`. */
+function glMapsForRoot(root){
+  const out=[];
+  const push=m=>{ try{ if(m && m.getCanvas && root.contains(m.getCanvas()) && out.indexOf(m)<0) out.push(m); }catch(_){} };
+  const fromLayers=arr=>{ (arr||[]).forEach(l=>{ if(l && typeof l.getMaplibreMap==='function'){ try{ push(l.getMaplibreMap()); }catch(_){} } }); };
+  if(typeof mkBasemapLayers!=='undefined') fromLayers(mkBasemapLayers);
+  if(typeof insetBasemapLayers!=='undefined') fromLayers(insetBasemapLayers);
+  if(typeof mkGlobe!=='undefined' && mkGlobe) push(mkGlobe);
+  return out;
+}
+/* Read a MapLibre canvas SAFELY. A WebGL drawing buffer is cleared as soon as
+   the browser composites the frame, so calling toDataURL at an arbitrary moment
+   returns a blank/black image on real GPUs. Forcing a repaint and reading inside
+   the 'render' callback grabs the pixels while they're still there. */
+function glFreshDataURL(m){
+  return new Promise(resolve=>{
+    let done=false;
+    const grab=()=>{
+      if(done) return; done=true;
+      let url=null;
+      try{ url=m.getCanvas().toDataURL('image/png'); }catch(_){}
+      resolve(url);
+    };
+    try{ m.once('render', grab); m.triggerRepaint(); }catch(_){ grab(); }
+    setTimeout(grab, 1500);          /* never hang the capture */
+  });
+}
+/* Async form of the capture options: snapshots every GL canvas in `root` first. */
+async function glCaptureOptionsFresh(root){
+  const maps=glMapsForRoot(root);
+  const byCanvas=new Map();
+  for(const m of maps){
+    const url=await glFreshDataURL(m);
+    if(url) byCanvas.set(m.getCanvas(), url);
+  }
+  const live=[...root.querySelectorAll('canvas.maplibregl-canvas')];
+  const urls=live.map(cv=>{
+    if(byCanvas.has(cv)) return byCanvas.get(cv);
+    try{ return cv.toDataURL('image/png'); }catch(_){ return null; }
+  });
+  return glCloneOptions(root, urls);
+}
 function glCaptureOptions(root){
   const live=[...root.querySelectorAll('canvas.maplibregl-canvas')];
   const urls=live.map(cv=>{ try{ return cv.toDataURL('image/png'); }catch(_){ return null; } });
+  return glCloneOptions(root, urls);
+}
+function glCloneOptions(root, urls){
   return { onclone:(doc, clonedRoot)=>{
     const scope=clonedRoot && clonedRoot.querySelectorAll ? clonedRoot : doc;
     const clones=[...scope.querySelectorAll('canvas.maplibregl-canvas')];
@@ -2879,6 +2927,9 @@ function pointMarker(lyr, latlng, f){
 function renderLayer(lyr){
   if(lyr.leaflet){ mkMap.removeLayer(lyr.leaflet); lyr.leaflet=null; }
   if(lyr.dotLayer){ mkMap.removeLayer(lyr.dotLayer); lyr.dotLayer=null; }
+  /* hiding a layer returns early below, so push the change to the globe first —
+     otherwise switching a layer off wouldn't remove it from the globe */
+  if(typeof scheduleGlobeSync==='function') scheduleGlobeSync();
   if(!lyr.visible) return;
   const st=lyr.style;
   if(st.mode==='grad'||st.mode==='gradSize'||st.mode==='prop') { computeClassification(lyr); sizeRange(lyr); }
@@ -2928,7 +2979,27 @@ function renderLayer(lyr){
   updateMkStatus();
   if(selHighlight && selHighlight.bringToFront) selHighlight.bringToFront();
   if(projActive) scheduleProjRender();
+  scheduleGlobeSync();   /* keep an open globe in step with visibility/styling */
   mkTouch();   /* debounced undo snapshot: catches style / label / filter / edit changes */
+}
+/* The globe draws the user's layers as its own MapLibre layers, so any change to
+   what's visible or how it's styled has to be pushed across. Debounced, because
+   a single edit can trigger several renderLayer calls. */
+let globeSyncTimer=null;
+function scheduleGlobeSync(){
+  if(typeof mkGlobe==='undefined' || !mkGlobe) return;
+  clearTimeout(globeSyncTimer);
+  globeSyncTimer=setTimeout(()=>{
+    if(mkGlobe) globeWhenReady(()=>globeAddUserLayers(mkGlobe));
+  }, 120);
+}
+/* With a single layer — or a single one switched on — it should just be active,
+   so the Style/Data panels always have something to work on. */
+function autoActivateLayer(){
+  const vis=mkLayers.filter(l=>l.visible);
+  if(vis.length===1){ mkSelectedId=vis[0].id; return; }
+  if(mkLayers.length===1 && mkLayers[0].visible){ mkSelectedId=mkLayers[0].id; return; }
+  if(mkSelectedId && !mkLayers.some(l=>l.id===mkSelectedId && l.visible)) mkSelectedId=vis.length? vis[0].id : null;
 }
 function updateLabelCss(lyr){
   const id='labelcss-'+lyr.id;
@@ -2975,6 +3046,7 @@ function updateMkStatus(){
 /* ---------- layer list UI ---------- */
 function renderMakerLayerList(){
   const el=document.getElementById('mk-layerlist');
+  if(typeof autoActivateLayer==='function') autoActivateLayer();
   if(!mkLayers.length){ el.innerHTML='<div class="empty-hint">No layers yet. Click “+ Add data” to upload a dataset.</div>'; return; }
   el.innerHTML=mkLayers.map(l=>`
     <div class="mk-layer ${l.id===mkSelectedId?'sel':''} ${l.visible?'':'off'}" data-id="${l.id}" draggable="true">
@@ -3023,6 +3095,7 @@ function renderMakerLayerList(){
         mkSelectedId=next? next.id : null;
         if(selection.layerId===id) clearSelection();
       }
+      autoActivateLayer();       /* one layer on ⇒ that one is active */
       renderMakerLayerList(); renderMakerPanels(); updateMkStatus();
       if(tableWinOpen()) renderAttrTable();
       if(projActive) renderProjection();
@@ -4155,12 +4228,39 @@ function openFieldsModal(lyr){
     }).join('')+'</table>';
   openModal('modal-fields');
 }
-document.getElementById('attrRespectFilter').onchange=renderAttrTable;
-document.getElementById('attrEdit').onchange=()=>{
-  const on=document.getElementById('attrEdit').checked;
-  if(on) toast('Edit mode — click a cell to change its value. Enter commits, Esc cancels.', 3600);
-  renderAttrTable();
-};
+/* The two settings in the table toolbar are toggle buttons rather than
+   checkboxes, but the rest of the code asks them for `.checked` — so keep a
+   `checked` property in sync with the pressed state. */
+function tbtnSetOn(el, on){
+  el.classList.toggle('on', !!on);
+  el.checked=!!on;
+  el.setAttribute('aria-pressed', on?'true':'false');
+}
+(function(){
+  const rf=document.getElementById('attrRespectFilter');
+  const ed=document.getElementById('attrEdit');
+  tbtnSetOn(rf, true); tbtnSetOn(ed, false);
+  rf.onclick=()=>{ tbtnSetOn(rf, !rf.checked); renderAttrTable(); };
+  ed.onclick=()=>{
+    tbtnSetOn(ed, !ed.checked);
+    if(ed.checked) toast('Edit mode — click a cell to change its value. Enter commits, Esc cancels.', 3600);
+    renderAttrTable();
+  };
+})();
+/* keep the three panel buttons' open/closed state on their carets */
+function tblSyncPanelButtons(){
+  [['tblCalcBtn','tblCalcWrap'],['tblStatsBtn','tblStatsWrap'],['tblFilterBtn','tblFilterWrap']].forEach(([b,w])=>{
+    const btn=document.getElementById(b), wrap=document.getElementById(w);
+    if(btn&&wrap) btn.classList.toggle('on', !wrap.classList.contains('hidden'));
+  });
+}
+/* only one panel open at a time keeps the table area readable */
+function tblOpenPanel(which){
+  ['tblCalcWrap','tblStatsWrap','tblFilterWrap'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el && id!==which) el.classList.add('hidden');
+  });
+}
 /* ---------- field statistics ---------- */
 function fieldStats(values){
   const v=values.filter(x=>isFinite(x)).sort((a,b)=>a-b);
@@ -4208,26 +4308,55 @@ function renderStatsPanel(){
 document.getElementById('tblStatsBtn').onclick=()=>{
   const wrap=document.getElementById('tblStatsWrap');
   if(!selectedLayer()) return;
-  wrap.classList.toggle('hidden');
-  if(wrap.classList.contains('hidden')) return;
-  statsPicked=new Set();          /* start empty; the user picks fields to show */
-  renderStatsPanel();
+  const opening=wrap.classList.contains('hidden');
+  tblOpenPanel(opening?'tblStatsWrap':null);
+  wrap.classList.toggle('hidden', !opening);
+  if(opening){ statsPicked=new Set(); renderStatsPanel(); }   /* start empty; user picks fields */
+  tblSyncPanelButtons();
 };
 document.getElementById('tblFilterBtn').onclick=()=>{
   const wrap=document.getElementById('tblFilterWrap');
   const lyr=selectedLayer(); if(!lyr) return;
-  wrap.classList.toggle('hidden');
-  if(!wrap.classList.contains('hidden')){
+  const opening=wrap.classList.contains('hidden');
+  tblOpenPanel(opening?'tblFilterWrap':null);
+  wrap.classList.toggle('hidden', !opening);
+  if(opening){
     renderFilterUI(wrap, lyr, ()=>{ renderLayer(lyr); updateMkStatus(); renderAttrTable(); renderFilterTab(); });
   }
+  tblSyncPanelButtons();
 };
+/* Field calculator now lives inside the table window, like Filter and
+   Statistics, so all three behave the same way. */
 document.getElementById('tblCalcBtn').onclick=()=>{
+  const wrap=document.getElementById('tblCalcWrap');
   const lyr=selectedLayer(); if(!lyr) return;
-  document.getElementById('calcLayerName').textContent='Layer: '+lyr.name;
-  document.getElementById('calcFields').innerHTML='<b>Available fields:</b> '+fieldsOf(lyr).map(esc).join(', ');
-  document.getElementById('calcPreview').textContent='';
-  openModal('modal-calc');
+  const opening=wrap.classList.contains('hidden');
+  tblOpenPanel(opening?'tblCalcWrap':null);
+  wrap.classList.toggle('hidden', !opening);
+  if(opening) renderCalcPanel(wrap, lyr);
+  tblSyncPanelButtons();
 };
+function renderCalcPanel(wrap, lyr){
+  wrap.innerHTML=
+    '<div class="tbl-panel">'+
+      '<div class="kv" style="margin-bottom:6px;">Layer: <b>'+esc(lyr.name)+'</b></div>'+
+      '<div class="calc-row">'+
+        '<label>New field name</label><input type="text" id="calcFieldName" placeholder="e.g. rate_per_1000">'+
+      '</div>'+
+      '<div class="calc-row">'+
+        '<label>Expression (JavaScript; use field names directly)</label>'+
+        '<textarea id="calcExpr" rows="2" placeholder="e.g. crimes / pop * 1000"></textarea>'+
+      '</div>'+
+      '<div class="kv" id="calcFields"><b>Available fields:</b> '+fieldsOf(lyr).map(esc).join(', ')+'</div>'+
+      '<div class="kv" id="calcPreview" style="margin-top:6px;"></div>'+
+      '<div style="display:flex;gap:6px;margin-top:8px;">'+
+        '<button class="btn small secondary" id="calcTestBtn">Test</button>'+
+        '<button class="btn small" id="calcApplyBtn">Apply</button>'+
+      '</div>'+
+    '</div>';
+  wrap.querySelector('#calcTestBtn').onclick=calcTest;
+  wrap.querySelector('#calcApplyBtn').onclick=calcApply;
+}
 function renderAttrTable(){
   const lyr=selectedLayer(); if(!lyr) return;
   document.getElementById('attrTableTitle').textContent='Attribute table — '+lyr.name;
@@ -4329,7 +4458,7 @@ function calcCompile(){
   try{ return new Function('p','with(p){ return ('+expr+'); }'); }
   catch(err){ document.getElementById('calcPreview').textContent='Expression error: '+err.message; return null; }
 }
-document.getElementById('calcTestBtn').onclick=()=>{
+function calcTest(){
   const lyr=selectedLayer(); if(!lyr) return;
   const fn=calcCompile(); if(!fn) return;
   const f=lyr.geojson.features[0];
@@ -4337,8 +4466,8 @@ document.getElementById('calcTestBtn').onclick=()=>{
     const v=fn(Object.assign({}, f.properties||{}));
     document.getElementById('calcPreview').textContent='First feature result: '+String(v);
   }catch(err){ document.getElementById('calcPreview').textContent='Runtime error: '+err.message; }
-};
-document.getElementById('calcApplyBtn').onclick=()=>{
+}
+function calcApply(){
   const lyr=selectedLayer(); if(!lyr) return;
   const name=document.getElementById('calcFieldName').value.trim();
   if(!name){ toast('Give the new field a name.'); return; }
@@ -4352,12 +4481,13 @@ document.getElementById('calcApplyBtn').onclick=()=>{
     }catch(_){ errs++; f.properties[name]=null; }
   });
   invalidateFieldCache(lyr);
-  closeModal('modal-calc');
+  const wrap=document.getElementById('tblCalcWrap');
+  if(wrap){ wrap.classList.add('hidden'); tblSyncPanelButtons(); }
   renderLayer(lyr); renderMakerPanels();
   if(tableWinOpen()) renderAttrTable();
   persistDataset(lyr.datasetId);
   toast('Field "'+name+'" added'+(errs?' ('+errs+' features errored → null)':'')+'.');
-};
+}
 
 /* ---------- spatial tools ---------- */
 function layerOptions(sel, geomFilter){
@@ -4950,13 +5080,15 @@ document.getElementById('sendGoBtn').onclick=()=>{
   const specs = wantLegend ? mkLayers.filter(l=>l.visible).map(legendSpecForLayer).filter(s=>s.items.length) : [];
   const labels = wantLabels ? collectLabelPlacements() : [];
   if(mkGlobe){
-    /* globe view: the basemap and data are already baked into the WebGL canvas */
-    let dataURL;
-    try{ mkGlobe.triggerRepaint(); dataURL=mkGlobe.getCanvas().toDataURL('image/png'); }
-    catch(e){ status.textContent='Could not capture the globe: '+e.message; return; }
-    closeModal('modal-send');
-    window.__layout.receiveFromMaker(dataURL, null, specs, false, []);
-    if(wantScale) toast('No scale bar added — scale isn’t constant across a globe.', 4200);
+    /* globe view: the basemap and data are already baked into the WebGL canvas.
+       Read it inside a render callback or it comes back blank/black. */
+    status.textContent='Capturing globe…';
+    glFreshDataURL(mkGlobe).then(dataURL=>{
+      if(!dataURL){ status.textContent='Could not capture the globe.'; return; }
+      closeModal('modal-send');
+      window.__layout.receiveFromMaker(dataURL, null, specs, false, []);
+      if(wantScale) toast('No scale bar added — scale isn’t constant across a globe.', 4200);
+    });
     return;
   }
   if(projActive){
@@ -4975,7 +5107,8 @@ document.getElementById('sendGoBtn').onclick=()=>{
   if(wantLabels) hideLabelsForCapture(true);      /* they arrive as text instead */
   const center=mkMap.getCenter(), zoom=mkMap.getZoom();
   const metersPerScreenPx = 156543.03392 * Math.cos(center.lat*Math.PI/180) / Math.pow(2, zoom);
-  html2canvas(mapEl, Object.assign({useCORS:true, scale:CAPSCALE, logging:false}, glCaptureOptions(mapEl))).then(snap=>{
+  glCaptureOptionsFresh(mapEl).then(glOpts=>
+  html2canvas(mapEl, Object.assign({useCORS:true, scale:CAPSCALE, logging:false}, glOpts)).then(snap=>{
     mapEl.classList.remove('capturing');
     if(wantLabels) hideLabelsForCapture(false);
     const dataURL=snap.toDataURL('image/png');
@@ -4986,7 +5119,7 @@ document.getElementById('sendGoBtn').onclick=()=>{
     mapEl.classList.remove('capturing');
     if(wantLabels) hideLabelsForCapture(false);
     status.textContent='Capture failed: '+err.message+'. Try a different basemap (some tile servers block capture).';
-  });
+  }));
 };
 /* ================= PROJECTED PREVIEW (d3-geo) ================= */
 /* Point symbols are stored as SVG path data in a 0–100 box, which Path2D
@@ -7323,7 +7456,8 @@ document.getElementById('insetAddToLayoutBtn').onclick=()=>{
   el.classList.add('capturing');
   const center=insetMap.getCenter(), zoom=insetMap.getZoom();
   const mPerPx=156543.03392*Math.cos(center.lat*Math.PI/180)/Math.pow(2,zoom);
-  html2canvas(el, Object.assign({useCORS:true, scale:2, logging:false}, (typeof glCaptureOptions==='function'?glCaptureOptions(el):{}))).then(snap=>{
+  Promise.resolve(typeof glCaptureOptionsFresh==='function'? glCaptureOptionsFresh(el) : {}).then(glOpts=>
+  html2canvas(el, Object.assign({useCORS:true, scale:2, logging:false}, glOpts)).then(snap=>{
     el.classList.remove('capturing');
     fabric.Image.fromURL(snap.toDataURL('image/png'), img=>{
       const maxW=canvas.getWidth()*0.4;
@@ -7338,7 +7472,7 @@ document.getElementById('insetAddToLayoutBtn').onclick=()=>{
     el.classList.remove('capturing');
     document.getElementById('insetStatus').textContent='';
     toast('Capture failed (cross-origin tiles). Take a screenshot and add it via Map Frame instead.',5000);
-  });
+  }));
 };
 
 /* ---------- receive from Map Maker ---------- */
