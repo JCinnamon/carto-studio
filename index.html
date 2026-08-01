@@ -133,7 +133,7 @@
   #projZoomCtl button{width:30px;height:30px;border:none;background:#fff;font-size:17px;font-weight:700;color:#3a3a3a;line-height:1;border-bottom:1px solid #ddd;}
   #projZoomCtl button:last-child{border-bottom:none;}
   #projZoomCtl button:hover{background:#f4f4f4;}
-  #mk-map{flex:1;background:#dde3ea;}
+  #mk-map{flex:1;background:#dde3ea;position:relative;}
   #mk-right{width:292px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;}
   .tabs{display:flex;align-items:center;border-bottom:1px solid var(--line);}
   .tabs button{flex:1;padding:10px 0;background:none;border:none;font-size:12px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;}
@@ -462,9 +462,13 @@
 
   /* ---------- modals ---------- */
   .modal-overlay{position:fixed;inset:0;background:rgba(15,22,40,.55);display:flex;align-items:center;justify-content:center;z-index:1000;}
-  .modal{background:#fff;border-radius:10px;max-width:640px;width:92%;max-height:88vh;overflow-y:auto;padding:22px 24px;box-shadow:0 10px 40px rgba(0,0,0,.35);}
+  .modal{position:relative;background:#fff;border-radius:10px;max-width:640px;width:92%;max-height:88vh;overflow-y:auto;padding:22px 24px;box-shadow:0 10px 40px rgba(0,0,0,.35);}
   .modal.wide{max-width:900px;}
-  .modal h2{margin:0 0 12px;font-size:17px;color:var(--navy);}
+  .modal h2{margin:0 0 12px;font-size:17px;color:var(--navy);padding-right:26px;}
+  .modal h2.modal-drag{cursor:move;user-select:none;}
+  .modal-x{position:absolute;top:12px;right:12px;width:26px;height:26px;line-height:1;border:1px solid var(--line);
+    background:#f3f5f9;color:var(--muted);border-radius:6px;font-size:13px;display:flex;align-items:center;justify-content:center;z-index:2;}
+  .modal-x:hover{background:var(--danger);border-color:var(--danger);color:#fff;}
   .modal-close-row{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
   .help-step{margin-bottom:13px;}
   .help-step b{color:var(--navy2);}
@@ -511,12 +515,20 @@
   #attr-table.editing td[contenteditable]:focus{outline:2px solid var(--teal);outline-offset:-2px;background:#fff;}
   #attr-table.editing tr[data-i]{cursor:default;}
   #tblStatsWrap{margin-bottom:8px;overflow:auto;}
+  .stats-chooser{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:8px;}
+  .stats-choose-lbl{font-size:11px;font-weight:700;color:var(--muted);margin-right:2px;}
+  .stats-chip{font-size:11px;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border:1px solid var(--line);border-radius:12px;background:#f3f5f9;cursor:pointer;}
+  .stats-chip.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+  .stats-chip input{margin:0;}
+  .stats-mini{font-size:10.5px;padding:2px 7px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--muted);}
+  .stats-mini:hover{background:#eef2f8;color:var(--text);}
   .stats-table{border-collapse:collapse;font-size:11.5px;width:100%;}
   .stats-table th{background:var(--navy);color:#fff;padding:4px 8px;text-align:left;white-space:nowrap;}
   .stats-table td{padding:3px 8px;border-bottom:1px solid #edf0f5;white-space:nowrap;text-align:right;}
   .stats-table td:first-child{text-align:left;}
 
   #inset-leaflet{width:100%;height:400px;border:1px solid var(--line);border-radius:6px;background:#dde3ea;}
+  .inset-basemaprow{display:flex;align-items:center;gap:8px;margin:6px 0 8px;}
   .inset-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;align-items:center;}
   .inset-layerlist{display:flex;flex-direction:column;gap:4px;margin-top:8px;max-height:100px;overflow-y:auto;}
   .inset-layerlist div{font-size:12px;display:flex;align-items:center;gap:6px;}
@@ -1039,7 +1051,15 @@
   <div class="modal wide">
     <h2>Build an inset / locator map</h2>
     <p class="kv">Pan and zoom the basemap. Optionally add a data layer or draw a locator box. “Add to layout” captures a snapshot you can move and resize on the page.</p>
-    <div id="inset-leaflet"></div>
+    <div class="inset-basemaprow">
+      <label class="kv" style="font-weight:700;">Basemap</label>
+      <select id="insetBasemap" style="padding:4px;border:1px solid var(--line);border-radius:4px;font-size:12px;"></select>
+      <button class="btn small ghost" id="insetPartsBtn" title="Turn parts of the basemap on/off">🗺️ Layers</button>
+      <span class="kv" id="insetBasemapAttr" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+    </div>
+    <div id="inset-mapwrap" style="position:relative;">
+      <div id="inset-leaflet"></div>
+    </div>
     <div class="inset-toolbar">
       <button class="btn small secondary" id="insetAddLayerBtn">+ Add data layer</button>
       <input type="file" id="fileInsetData" accept=".geojson,.json,.csv,.zip" multiple hidden>
@@ -1344,8 +1364,40 @@ function toast(msg, ms){
   t.textContent=msg; t.classList.add('show');
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), ms||2600);
 }
-function openModal(id){ document.getElementById(id).classList.remove('hidden'); }
+function openModal(id){ const o=document.getElementById(id); if(!o) return; o.classList.remove('hidden'); enhanceModal(o); }
 window.closeModal = function(id){ document.getElementById(id).classList.add('hidden'); };
+/* Every dialog behaves like a real window: draggable by its title bar and with an
+   X to close, while keeping the dimmed backdrop. Position resets to centre on
+   each open so a window can't get lost off-screen. */
+function enhanceModal(overlay){
+  const modal=overlay.querySelector('.modal'); if(!modal) return;
+  modal.style.position=''; modal.style.left=''; modal.style.top=''; modal.style.transform=''; modal.style.margin='';
+  if(!modal.querySelector('.modal-x')){
+    const x=document.createElement('button');
+    x.type='button'; x.className='modal-x'; x.innerHTML='✕'; x.title='Close';
+    x.onclick=()=>{ overlay.classList.add('hidden'); };
+    modal.appendChild(x);
+    const h=modal.querySelector('h2');
+    if(h){ h.classList.add('modal-drag'); makeModalDraggable(modal, h); }
+  }
+}
+function makeModalDraggable(modal, handle){
+  handle.addEventListener('mousedown', e=>{
+    if(e.target.closest('.modal-x') || e.button!==0) return;
+    const r=modal.getBoundingClientRect();
+    modal.style.position='fixed'; modal.style.margin='0'; modal.style.transform='none';
+    modal.style.left=r.left+'px'; modal.style.top=r.top+'px';
+    const sx=e.clientX, sy=e.clientY, ox=r.left, oy=r.top;
+    const mv=ev=>{
+      const nx=Math.max(6-modal.offsetWidth+80, Math.min(window.innerWidth-80, ox+ev.clientX-sx));
+      const ny=Math.max(0, Math.min(window.innerHeight-40, oy+ev.clientY-sy));
+      modal.style.left=nx+'px'; modal.style.top=ny+'px';
+    };
+    const up=()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+    document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+    e.preventDefault();
+  });
+}
 function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
 function toHex(c){
   if(!c) return '#000000';
@@ -2031,6 +2083,17 @@ function globeOnStyle(){
   globeApplyParts(mkGlobe);
   globeAddUserLayers(mkGlobe);
 }
+/* run cb once the globe's style is fully loaded — MapLibre v5's 'style.load'
+   event is unreliable (both on first open and after setStyle), so poll. */
+function globeWhenReady(cb){
+  if(!mkGlobe) return;
+  if(mkGlobe.isStyleLoaded && mkGlobe.isStyleLoaded()){ cb(); return; }
+  const t=setInterval(()=>{
+    if(!mkGlobe){ clearInterval(t); return; }
+    if(mkGlobe.isStyleLoaded()){ clearInterval(t); cb(); }
+  }, 120);
+  setTimeout(()=>clearInterval(t), 6000);
+}
 function globeDataBounds(){
   const g=L.geoJSON({type:'FeatureCollection', features:[]});
   mkLayers.forEach(l=>{ if(l.visible && l.geojson) try{ g.addData(l.geojson); }catch(_){} });
@@ -2042,10 +2105,10 @@ function globeFitBounds(b, dur){
   try{ mkGlobe.fitBounds([[b.getWest(),b.getSouth()],[b.getEast(),b.getNorth()]],
     {padding:50, maxZoom:6, duration:dur==null?800:dur}); }catch(_){}
 }
-function globeFitData(){ globeFitBounds(globeDataBounds()); }
+function globeFitData(){ globeWhenReady(()=>globeFitBounds(globeDataBounds())); }
 function globeFitLayer(lyr){
   if(!mkGlobe || !lyr || !lyr.geojson) return;
-  try{ globeFitBounds(L.geoJSON(lyr.geojson).getBounds()); }catch(_){}
+  globeWhenReady(()=>{ try{ globeFitBounds(L.geoJSON(lyr.geojson).getBounds()); }catch(_){} });
 }
 /* rebuild the globe's basemap when the user changes the basemap while it's open */
 function globeApplyBasemap(){
@@ -2053,14 +2116,9 @@ function globeApplyBasemap(){
   const styleUrl=globeVectorStyleUrl(mkBasemapKey);
   const style=styleUrl || globeRasterStyle(mkBasemapKey);
   /* diff:false forces a full reload (a diffed update would keep the old basemap
-     shapes and silently drop the user layers). 'style.load' isn't reliable after
-     setStyle in MapLibre v5, so poll isStyleLoaded and re-apply once ready. */
+     shapes and silently drop the user layers). */
   try{ mkGlobe.setStyle(style, {diff:false}); }catch(_){ return; }
-  const t=setInterval(()=>{
-    if(!mkGlobe){ clearInterval(t); return; }
-    if(mkGlobe.isStyleLoaded()){ clearInterval(t); globeOnStyle(); }
-  }, 120);
-  setTimeout(()=>clearInterval(t), 5000);
+  globeWhenReady(globeOnStyle);
 }
 function globeOpen(){
   if(mkGlobe) return;
@@ -2073,7 +2131,9 @@ function globeOpen(){
       '<div class="mk-globe-hint">🌐 Globe view — drag to spin, scroll to zoom.'+
       '<button id="mkGlobeFit" title="Zoom the globe to your data">Fit data</button>'+
       '<button id="mkGlobeClose">Back to flat map</button></div>';
-    document.getElementById('mk-center').appendChild(host);
+    /* mount inside the map area only, so the toolbar row (Layers, Send to
+       Composer, Menu) and a docked attribute table stay visible in globe view */
+    document.getElementById('mk-map').appendChild(host);
     host.querySelector('#mkGlobeClose').onclick=()=>toggleGlobeView();
     host.querySelector('#mkGlobeFit').onclick=()=>globeFitData();
   }
@@ -2100,8 +2160,11 @@ function globeOpen(){
     globeClose(); return;
   }
   mkGlobe.addControl(new maplibregl.NavigationControl({visualizePitch:true}), 'top-right');
-  /* style.load fires on first load AND after every setStyle (basemap switch) */
+  /* apply the projection, parts and user layers once ready. 'style.load' alone is
+     unreliable in v5, so also poll — that's what makes the data render on the
+     FIRST open (previously it only appeared after a basemap switch). */
   mkGlobe.on('style.load', globeOnStyle);
+  globeWhenReady(globeOnStyle);
   mkGlobe.on('error', ()=>{});   /* tile errors shouldn't spam the console */
 }
 function globeClose(){
@@ -4107,24 +4170,48 @@ function fieldStats(values){
   const variance=v.reduce((a,b)=>a+(b-mean)*(b-mean),0)/n;
   return {n, min:v[0], max:v[n-1], sum, mean, median, sd:Math.sqrt(variance)};
 }
-document.getElementById('tblStatsBtn').onclick=()=>{
+let statsPicked=new Set();     /* which numeric fields the stats table shows */
+function renderStatsPanel(){
   const wrap=document.getElementById('tblStatsWrap');
   const lyr=selectedLayer(); if(!lyr) return;
-  wrap.classList.toggle('hidden');
-  if(wrap.classList.contains('hidden')) return;
-  const respect=document.getElementById('attrRespectFilter').checked;
-  const feats=respect? visibleFeatures(lyr) : lyr.geojson.features;
   const numFields=numericFieldsOf(lyr);
   if(!numFields.length){ wrap.innerHTML='<div class="kv" style="padding:8px;">No numeric fields to summarise in this layer.</div>'; return; }
+  const respect=document.getElementById('attrRespectFilter').checked;
+  const feats=respect? visibleFeatures(lyr) : lyr.geojson.features;
   const fmt=x=>x==null?'—':(Math.abs(x)>=1000||Number.isInteger(x)? Math.round(x*100)/100 : +x.toFixed(4)).toLocaleString();
-  let html='<table class="stats-table"><tr><th>Field</th><th>Count</th><th>Min</th><th>Max</th><th>Mean</th><th>Median</th><th>Sum</th><th>Std dev</th></tr>';
-  numFields.forEach(fld=>{
-    const s=fieldStats(feats.map(f=>parseFloat((f.properties||{})[fld])));
-    if(!s){ html+='<tr><td>'+esc(fld)+'</td><td colspan="7" class="kv">no numeric values</td></tr>'; return; }
-    html+='<tr><td><b>'+esc(fld)+'</b></td><td>'+s.n+'</td><td>'+fmt(s.min)+'</td><td>'+fmt(s.max)+'</td><td>'+fmt(s.mean)+'</td><td>'+fmt(s.median)+'</td><td>'+fmt(s.sum)+'</td><td>'+fmt(s.sd)+'</td></tr>';
+  const chooser='<div class="stats-chooser"><span class="stats-choose-lbl">Show fields:</span>'+
+    numFields.map(f=>'<label class="stats-chip'+(statsPicked.has(f)?' on':'')+'"><input type="checkbox" data-f="'+esc(f)+'"'+(statsPicked.has(f)?' checked':'')+'> '+esc(f)+'</label>').join('')+
+    '<button class="stats-mini" id="statsAll">All</button><button class="stats-mini" id="statsNone">None</button></div>';
+  let table;
+  const picked=numFields.filter(f=>statsPicked.has(f));
+  if(!picked.length){
+    table='<div class="kv" style="padding:8px 2px;">Tick one or more fields above to summarise them.</div>';
+  } else {
+    table='<table class="stats-table"><tr><th>Field</th><th>Count</th><th>Min</th><th>Max</th><th>Mean</th><th>Median</th><th>Sum</th><th>Std dev</th></tr>';
+    picked.forEach(fld=>{
+      const s=fieldStats(feats.map(f=>parseFloat((f.properties||{})[fld])));
+      if(!s){ table+='<tr><td>'+esc(fld)+'</td><td colspan="7" class="kv">no numeric values</td></tr>'; return; }
+      table+='<tr><td><b>'+esc(fld)+'</b></td><td>'+s.n+'</td><td>'+fmt(s.min)+'</td><td>'+fmt(s.max)+'</td><td>'+fmt(s.mean)+'</td><td>'+fmt(s.median)+'</td><td>'+fmt(s.sum)+'</td><td>'+fmt(s.sd)+'</td></tr>';
+    });
+    table+='</table>';
+  }
+  wrap.innerHTML=chooser+table;
+  wrap.querySelectorAll('input[data-f]').forEach(cb=>cb.onchange=()=>{
+    const f=cb.getAttribute('data-f');
+    if(cb.checked) statsPicked.add(f); else statsPicked.delete(f);
+    renderStatsPanel();
   });
-  html+='</table>';
-  wrap.innerHTML=html;
+  const all=wrap.querySelector('#statsAll'), none=wrap.querySelector('#statsNone');
+  if(all) all.onclick=()=>{ numFields.forEach(f=>statsPicked.add(f)); renderStatsPanel(); };
+  if(none) none.onclick=()=>{ statsPicked.clear(); renderStatsPanel(); };
+}
+document.getElementById('tblStatsBtn').onclick=()=>{
+  const wrap=document.getElementById('tblStatsWrap');
+  if(!selectedLayer()) return;
+  wrap.classList.toggle('hidden');
+  if(wrap.classList.contains('hidden')) return;
+  statsPicked=new Set();          /* start empty; the user picks fields to show */
+  renderStatsPanel();
 };
 document.getElementById('tblFilterBtn').onclick=()=>{
   const wrap=document.getElementById('tblFilterWrap');
@@ -7071,21 +7158,91 @@ function renderLegendRows(obj){
 }
 
 /* ---------- inset builder ---------- */
+let insetBasemapLayers=[], insetBasemapKey='ofm-positron';
+let insetBasemapParts=Object.keys(BM_PART_GROUPS).reduce((o,k)=>(o[k]=true,o),{});
 document.getElementById('toolInset').onclick=()=>{
   openModal('modal-inset');
-  setTimeout(initInsetMapIfNeeded, 60);
+  /* the map lives in a modal that was display:none until now; build/refresh it
+     only once the container has a real size, then invalidate a couple of times */
+  setTimeout(()=>{ initInsetMapIfNeeded(); insetMap && insetMap.invalidateSize(); }, 80);
+  setTimeout(()=>{ insetMap && insetMap.invalidateSize(); }, 320);
 };
 function initInsetMapIfNeeded(){
   if(insetMap){ insetMap.invalidateSize(); return; }
   insetMap=L.map('inset-leaflet',{preferCanvas:true}).setView([49.888,-119.496], 10);
-  /* the open OpenFreeMap Positron vector style, matching Map Maker's default;
-     falls back to OSM raster if MapLibre isn't available */
-  if(typeof makeVectorBasemap==='function' && L.maplibreGL && BASEMAPS['ofm-positron']){
-    makeVectorBasemap(BASEMAPS['ofm-positron']).addTo(insetMap);
-  } else {
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{crossOrigin:true, maxZoom:19, attribution:'© OpenStreetMap contributors'}).addTo(insetMap);
-  }
+  window.__insetMap=insetMap;
+  /* populate the basemap dropdown from the main map's list, and start on whatever
+     basemap Map Maker is currently showing so the inset matches by default */
+  const sel=document.getElementById('insetBasemap');
+  const mkSel=document.getElementById('mkBasemap');
+  if(sel && mkSel && !sel.options.length) sel.innerHTML=mkSel.innerHTML;
+  const start=(typeof mkBasemapKey!=='undefined' && BASEMAPS.hasOwnProperty(mkBasemapKey))? mkBasemapKey : 'ofm-positron';
+  setInsetBasemap(start);
+  sel && (sel.onchange=e=>setInsetBasemap(e.target.value));
+  const pb=document.getElementById('insetPartsBtn'); if(pb) pb.onclick=toggleInsetPartsPanel;
   insetMap.invalidateSize();
+}
+function currentInsetGlMap(){
+  const l=insetBasemapLayers.find(x=>x && typeof x.getMaplibreMap==='function');
+  try{ return l? l.getMaplibreMap() : null; }catch(_){ return null; }
+}
+function setInsetBasemap(key){
+  if(BASEMAP_LEGACY[key]) key=BASEMAP_LEGACY[key];
+  if(!BASEMAPS.hasOwnProperty(key)) key='ofm-positron';
+  insetBasemapLayers.forEach(l=>{ try{ insetMap.removeLayer(l); }catch(_){} });
+  insetBasemapLayers=[];
+  insetBasemapKey=key;
+  const bm=BASEMAPS[key];
+  const attrEl=document.getElementById('insetBasemapAttr');
+  document.getElementById('inset-leaflet').style.background = key==='none' ? '#ffffff' : '#dde3ea';
+  if(bm && bm.kind==='vector'){
+    let ok=false;
+    const gl=(typeof makeVectorBasemap==='function') ? makeVectorBasemap(bm) : null;
+    if(gl){ try{ gl.addTo(insetMap); insetBasemapLayers.push(gl); ok=true; }catch(_){ try{ insetMap.removeLayer(gl); }catch(__){} } }
+    if(!ok){ const tl=L.tileLayer(BASEMAPS.osm.urls[0],{crossOrigin:true, maxZoom:19, attribution:OSM_ATTR}); tl.addTo(insetMap); insetBasemapLayers.push(tl); }
+    else setTimeout(applyInsetBasemapParts, 1200);
+    if(attrEl) attrEl.textContent=bm.attr;
+  } else if(bm && bm.kind==='raster'){
+    bm.urls.forEach((u,i)=>{ const tl=L.tileLayer(u,{crossOrigin:true, maxZoom:bm.max, maxNativeZoom:bm.maxNative||bm.max, attribution:i===0?bm.attr:''}); tl.addTo(insetMap); insetBasemapLayers.push(tl); });
+    if(attrEl) attrEl.textContent=bm.attr;
+  } else { if(attrEl) attrEl.textContent=''; }
+  const sel=document.getElementById('insetBasemap'); if(sel) sel.value=key;
+  const p=document.getElementById('insetPartsPanel'); if(p) p.remove();
+  /* keep data layers drawn on top of the freshly-added basemap */
+  insetLayers.forEach(l=>{ try{ l.layer.bringToFront && l.layer.bringToFront(); }catch(_){} });
+}
+function applyInsetBasemapParts(){
+  const gl=currentInsetGlMap(); if(!gl) return;
+  const run=()=>{
+    let style; try{ style=gl.getStyle(); }catch(_){ return; }
+    if(!style||!style.layers) return;
+    style.layers.forEach(ly=>{
+      const sl=ly['source-layer']; if(!sl) return;
+      for(const k in BM_PART_GROUPS){
+        if(BM_PART_GROUPS[k].src.includes(sl)){
+          try{ gl.setLayoutProperty(ly.id,'visibility', insetBasemapParts[k]?'visible':'none'); }catch(_){}
+        }
+      }
+    });
+  };
+  if(gl.isStyleLoaded && gl.isStyleLoaded()) run(); else gl.once('idle', run);
+}
+function toggleInsetPartsPanel(){
+  let panel=document.getElementById('insetPartsPanel');
+  if(panel){ panel.remove(); return; }
+  panel=document.createElement('div'); panel.id='insetPartsPanel'; panel.className='mk-basemap-panel';
+  const gl=currentInsetGlMap();
+  if(!gl){
+    panel.innerHTML='<div class="kv" style="padding:4px 2px;">Turning parts on and off works on the <b>open vector basemaps</b> (Positron, Bright, Liberty, Dark, Fiord). Pick one of those first.</div>';
+  } else {
+    panel.innerHTML='<div class="mbp-title">Show basemap parts</div>'+
+      Object.keys(BM_PART_GROUPS).map(k=>
+        '<label class="mbp-row"><input type="checkbox" data-part="'+k+'" '+(insetBasemapParts[k]?'checked':'')+'> '+esc(BM_PART_GROUPS[k].label)+'</label>').join('');
+  }
+  document.getElementById('inset-mapwrap').appendChild(panel);
+  panel.querySelectorAll('input[data-part]').forEach(cb=>{
+    cb.onchange=()=>{ insetBasemapParts[cb.getAttribute('data-part')]=cb.checked; applyInsetBasemapParts(); };
+  });
 }
 document.getElementById('insetAddLayerBtn').onclick=()=>document.getElementById('fileInsetData').click();
 document.getElementById('fileInsetData').addEventListener('change', function(e){
