@@ -414,8 +414,10 @@
   .tbtn:hover{background:#e2e7ef;}
   .tbtn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
   .tbtn.on:hover{background:#243660;}
-  .tbtn .car{display:inline-block;font-size:9px;transition:transform .12s;opacity:.75;}
+  /* the caret makes it obvious these three open a panel below the toolbar */
+  .tbtn .car{display:inline-block;font-size:9px;transition:transform .12s;opacity:.85;}
   .tbtn.on .car{transform:rotate(90deg);}
+  .tbtn.on{box-shadow:0 2px 0 var(--teal) inset;}
   .tbtn-sep{width:1px;height:18px;background:var(--line);margin:0 2px;}
   #tblFilterWrap{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:8px;background:#fafbfd;}
   .legend-row select{width:70px;padding:3px;border:1px solid var(--line);border-radius:4px;font-size:11px;flex-shrink:0;}
@@ -944,9 +946,10 @@
       <button class="tbtn" id="tblStatsBtn" title="Show summary statistics for the numeric fields"><span class="car">▸</span> Σ Statistics</button>
       <button class="tbtn" id="tblFilterBtn" title="Build a filter for this layer"><span class="car">▸</span> ▼ Filter</button>
       <span class="tbtn-sep"></span>
-      <button class="tbtn on" id="attrRespectFilter" aria-pressed="true" title="Apply the layer's filter to the rows shown">Apply filter to table</button>
-      <button class="tbtn" id="attrEdit" aria-pressed="false" title="Edit values directly in the table">Edit cells</button>
+      <button class="tbtn" id="tblAddFieldBtn" title="Add a new empty field to this layer">＋ Add field</button>
+      <button class="tbtn" id="attrEdit" aria-pressed="false" title="Edit values directly in the table">✎ Edit cells</button>
       <span class="kv" id="attrCount"></span>
+      <input type="checkbox" id="attrRespectFilter" checked hidden>
     </div>
     <div id="tblCalcWrap" class="hidden"></div>
     <div id="tblFilterWrap" class="hidden"></div>
@@ -985,7 +988,10 @@
     <h2 id="fieldsTitle">Fields</h2>
     <p class="kv" id="fieldsSummary"></p>
     <div id="fieldsList"></div>
-    <div class="modal-close-row"><button class="btn" onclick="closeModal('modal-fields')">Close</button></div>
+    <div class="modal-close-row" style="justify-content:space-between;">
+      <button class="btn small secondary" id="fieldsAddBtn">＋ Add field</button>
+      <button class="btn" onclick="closeModal('modal-fields')">Close</button>
+    </div>
   </div>
 </div>
 
@@ -1336,6 +1342,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.6.1/maplibre-gl.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"></script>
 <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.20.0/dist/leaflet-geoman.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/shpjs@4.0.4/dist/shp.js"></script>
@@ -1908,7 +1915,10 @@ function defaultStyle(geom){
     symbol:'circle',              /* point marker shape */
     classColors:null,             /* per-class overrides for the ramp */
     colorField:null,              /* bivariate: the field driving colour */
-    dotValue:100, dotSize:2.2, dotColor:'#b3452f'};   /* dot density */
+    dotValue:100, dotSize:2.2, dotColor:'#b3452f',   /* dot density */
+    /* density mapping */
+    heatRadius:25, heatBlur:15, heatField:null,       /* heatmap: optional weight field */
+    hexSize:5, hexStat:'count', hexField:null, hexOpacity:0.8, hexStroke:true};   /* hexbin */
 }
 function defaultLabels(){ return {enabled:false, field:null, size:11, color:'#22293a', halo:true,
   font:'Arial, Helvetica, sans-serif', bold:true, italic:false, position:'ne', offset:8}; }
@@ -2123,10 +2133,55 @@ function globeFitBounds(b, dur){
     {padding:50, maxZoom:6, duration:dur==null?800:dur}); }catch(_){}
 }
 function globeFitData(){ globeWhenReady(()=>globeFitBounds(globeDataBounds())); }
-/* zoom back out until the whole globe is in view, facing north */
+/* How big the sphere currently is on screen, in CSS pixels. Measured rather than
+   derived: the globe's apparent size depends on the centre latitude as well as
+   the zoom, so projecting the two poles is the only dependable way to know. */
+function globeScreenDiameter(){
+  if(!mkGlobe) return 0;
+  try{
+    const c=mkGlobe.getCenter();
+    const n=mkGlobe.project([c.lng, 89.99]), s=mkGlobe.project([c.lng, -89.99]);
+    let d=Math.abs(s.y-n.y);
+    if(!isFinite(d)||d<=0) return 0;
+    /* project() reports the pole separation in Mercator-scaled pixels, which is
+       the true on-screen diameter multiplied by cos(centre latitude). Measured
+       against the rendered sphere at several latitudes, dividing it back out
+       matches to within a pixel. Without this the fit over-zooms away from the
+       equator — the globe filled the panel instead of sitting inside it. */
+    const lat=Math.max(-80, Math.min(80, c.lat));
+    d=d/Math.cos(lat*Math.PI/180);
+    return d;
+  }catch(_){ return 0; }
+}
+function globeTargetDiameter(){
+  const el=document.getElementById('mk-globe-map');
+  const w=(el&&el.clientWidth)||800, h=(el&&el.clientHeight)||600;
+  return Math.max(64, Math.min(w,h)*0.94);       /* a little breathing room */
+}
+/* Zoom so the whole globe just fills the panel. Converges in a couple of passes:
+   doubling the zoom doubles the on-screen size, so the correction is a log2. */
+function globeFitZoom(){
+  if(!mkGlobe) return 1.5;
+  const target=globeTargetDiameter();
+  let z=mkGlobe.getZoom();
+  for(let i=0;i<8;i++){
+    const d=globeScreenDiameter();
+    if(!d) break;
+    const adj=Math.log2(target/d);
+    if(Math.abs(adj)<0.005) break;
+    z=Math.max(0, z+adj);
+    try{ mkGlobe.setZoom(z); }catch(_){ break; }
+  }
+  return mkGlobe.getZoom();
+}
+/* zoom back out until the whole globe is in view, as large as it will go */
 function globeFullExtent(){
   if(!mkGlobe) return;
-  try{ mkGlobe.flyTo({center:[mkGlobe.getCenter().lng, 15], zoom:0, bearing:0, pitch:0, duration:900}); }catch(_){}
+  try{
+    mkGlobe.jumpTo({bearing:0, pitch:0});
+    const z=globeFitZoom();                 /* measures and settles the zoom */
+    mkGlobe.easeTo({zoom:z, bearing:0, pitch:0, duration:600});
+  }catch(_){}
 }
 /* put the globe back to north-up and flat-on */
 function globeResetNorth(){
@@ -2158,7 +2213,6 @@ function globeOpen(){
       '<div class="mk-globe-hint">🌐 Globe view — drag to spin, scroll to zoom.'+
       '<button id="mkGlobeFit" title="Zoom the globe to your data">Fit data</button>'+
       '<button id="mkGlobeAll" title="Zoom out to the whole globe">Whole globe</button>'+
-      '<button id="mkGlobeNorth" title="Reset the globe to north-up">North ↑</button>'+
       '<button id="mkGlobeClose">Back to flat map</button></div>';
     /* mount inside the map area only, so the toolbar row (Layers, Send to
        Composer, Menu) and a docked attribute table stay visible in globe view */
@@ -2166,7 +2220,6 @@ function globeOpen(){
     host.querySelector('#mkGlobeClose').onclick=()=>toggleGlobeView();
     host.querySelector('#mkGlobeFit').onclick=()=>globeFitData();
     host.querySelector('#mkGlobeAll').onclick=()=>globeFullExtent();
-    host.querySelector('#mkGlobeNorth').onclick=()=>globeResetNorth();
   }
   host.style.display='block';
   document.getElementById('mk-center').classList.add('globe-open');
@@ -2182,7 +2235,7 @@ function globeOpen(){
       style,
       projection:{type:'globe'},
       center:[c.lng, c.lat],
-      zoom:Math.max(2.5, Math.min(z-0.2, 5.1)),   /* opens 2 levels closer in */
+      zoom:1.5,                 /* provisional — settled to a whole-globe fit on load */
       attributionControl:{compact:true},
       dragRotate:true, preserveDrawingBuffer:true
     });
@@ -2215,6 +2268,11 @@ function globeOpen(){
      FIRST open (previously it only appeared after a basemap switch). */
   mkGlobe.on('style.load', globeOnStyle);
   globeWhenReady(globeOnStyle);
+  /* the panel is still being laid out when the map is constructed, so settle the
+     fit-zoom once on load — otherwise the globe opens slightly too large/small */
+  mkGlobe.once('load', ()=>{
+    try{ mkGlobe.resize(); mkGlobe.jumpTo({bearing:0, pitch:0}); globeFitZoom(); }catch(_){}
+  });
   mkGlobe.on('error', ()=>{});   /* tile errors shouldn't spam the console */
 }
 function globeClose(){
@@ -3038,14 +3096,174 @@ function pointMarker(lyr, latlng, f){
   });
   return L.marker(latlng,{icon, keyboard:false});
 }
+/* ---------- density mapping: hexbin ----------
+   Points are binned into a hexagonal lattice built in an equal-area-ish local
+   projection (km east/north of the data's centre), so cells stay the same real
+   size instead of stretching towards the poles the way raw degrees would. */
+function hexBins(lyr){
+  const st=lyr.style;
+  const feats=visibleFeatures(lyr).filter(f=>f.geometry);
+  if(!feats.length) return {cells:[], values:[]};
+  const size=Math.max(0.2, +st.hexSize||5);            /* km, centre-to-flat */
+  const pts=[];
+  feats.forEach(f=>{
+    let c; try{ c=(f.geometry.type==='Point')? f.geometry.coordinates : turf.center(f).geometry.coordinates; }catch(_){ return; }
+    if(!c||!isFinite(c[0])||!isFinite(c[1])) return;
+    pts.push({lon:c[0], lat:c[1], props:f.properties||{}});
+  });
+  if(!pts.length) return {cells:[], values:[]};
+  const lat0=pts.reduce((a,p)=>a+p.lat,0)/pts.length;
+  const kx=111.320*Math.cos(lat0*Math.PI/180), ky=110.574;   /* km per degree */
+  const toXY=p=>({x:p.lon*kx, y:p.lat*ky});
+  /* pointy-top hex lattice: width = sqrt(3)*size, vertical spacing = 1.5*size */
+  const w=Math.sqrt(3)*size, h=1.5*size;
+  const map=new Map();
+  pts.forEach(p=>{
+    const {x,y}=toXY(p);
+    /* axial rounding */
+    const q=(Math.sqrt(3)/3*x - y/3)/size, r=(2/3*y)/size;
+    let rx=Math.round(q), rz=Math.round(-q-r), ry=Math.round(r);
+    const dx=Math.abs(rx-q), dy=Math.abs(ry-r), dz=Math.abs(rz-(-q-r));
+    if(dx>dy && dx>dz) rx=-ry-rz; else if(dy>dz) ry=-rx-rz;
+    const key=rx+','+ry;
+    if(!map.has(key)) map.set(key,{q:rx, r:ry, items:[]});
+    map.get(key).items.push(p);
+  });
+  const stat=st.hexStat||'count', fld=st.hexField;
+  const cells=[];
+  map.forEach(cell=>{
+    let v;
+    if(stat==='count' || !fld){ v=cell.items.length; }
+    else {
+      const nums=cell.items.map(p=>parseFloat(p.props[fld])).filter(x=>isFinite(x));
+      if(!nums.length) v=null;
+      else if(stat==='sum')  v=nums.reduce((a,b)=>a+b,0);
+      else if(stat==='mean') v=nums.reduce((a,b)=>a+b,0)/nums.length;
+      else if(stat==='min')  v=Math.min.apply(null,nums);
+      else if(stat==='max')  v=Math.max.apply(null,nums);
+      else v=nums.length;
+    }
+    /* hex centre back to lon/lat, then its six corners */
+    const cx=size*Math.sqrt(3)*(cell.q + cell.r/2), cy=size*1.5*cell.r;
+    const ring=[];
+    for(let i=0;i<6;i++){
+      const ang=Math.PI/180*(60*i-30);
+      const px=cx+size*Math.cos(ang), py=cy+size*Math.sin(ang);
+      ring.push([px/kx, py/ky]);
+    }
+    ring.push(ring[0]);
+    cells.push({ring, value:v, n:cell.items.length});
+  });
+  return {cells, values:cells.map(c=>c.value).filter(v=>v!=null&&isFinite(v))};
+}
+function hexBreaks(values, st){
+  const n=Math.max(2, Math.min(12, +st.classes||5));
+  const v=values.slice().sort((a,b)=>a-b);
+  if(!v.length) return [];
+  const method=st.method||'quantile';
+  const out=[];
+  if(method==='equal'){
+    const lo=v[0], hi=v[v.length-1], step=(hi-lo)/n;
+    for(let i=1;i<n;i++) out.push(lo+step*i);
+  } else if(method==='jenks' && typeof ss!=='undefined' && ss.ckmeans){
+    try{
+      ss.ckmeans(v, Math.min(n, new Set(v).size)).forEach((g,i,arr)=>{ if(i<arr.length-1) out.push(g[g.length-1]); });
+    }catch(_){ for(let i=1;i<n;i++) out.push(v[Math.floor(v.length*i/n)]); }
+  } else {
+    for(let i=1;i<n;i++) out.push(v[Math.floor(v.length*i/n)]);
+  }
+  return out;
+}
+function renderHexLayer(lyr){
+  const st=lyr.style;
+  const {cells, values}=hexBins(lyr);
+  lyr._hexCells=cells;
+  const info=document.getElementById('stHexInfo');
+  if(!cells.length){
+    if(info) info.textContent='No points to bin.';
+    return null;
+  }
+  const breaks=hexBreaks(values, st);
+  const n=Math.max(2, Math.min(12, +st.classes||5));
+  const cols=rampColors(st, n);
+  const classOf=v=>{ if(v==null||!isFinite(v)) return -1; let i=0; while(i<breaks.length && v>breaks[i]) i++; return Math.min(i, n-1); };
+  const group=L.layerGroup();
+  cells.forEach(c=>{
+    const ci=classOf(c.value);
+    const fill=ci<0? '#cccccc' : cols[ci];
+    L.polygon(c.ring.map(p=>[p[1],p[0]]), {
+      color: st.hexStroke!==false? '#ffffff' : fill,
+      weight: st.hexStroke!==false? 0.7 : 0,
+      fillColor: fill, fillOpacity:(st.hexOpacity==null?0.8:st.hexOpacity)*lyr.opacity, opacity:lyr.opacity
+    }).bindPopup('<b>'+esc(st.hexStat==='count'||!st.hexField ? 'Count' : (st.hexStat+' of '+st.hexField))+':</b> '+
+      (c.value==null?'—':(Math.round(c.value*1000)/1000).toLocaleString())+'<br><span class="kv">'+c.n+' point'+(c.n===1?'':'s')+'</span>').addTo(group);
+  });
+  lyr._hexBreaks=breaks; lyr._hexColors=cols;
+  if(info) info.textContent=cells.length+' cell'+(cells.length===1?'':'s')+' · values '+
+    Math.min.apply(null,values).toLocaleString()+' – '+Math.max.apply(null,values).toLocaleString();
+  return group;
+}
+function hexCellsToLayer(lyr){
+  const cells=lyr._hexCells||hexBins(lyr).cells;
+  if(!cells.length){ toast('No cells to turn into a layer.'); return; }
+  const st=lyr.style;
+  const valueField=(st.hexStat==='count'||!st.hexField)? 'count' : (st.hexStat+'_'+st.hexField);
+  const gj={type:'FeatureCollection', features:cells.map(c=>({
+    type:'Feature',
+    properties:{[valueField]: c.value==null?null:+(Math.round(c.value*1e6)/1e6), points:c.n},
+    geometry:{type:'Polygon', coordinates:[c.ring]}
+  }))};
+  const ds=registerDataset(gj, lyr.name+' — hexbins', 'polygon', {derived:true});
+  const nl={id:uid(), name:ds.name, datasetId:ds.id, geojson:ds.geojson, geom:'polygon',
+    visible:true, opacity:1, style:Object.assign(defaultStyle('polygon'),
+      {mode:'grad', field:valueField, classes:st.classes||5, method:st.method||'quantile', ramp:st.ramp}),
+    labels:defaultLabels(), filter:{logic:'AND', conds:[]}, leaflet:null};
+  mkLayers.unshift(nl); mkSelectedId=nl.id;
+  renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
+  markProjectDirty(); if(typeof mkPushHistory==='function') mkPushHistory();
+  toast('Created "'+nl.name+'" with '+cells.length+' cells.');
+}
+/* ---------- density mapping: heatmap ---------- */
+function renderHeatLayer(lyr){
+  if(typeof L.heatLayer!=='function') { toast('The heatmap library failed to load.'); return null; }
+  const st=lyr.style;
+  const fld=st.heatField;
+  const pts=[]; let maxW=0;
+  visibleFeatures(lyr).forEach(f=>{
+    if(!f.geometry) return;
+    let c; try{ c=(f.geometry.type==='Point')? f.geometry.coordinates : turf.center(f).geometry.coordinates; }catch(_){ return; }
+    if(!c) return;
+    let w=1;
+    if(fld){ const v=parseFloat((f.properties||{})[fld]); w=isFinite(v)&&v>0? v : 0; }
+    if(w>maxW) maxW=w;
+    pts.push([c[1], c[0], w]);
+  });
+  if(!pts.length) return null;
+  if(fld && maxW>0) pts.forEach(p=>{ p[2]=p[2]/maxW; });     /* leaflet.heat wants 0-1 */
+  const cols=rampColors(st, 5);
+  const grad={0.2:cols[0], 0.4:cols[1], 0.6:cols[2], 0.8:cols[3], 1.0:cols[4]};
+  return L.heatLayer(pts, {radius:+st.heatRadius||25, blur:st.heatBlur==null?15:+st.heatBlur,
+    max:1, minOpacity:0.25, gradient:grad});
+}
 function renderLayer(lyr){
   if(lyr.leaflet){ mkMap.removeLayer(lyr.leaflet); lyr.leaflet=null; }
+  if(lyr.densityLayer){ mkMap.removeLayer(lyr.densityLayer); lyr.densityLayer=null; }
   if(lyr.dotLayer){ mkMap.removeLayer(lyr.dotLayer); lyr.dotLayer=null; }
   /* hiding a layer returns early below, so push the change to the globe first —
      otherwise switching a layer off wouldn't remove it from the globe */
   if(typeof scheduleGlobeSync==='function') scheduleGlobeSync();
   if(!lyr.visible) return;
   const st=lyr.style;
+  /* density modes replace the point symbols entirely with a surface / cell grid */
+  if(st.mode==='heat' || st.mode==='hex'){
+    const dl = st.mode==='heat' ? renderHeatLayer(lyr) : renderHexLayer(lyr);
+    if(dl){ lyr.densityLayer=dl.addTo(mkMap); }
+    updateLabelCss(lyr);
+    updateMkStatus();
+    scheduleGlobeSync();
+    mkTouch();
+    return;
+  }
   if(st.mode==='grad'||st.mode==='gradSize'||st.mode==='prop') { computeClassification(lyr); sizeRange(lyr); }
   if(st.mode==='bivariate'){ sizeRange(lyr); computeColorClassification(lyr); }
   if(st.mode==='cat') computeCategories(lyr);
@@ -3652,7 +3870,8 @@ function renderStyleTab(){
   const modes = lyr.geom==='point'
     ? [['single','Single symbol'],['cat','Categories (unique values)'],['grad','Graduated colour'],
        ['gradSize','Graduated symbol size'],['prop','Proportional symbols (unclassed)'],
-       ['bivariate','Size and colour together']]
+       ['bivariate','Size and colour together'],
+       ['heat','Heatmap (density surface)'],['hex','Hexbin (aggregated counts)']]
     : lyr.geom==='polygon'
       ? [['single','Single symbol'],['cat','Categories (unique values)'],['grad','Graduated colour'],
          ['dot','Dot density']]
@@ -3693,6 +3912,53 @@ function renderStyleTab(){
         <div class="field"><label>Dot colour</label><input type="color" id="stDotColor" value="${st.dotColor||'#b3452f'}"></div>
       </div>
       <div class="kv" id="stDotInfo"></div>`;
+  }
+  if(st.mode==='heat'){
+    html+=`<p class="kv" style="margin-top:0;">A continuous density surface — bright areas are where points cluster. Good for showing pattern, not for reading values off.</p>
+      <div class="field"><label>Weight by (optional numeric field)</label>
+        <select id="stHeatField"><option value="">— each point counts as 1 —</option>${numFields.map(f=>'<option '+(st.heatField===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>
+      <div class="row2">
+        <div class="field"><label>Radius: <b id="stHeatRLbl">${st.heatRadius||25}</b> px</label>
+          <input type="range" id="stHeatRadius" min="5" max="70" value="${st.heatRadius||25}"></div>
+        <div class="field"><label>Blur: <b id="stHeatBLbl">${st.heatBlur==null?15:st.heatBlur}</b> px</label>
+          <input type="range" id="stHeatBlur" min="1" max="45" value="${st.heatBlur==null?15:st.heatBlur}"></div>
+      </div>
+      <div class="field"><label>Colour scheme</label><select id="stRamp">${rampOptions(st.ramp,'polygon','grad')}</select></div>
+      <p class="kv">A heatmap has no classes, so it doesn't generate a legend entry.</p>`;
+  }
+  if(st.mode==='hex'){
+    html+=`<p class="kv" style="margin-top:0;">Points aggregated into hexagonal cells and shaded by what falls in each — a classed alternative to a heatmap that can be read off a legend.</p>
+      <div class="row2">
+        <div class="field"><label>Cell size: <b id="stHexLbl">${st.hexSize||5}</b> km</label>
+          <input type="range" id="stHexSize" min="1" max="100" step="1" value="${st.hexSize||5}"></div>
+        <div class="field"><label>Cell value</label>
+          <select id="stHexStat">
+            <option value="count" ${st.hexStat==='count'?'selected':''}>Count of points</option>
+            <option value="sum" ${st.hexStat==='sum'?'selected':''}>Sum of a field</option>
+            <option value="mean" ${st.hexStat==='mean'?'selected':''}>Mean of a field</option>
+            <option value="min" ${st.hexStat==='min'?'selected':''}>Minimum of a field</option>
+            <option value="max" ${st.hexStat==='max'?'selected':''}>Maximum of a field</option>
+          </select></div>
+      </div>`;
+    if(st.hexStat && st.hexStat!=='count'){
+      html+=`<div class="field"><label>Field to summarise</label>
+        <select id="stHexField"><option value="">— choose —</option>${numFields.map(f=>'<option '+(st.hexField===f?'selected':'')+'>'+esc(f)+'</option>').join('')}</select></div>`;
+    }
+    html+=`<div class="row2">
+        <div class="field"><label>Colour scheme</label><select id="stRamp">${rampOptions(st.ramp,'polygon','grad')}</select></div>
+        <div class="field" style="max-width:96px;"><label>Classes</label>
+          <input type="number" id="stClasses" min="2" max="12" value="${st.classes||5}"></div>
+      </div>
+      <div class="field"><label>Classification</label>
+        <select id="stMethod">
+          <option value="quantile" ${st.method==='quantile'?'selected':''}>Quantile</option>
+          <option value="equal" ${st.method==='equal'?'selected':''}>Equal interval</option>
+          <option value="jenks" ${st.method==='jenks'?'selected':''}>Natural breaks (Jenks)</option>
+        </select></div>
+      <div class="checkline"><input type="checkbox" id="stHexStroke" ${st.hexStroke!==false?'checked':''}><label for="stHexStroke">Outline the cells</label></div>
+      <div class="kv" id="stHexInfo"></div>
+      <button class="btn small secondary" id="stHexToLayer">Create a layer from these bins</button>
+      <p class="kv">Making a layer puts the cell values into the attribute table, where they can be browsed, filtered and joined like any other polygon layer.</p>`;
   }
   if(st.mode==='bivariate'){
     html+=`<div class="field"><label>Size field (numeric)</label>
@@ -3832,6 +4098,34 @@ function renderStyleTab(){
     g('stDotSize').onchange=applyDots;
     g('stDotColor').onchange=applyDots;
     updateDotInfo();
+  }
+  /* ---- heatmap ---- */
+  if(g('stHeatRadius')){
+    const applyHeat=()=>{
+      st.heatRadius=+g('stHeatRadius').value||25;
+      st.heatBlur=+g('stHeatBlur').value;
+      const rl=g('stHeatRLbl'), bl=g('stHeatBLbl');
+      if(rl) rl.textContent=st.heatRadius;
+      if(bl) bl.textContent=st.heatBlur;
+      rerender();
+    };
+    g('stHeatRadius').oninput=applyHeat;
+    g('stHeatBlur').oninput=applyHeat;
+    if(g('stHeatField')) g('stHeatField').onchange=()=>{ st.heatField=g('stHeatField').value||null; rerender(); };
+  }
+  /* ---- hexbin ---- */
+  if(g('stHexSize')){
+    const applyHex=()=>{
+      st.hexSize=+g('stHexSize').value||5;
+      const l=g('stHexLbl'); if(l) l.textContent=st.hexSize;
+      if(g('stHexStroke')) st.hexStroke=g('stHexStroke').checked;
+      rerender();
+    };
+    g('stHexSize').oninput=applyHex;
+    if(g('stHexStroke')) g('stHexStroke').onchange=applyHex;
+    if(g('stHexStat')) g('stHexStat').onchange=()=>{ st.hexStat=g('stHexStat').value; renderStyleTab(); rerender(); };
+    if(g('stHexField')) g('stHexField').onchange=()=>{ st.hexField=g('stHexField').value||null; rerender(); };
+    if(g('stHexToLayer')) g('stHexToLayer').onclick=()=>hexCellsToLayer(lyr);
   }
   if(g('stColorField')) g('stColorField').onchange=()=>{ st.colorField=g('stColorField').value||null; renderStyleTab(); rerender(); };
 
@@ -4341,6 +4635,8 @@ function openFieldsModal(lyr){
       const t=fieldTypeOf(lyr,f);
       return '<tr><td><b>'+esc(f)+'</b></td><td class="ftype">'+t.type+'</td><td class="ftype">'+t.filledPct+'%</td></tr>';
     }).join('')+'</table>';
+  const add=document.getElementById('fieldsAddBtn');
+  if(add) add.onclick=()=>{ addFieldToLayer(lyr); openFieldsModal(lyr); };
   openModal('modal-fields');
 }
 /* The two settings in the table toolbar are toggle buttons rather than
@@ -4352,16 +4648,37 @@ function tbtnSetOn(el, on){
   el.setAttribute('aria-pressed', on?'true':'false');
 }
 (function(){
-  const rf=document.getElementById('attrRespectFilter');
   const ed=document.getElementById('attrEdit');
-  tbtnSetOn(rf, true); tbtnSetOn(ed, false);
-  rf.onclick=()=>{ tbtnSetOn(rf, !rf.checked); renderAttrTable(); };
+  tbtnSetOn(ed, false);
   ed.onclick=()=>{
     tbtnSetOn(ed, !ed.checked);
     if(ed.checked) toast('Edit mode — click a cell to change its value. Enter commits, Esc cancels.', 3600);
     renderAttrTable();
   };
+  const af=document.getElementById('tblAddFieldBtn');
+  if(af) af.onclick=()=>addFieldToLayer(selectedLayer());
 })();
+/* Add a new, empty field. No type is asked for: Map-O-Matic works out whether a
+   field is text or a number by scanning its values, so the type follows from
+   whatever gets entered (a column of numbers behaves as numeric everywhere —
+   statistics, graduated colour, the field calculator). */
+function addFieldToLayer(lyr){
+  if(!lyr){ toast('Select a layer first.'); return; }
+  const existing=fieldsOf(lyr);
+  let name=window.prompt('Name for the new field:', '');
+  if(name===null) return;
+  name=String(name).trim();
+  if(!name){ toast('Give the field a name.'); return; }
+  if(existing.indexOf(name)>=0){ toast('"'+name+'" already exists in this layer.'); return; }
+  lyr.geojson.features.forEach(f=>{ f.properties=f.properties||{}; if(!(name in f.properties)) f.properties[name]=null; });
+  invalidateFieldCache(lyr);
+  persistDataset(lyr.datasetId);
+  markProjectDirty();
+  renderMakerPanels();
+  if(tableWinOpen()) renderAttrTable();
+  if(typeof mkPushHistory==='function') mkPushHistory();
+  toast('Added field "'+name+'". Tick Edit cells to start filling it in.', 4200);
+}
 /* keep the three panel buttons' open/closed state on their carets */
 function tblSyncPanelButtons(){
   [['tblCalcBtn','tblCalcWrap'],['tblStatsBtn','tblStatsWrap'],['tblFilterBtn','tblFilterWrap']].forEach(([b,w])=>{
@@ -4437,6 +4754,17 @@ document.getElementById('tblFilterBtn').onclick=()=>{
   wrap.classList.toggle('hidden', !opening);
   if(opening){
     renderFilterUI(wrap, lyr, ()=>{ renderLayer(lyr); updateMkStatus(); renderAttrTable(); renderFilterTab(); });
+    /* "apply the filter to the rows shown" belongs with the filter itself */
+    const rf=document.getElementById('attrRespectFilter');
+    const box=document.createElement('div');
+    box.className='checkline'; box.style.marginTop='8px';
+    box.innerHTML='<input type="checkbox" id="tblFilterApplies" '+(rf&&rf.checked?'checked':'')+'>'+
+      '<label for="tblFilterApplies">Apply this filter to the table as well as the map</label>';
+    wrap.appendChild(box);
+    box.querySelector('#tblFilterApplies').onchange=e=>{
+      if(rf) rf.checked=e.target.checked;
+      renderAttrTable();
+    };
   }
   tblSyncPanelButtons();
 };
@@ -4947,6 +5275,11 @@ function renderEditPanel(){
   }
 }
 
+window.__globeSet=(bearing,pitch)=>{ if(mkGlobe) mkGlobe.jumpTo({bearing:bearing||0, pitch:pitch||0}); };
+window.__globeShot=()=>mkGlobe? glFreshDataURL(mkGlobe) : Promise.resolve(null);
+window.__globeFitZoom=()=>globeFitZoom();
+window.__globeJump=(lat,z)=>{ if(mkGlobe) mkGlobe.jumpTo({center:[mkGlobe.getCenter().lng, lat], zoom:z, bearing:0, pitch:0}); };
+window.__poleDist=()=>globeScreenDiameter();
 /* automated-testing hooks for the editor */
 window.__editCount=()=>editState? editState.group.getLayers().length : 0;
 window.__editAdd=(leafletLayer)=>{ if(editState) onPmCreate({layer:leafletLayer}); };
