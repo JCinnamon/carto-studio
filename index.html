@@ -220,6 +220,12 @@
     font-size:12px;padding:7px 11px;border-radius:7px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.35);}
   .mk-globe-hint button{background:var(--teal);color:#fff;border:none;border-radius:5px;padding:5px 10px;font-size:11.5px;font-weight:700;}
   .mk-globe-hint button:hover{background:var(--teal2);}
+  /* right-click menu on the composer page */
+  .ctx-menu{position:fixed;z-index:1500;background:#fff;border:1px solid var(--line);border-radius:7px;
+    box-shadow:0 8px 26px rgba(20,30,60,.22);padding:4px;min-width:210px;}
+  .ctx-menu button{display:block;width:100%;text-align:left;background:none;border:none;font-size:12.5px;
+    color:var(--text);padding:7px 10px;border-radius:5px;}
+  .ctx-menu button:hover{background:#eef4f3;color:var(--navy);}
   /* projection picker is inert while the globe is up */
   #mkProjection:disabled{opacity:.5;cursor:not-allowed;background:#eef1f5;color:#9aa3b4;}
   .leaflet-tooltip.measure-tip{background:#1b2a4a;color:#fff;border:none;font-size:12px;font-weight:600;padding:3px 7px;border-radius:4px;box-shadow:0 1px 5px rgba(0,0,0,.3);}
@@ -2109,6 +2115,16 @@ function globeFitBounds(b, dur){
     {padding:50, maxZoom:6, duration:dur==null?800:dur}); }catch(_){}
 }
 function globeFitData(){ globeWhenReady(()=>globeFitBounds(globeDataBounds())); }
+/* zoom back out until the whole globe is in view, facing north */
+function globeFullExtent(){
+  if(!mkGlobe) return;
+  try{ mkGlobe.flyTo({center:[mkGlobe.getCenter().lng, 15], zoom:0, bearing:0, pitch:0, duration:900}); }catch(_){}
+}
+/* put the globe back to north-up and flat-on */
+function globeResetNorth(){
+  if(!mkGlobe) return;
+  try{ mkGlobe.easeTo({bearing:0, pitch:0, duration:500}); }catch(_){}
+}
 function globeFitLayer(lyr){
   if(!mkGlobe || !lyr || !lyr.geojson) return;
   globeWhenReady(()=>{ try{ globeFitBounds(L.geoJSON(lyr.geojson).getBounds()); }catch(_){} });
@@ -2133,12 +2149,16 @@ function globeOpen(){
     host.innerHTML='<div id="mk-globe-map"></div>'+
       '<div class="mk-globe-hint">🌐 Globe view — drag to spin, scroll to zoom.'+
       '<button id="mkGlobeFit" title="Zoom the globe to your data">Fit data</button>'+
+      '<button id="mkGlobeAll" title="Zoom out to the whole globe">Whole globe</button>'+
+      '<button id="mkGlobeNorth" title="Reset the globe to north-up">North ↑</button>'+
       '<button id="mkGlobeClose">Back to flat map</button></div>';
     /* mount inside the map area only, so the toolbar row (Layers, Send to
        Composer, Menu) and a docked attribute table stay visible in globe view */
     document.getElementById('mk-map').appendChild(host);
     host.querySelector('#mkGlobeClose').onclick=()=>toggleGlobeView();
     host.querySelector('#mkGlobeFit').onclick=()=>globeFitData();
+    host.querySelector('#mkGlobeAll').onclick=()=>globeFullExtent();
+    host.querySelector('#mkGlobeNorth').onclick=()=>globeResetNorth();
   }
   host.style.display='block';
   document.getElementById('mk-center').classList.add('globe-open');
@@ -2162,7 +2182,26 @@ function globeOpen(){
     toast('The globe needs WebGL, which this browser/tab could not start.');
     globeClose(); return;
   }
-  mkGlobe.addControl(new maplibregl.NavigationControl({visualizePitch:true}), 'top-right');
+  /* zoom +/- and a compass that resets bearing (and pitch) back to north */
+  mkGlobe.addControl(new maplibregl.NavigationControl({
+    showZoom:true, showCompass:true, visualizePitch:true
+  }), 'top-right');
+  /* a "whole globe" button sitting with the zoom controls */
+  const FullExtent=function(){};
+  FullExtent.prototype.onAdd=function(map){
+    const c=document.createElement('div');
+    c.className='maplibregl-ctrl maplibregl-ctrl-group';
+    c.innerHTML='<button type="button" id="mkGlobeWorld" title="Zoom to the whole globe">🌍</button>';
+    c.querySelector('button').onclick=()=>globeFullExtent();
+    this._c=c; return c;
+  };
+  FullExtent.prototype.onRemove=function(){ if(this._c&&this._c.parentNode) this._c.parentNode.removeChild(this._c); };
+  mkGlobe.addControl(new FullExtent(), 'top-right');
+  /* belt and braces: the compass should always return the globe to north-up */
+  setTimeout(()=>{
+    const cmp=document.querySelector('#mk-globe-map .maplibregl-ctrl-compass');
+    if(cmp) cmp.addEventListener('click', ()=>globeResetNorth());
+  }, 300);
   /* apply the projection, parts and user layers once ready. 'style.load' alone is
      unreliable in v5, so also poll — that's what makes the data render on the
      FIRST open (previously it only appeared after a basemap switch). */
@@ -2187,7 +2226,10 @@ window.__globeInfo=()=>({open:!!mkGlobe,
   proj: (mkGlobe&&mkGlobe.getProjection)? (mkGlobe.getProjection().type||mkGlobe.getProjection().name) : null,
   styleLoaded: mkGlobe? mkGlobe.isStyleLoaded() : false,
   layers: mkGlobe? mkGlobe.getStyle().layers.filter(l=>/^u_/.test(l.id)).length : 0,
-  projDisabled: (document.getElementById('mkProjection')||{}).disabled});
+  projDisabled: (document.getElementById('mkProjection')||{}).disabled,
+  zoom: mkGlobe? +mkGlobe.getZoom().toFixed(2) : null,
+  bearing: mkGlobe? +mkGlobe.getBearing().toFixed(1) : null,
+  pitch: mkGlobe? +mkGlobe.getPitch().toFixed(1) : null});
 /* --- measure distance --- */
 let measureActive=false, measurePts=[], measureLine=null, measureMarkers=[], measureTip=null;
 function toggleMeasure(){
@@ -2349,24 +2391,88 @@ async function glCaptureOptionsFresh(root){
     if(byCanvas.has(cv)) return byCanvas.get(cv);
     try{ return cv.toDataURL('image/png'); }catch(_){ return null; }
   });
-  return glCloneOptions(root, urls);
+  const shots=await glSnapshotCanvases(root, urls);
+  return glCloneOptions(root, shots);
 }
-function glCaptureOptions(root){
+async function glCaptureOptions(root){
   const live=[...root.querySelectorAll('canvas.maplibregl-canvas')];
   const urls=live.map(cv=>{ try{ return cv.toDataURL('image/png'); }catch(_){ return null; } });
-  return glCloneOptions(root, urls);
+  const shots=await glSnapshotCanvases(root, urls);
+  return glCloneOptions(root, shots);
 }
-function glCloneOptions(root, urls){
+/* Capture a map element to a PNG data URL.
+   The WebGL basemap can't be cloned reliably by html2canvas — it renders the
+   canvas in the wrong place or half-decoded, which is what produced captures cut
+   off part-way across. So we composite by hand instead: snapshot the GL canvas,
+   hide it, let html2canvas draw everything else on a transparent background, then
+   paint the GL snapshot underneath at its exact measured position. Nothing about
+   the result then depends on how html2canvas treats a canvas element. */
+async function captureMapElement(el, scale){
+  scale=scale||2;
+  const er=el.getBoundingClientRect();
+  const maps=glMapsForRoot(el);
+  const shots=[];
+  for(const m of maps){
+    const url=await glFreshDataURL(m);
+    if(!url) continue;
+    const cv=m.getCanvas(), cr=cv.getBoundingClientRect();
+    const im=await new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=url; });
+    if(im) shots.push({im, x:cr.left-er.left, y:cr.top-er.top, w:cr.width, h:cr.height});
+  }
+  const restore=[];
+  maps.forEach(m=>{ const c=m.getCanvas(); restore.push([c, c.style.visibility]); c.style.visibility='hidden'; });
+  const prevBg=el.style.backgroundColor;
+  if(shots.length) el.style.backgroundColor='transparent';
+  let snap;
+  try{
+    snap=await html2canvas(el, Object.assign({useCORS:true, scale, logging:false},
+      shots.length? {backgroundColor:null} : {}));
+  } finally {
+    restore.forEach(([c,v])=>{ c.style.visibility=v; });
+    el.style.backgroundColor=prevBg;
+  }
+  if(!shots.length) return snap.toDataURL('image/png');
+  const out=document.createElement('canvas');
+  out.width=snap.width; out.height=snap.height;
+  const cx=out.getContext('2d');
+  cx.fillStyle='#ffffff'; cx.fillRect(0,0,out.width,out.height);
+  shots.forEach(s=>{ try{ cx.drawImage(s.im, s.x*scale, s.y*scale, s.w*scale, s.h*scale); }catch(_){} });
+  cx.drawImage(snap, 0, 0);
+  return out.toDataURL('image/png');
+}
+/* Turn each snapshot into a plain 2-D canvas up front. Swapping in an <img> at
+   clone time raced with image decoding, so html2canvas sometimes rasterized a
+   half-decoded picture — that's what produced maps cut off part-way across.
+   A 2-D canvas is copied synchronously, so there's nothing to wait for. */
+function glSnapshotCanvases(root, urls){
+  const live=[...root.querySelectorAll('canvas.maplibregl-canvas')];
+  return Promise.all(live.map((cv,i)=>new Promise(res=>{
+    const url=urls[i];
+    if(!url){ res(null); return; }
+    const im=new Image();
+    im.onload=()=>{
+      const c=document.createElement('canvas');
+      c.width=cv.width; c.height=cv.height;      /* backing-store pixels */
+      try{ c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); }catch(_){}
+      res({canvas:c, cssW:cv.style.width||(cv.clientWidth+'px'), cssH:cv.style.height||(cv.clientHeight+'px')});
+    };
+    im.onerror=()=>res(null);
+    im.src=url;
+  })));
+}
+function glCloneOptions(root, shots){
   return { onclone:(doc, clonedRoot)=>{
     const scope=clonedRoot && clonedRoot.querySelectorAll ? clonedRoot : doc;
     const clones=[...scope.querySelectorAll('canvas.maplibregl-canvas')];
     clones.forEach((cc,i)=>{
-      const url=urls[i]; if(!url) return;
-      const img=doc.createElement('img'); img.src=url;
-      const st=cc.getAttribute('style')||''; img.setAttribute('style', st);
-      if(!/width\s*:/.test(st))  img.style.width =(cc.clientWidth ||cc.width )+'px';
-      if(!/height\s*:/.test(st)) img.style.height=(cc.clientHeight||cc.height)+'px';
-      if(cc.parentNode) cc.parentNode.replaceChild(img, cc);
+      const shot=shots[i]; if(!shot||!shot.canvas) return;
+      const c=doc.createElement('canvas');
+      c.width=shot.canvas.width; c.height=shot.canvas.height;
+      c.className=cc.className;
+      c.setAttribute('style', cc.getAttribute('style')||'');
+      c.style.width=shot.cssW; c.style.height=shot.cssH;
+      try{ c.getContext('2d').drawImage(shot.canvas, 0, 0); }catch(_){}
+      if(cc.parentNode) cc.parentNode.replaceChild(c, cc);
     });
   }};
 }
@@ -5107,11 +5213,9 @@ document.getElementById('sendGoBtn').onclick=()=>{
   if(wantLabels) hideLabelsForCapture(true);      /* they arrive as text instead */
   const center=mkMap.getCenter(), zoom=mkMap.getZoom();
   const metersPerScreenPx = 156543.03392 * Math.cos(center.lat*Math.PI/180) / Math.pow(2, zoom);
-  glCaptureOptionsFresh(mapEl).then(glOpts=>
-  html2canvas(mapEl, Object.assign({useCORS:true, scale:CAPSCALE, logging:false}, glOpts)).then(snap=>{
+  captureMapElement(mapEl, CAPSCALE).then(dataURL=>{
     mapEl.classList.remove('capturing');
     if(wantLabels) hideLabelsForCapture(false);
-    const dataURL=snap.toDataURL('image/png');
     const metersPerImagePx = metersPerScreenPx / CAPSCALE;
     closeModal('modal-send');
     window.__layout.receiveFromMaker(dataURL, metersPerImagePx, specs, wantScale, labels);
@@ -5119,7 +5223,7 @@ document.getElementById('sendGoBtn').onclick=()=>{
     mapEl.classList.remove('capturing');
     if(wantLabels) hideLabelsForCapture(false);
     status.textContent='Capture failed: '+err.message+'. Try a different basemap (some tile servers block capture).';
-  }));
+  });
 };
 /* ================= PROJECTED PREVIEW (d3-geo) ================= */
 /* Point symbols are stored as SVG path data in a 0–100 box, which Path2D
@@ -5575,6 +5679,7 @@ document.getElementById('btnRedo').onclick=redo;
 /* ---------- canvas init ---------- */
 function initCanvas(){
   canvas=new fabric.Canvas('c',{backgroundColor:'#ffffff', preserveObjectStacking:true, selection:true});
+  initComposerContextMenu();
   initSketchTools();
   applyPageSize();
   canvas.on('selection:created', showPropertiesForSelection);
@@ -7290,6 +7395,68 @@ function renderLegendRows(obj){
   });
 }
 
+/* ---------- right-click menu on the page ----------
+   Fabric stacks a transparent "upper" canvas over the drawing one to catch mouse
+   events, so the browser's own "Save image as…" grabs that empty layer and writes
+   a blank PNG. This menu saves the real pixels instead. */
+function initComposerContextMenu(){
+  const wrap=document.getElementById('stage-wrap');
+  if(!wrap || wrap.dataset.ctxReady) return;
+  wrap.dataset.ctxReady='1';
+  const menu=document.createElement('div');
+  menu.id='composerCtxMenu'; menu.className='ctx-menu hidden';
+  document.body.appendChild(menu);
+  const hide=()=>menu.classList.add('hidden');
+  document.addEventListener('click', hide);
+  document.addEventListener('scroll', hide, true);
+  window.addEventListener('resize', hide);
+  wrap.addEventListener('contextmenu', ev=>{
+    ev.preventDefault();
+    const sel=canvas.getActiveObject();
+    const items=[];
+    if(sel) items.push(['Save selected element as PNG', ()=>saveSelectionPng()]);
+    items.push(['Save whole page as PNG', ()=>savePagePng()]);
+    if(sel) items.push(['Bring to front', ()=>{ canvas.bringToFront(sel); canvas.requestRenderAll(); }]);
+    if(sel) items.push(['Send to back', ()=>{ canvas.sendToBack(sel); canvas.requestRenderAll(); }]);
+    if(sel) items.push(['Delete element', ()=>{ (sel.type==='activeSelection'? sel.getObjects():[sel]).forEach(o=>canvas.remove(o)); canvas.discardActiveObject(); canvas.requestRenderAll(); }]);
+    menu.innerHTML='';
+    items.forEach(([label,fn])=>{
+      const b=document.createElement('button');
+      b.textContent=label;
+      b.onclick=e=>{ e.stopPropagation(); hide(); fn(); };
+      menu.appendChild(b);
+    });
+    menu.classList.remove('hidden');
+    const mw=230, mh=items.length*30+8;
+    menu.style.left=Math.min(ev.clientX, window.innerWidth-mw-8)+'px';
+    menu.style.top =Math.min(ev.clientY, window.innerHeight-mh-8)+'px';
+  });
+}
+function savePagePng(){
+  try{
+    const url=(typeof layoutDataURL==='function') ? layoutDataURL(150)
+      : canvas.toDataURL({format:'png', multiplier:2});
+    downloadDataURL(url, 'map-page.png');
+    toast('Page saved as PNG.');
+  }catch(err){ toast('Could not save the page: '+err.message, 4000); }
+}
+function saveSelectionPng(){
+  const sel=canvas.getActiveObject();
+  if(!sel){ toast('Nothing selected.'); return; }
+  try{
+    const url=sel.toDataURL({format:'png', multiplier:2});
+    downloadDataURL(url, 'map-element.png');
+    toast('Element saved as PNG.');
+  }catch(err){ toast('Could not save that element: '+err.message, 4000); }
+}
+window.__savePagePng=()=>savePagePng();          /* automated-testing hooks */
+window.__saveSelectionPng=()=>saveSelectionPng();
+function downloadDataURL(url, name){
+  const a=document.createElement('a');
+  a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 /* ---------- inset builder ---------- */
 let insetBasemapLayers=[], insetBasemapKey='ofm-positron';
 let insetBasemapParts=Object.keys(BM_PART_GROUPS).reduce((o,k)=>(o[k]=true,o),{});
@@ -7456,10 +7623,9 @@ document.getElementById('insetAddToLayoutBtn').onclick=()=>{
   el.classList.add('capturing');
   const center=insetMap.getCenter(), zoom=insetMap.getZoom();
   const mPerPx=156543.03392*Math.cos(center.lat*Math.PI/180)/Math.pow(2,zoom);
-  Promise.resolve(typeof glCaptureOptionsFresh==='function'? glCaptureOptionsFresh(el) : {}).then(glOpts=>
-  html2canvas(el, Object.assign({useCORS:true, scale:2, logging:false}, glOpts)).then(snap=>{
+  captureMapElement(el, 2).then(dataURL=>{
     el.classList.remove('capturing');
-    fabric.Image.fromURL(snap.toDataURL('image/png'), img=>{
+    fabric.Image.fromURL(dataURL, img=>{
       const maxW=canvas.getWidth()*0.4;
       const s=Math.min(maxW/img.width,1);
       img.set({left:canvas.getWidth()-img.width*s-30, top:30, scaleX:s, scaleY:s});
@@ -7472,7 +7638,7 @@ document.getElementById('insetAddToLayoutBtn').onclick=()=>{
     el.classList.remove('capturing');
     document.getElementById('insetStatus').textContent='';
     toast('Capture failed (cross-origin tiles). Take a screenshot and add it via Map Frame instead.',5000);
-  }));
+  });
 };
 
 /* ---------- receive from Map Maker ---------- */
@@ -9390,13 +9556,13 @@ function captureMakerMap(){
       const nw=L.CRS.EPSG3857.project(b.getNorthWest());
       const se=L.CRS.EPSG3857.project(b.getSouthEast());
       const size=mkMap.getSize();
-      html2canvas(mapEl, Object.assign({useCORS:true, scale:2, logging:false}, (typeof glCaptureOptions==='function'?glCaptureOptions(mapEl):{}))).then(snap=>{
+      captureMapElement(mapEl, 2).then(dataURL=>{
         mapEl.classList.remove('capturing');
         const wpx=size.x*2, hpx=size.y*2;
         const pxW=(se.x-nw.x)/wpx;
         const pxH=(se.y-nw.y)/hpx; /* negative */
         const pgw=[pxW,0,0,pxH, nw.x+pxW/2, nw.y+pxH/2].map(v=>String(v)).join('\n');
-        res({dataURL:snap.toDataURL('image/png'), pgw});
+        res({dataURL, pgw});
       }).catch(err=>{ mapEl.classList.remove('capturing'); rej(err); });
     }, wasHidden?350:80);
   });
