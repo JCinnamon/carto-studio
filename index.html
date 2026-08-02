@@ -6,6 +6,7 @@
 <title>Map-O-Matic</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.6.1/maplibre-gl.css">
+<link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.20.0/dist/leaflet-geoman.css">
 <!-- Orbitron: the retro-futuristic title face. To try a 1970s-computer look
      instead, swap the family here and in --title-font below (e.g. 'VT323',
      'Wallpoet', 'Share Tech Mono'). -->
@@ -209,6 +210,12 @@
   .mk-mapctl a{font-size:15px;line-height:28px;text-align:center;text-decoration:none;background:#fff;}
   .mk-mapctl a.on{background:var(--teal);}
   #mk-map.measuring{cursor:crosshair;}
+  /* feature editing (Geoman) */
+  #mk-map.editing{outline:2px solid var(--accent);outline-offset:-2px;}
+  .edit-live{border:1px solid var(--accent);background:#fdf7e6;border-radius:6px;padding:9px 10px;}
+  .edit-live b{color:var(--navy);font-size:12.5px;}
+  .leaflet-pm-toolbar .leaflet-pm-actions-container{z-index:900;}
+  .capturing .leaflet-pm-toolbar{display:none !important;}
   /* globe view overlay (a standalone MapLibre globe on top of the flat map) */
   #mk-center{position:relative;}
   #mk-globe{display:none;position:absolute;inset:0;z-index:860;background:#0b1e3a;}
@@ -1328,6 +1335,7 @@
 <!-- MapLibre GL renders OpenFreeMap's open vector basemaps; the leaflet plugin puts them in the Leaflet map -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.6.1/maplibre-gl.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"></script>
+<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.20.0/dist/leaflet-geoman.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/shpjs@4.0.4/dist/shp.js"></script>
@@ -2174,7 +2182,7 @@ function globeOpen(){
       style,
       projection:{type:'globe'},
       center:[c.lng, c.lat],
-      zoom:Math.max(0.5, Math.min(z-2.2, 3.1)),
+      zoom:Math.max(2.5, Math.min(z-0.2, 5.1)),   /* opens 2 levels closer in */
       attributionControl:{compact:true},
       dragRotate:true, preserveDrawingBuffer:true
     });
@@ -3537,7 +3545,8 @@ document.addEventListener('click', e=>{
   const h=e.target.closest && e.target.closest('.acc>.acc-h');
   if(h) h.parentElement.classList.toggle('open');
 });
-function renderMakerPanels(){ renderStyleTab(); renderFilterTab(); renderLabelsTab(); }
+function renderMakerPanels(){ renderStyleTab(); renderFilterTab(); renderLabelsTab();
+  if(typeof renderEditPanel==='function') renderEditPanel(); }
 
 function rampOptions(sel, geom, mode){
   let groups = mode==='cat' ? {qualitative:RAMPS.qualitative} : {sequential:RAMPS.sequential, diverging:RAMPS.diverging};
@@ -4773,13 +4782,184 @@ function renderSpatialForm(){
     a.onchange=fillIds; b.onchange=fillIds; fillIds();
   }
 }
+/* ================= FEATURE EDITING (digitising) =================
+   Draw and reshape features with Leaflet-Geoman. Editing happens on a working
+   copy of the active layer's features; committing writes them back to the
+   dataset. A dataset shared with other projects prompts to branch a copy first,
+   so one project's digitising can't quietly rewrite another's data. */
+let editState=null;     /* {layerId, group, dirty} while editing */
+function editingOn(){ return !!editState; }
+function editableGeomKinds(geom){
+  return geom==='polygon' ? ['Polygon','Rectangle'] :
+         geom==='line'    ? ['Line'] : ['Marker'];
+}
+function startEditing(){
+  const lyr=selectedLayer();
+  if(!lyr){ toast('Select a layer to edit first.'); return; }
+  if(!lyr.visible){ toast('Turn the layer on before editing it.'); return; }
+  if(mkGlobe){ toast('Feature editing works on the flat map — close the globe first.'); return; }
+  if(projActive){ toast('Feature editing works in the Web Mercator editing view.'); return; }
+  if(typeof L.PM==='undefined'){ toast('The editing tools failed to load.'); return; }
+  /* branch a private copy when the dataset is shared with other projects */
+  const used=(typeof datasetUsedBy==='function') ? datasetUsedBy(lyr.datasetId).filter(n=>n!==currentProjectName()) : [];
+  if(used.length){
+    const copy=window.confirm('"'+lyr.name+'" uses a dataset that other projects also use ('+used.join(', ')+').\n\n'+
+      'OK  — work on a copy, leaving the shared dataset untouched (recommended)\n'+
+      'Cancel — edit the shared dataset directly, changing it everywhere');
+    if(copy) branchLayerDataset(lyr);
+  }
+  const group=L.featureGroup().addTo(mkMap);
+  /* load the layer's features as editable Leaflet layers */
+  L.geoJSON(lyr.geojson, {
+    pointToLayer:(f,latlng)=>L.circleMarker(latlng,{radius:6, color:'#b3452f', fillColor:'#ffd24d', fillOpacity:.9, weight:2}),
+    style:()=>({color:'#b3452f', weight:2.5, fillColor:'#ffd24d', fillOpacity:.25})
+  }).eachLayer(l=>{ l.feature=l.feature||{type:'Feature',properties:{}}; group.addLayer(l); });
+  editState={layerId:lyr.id, group, dirty:false};
+  if(lyr.leaflet){ mkMap.removeLayer(lyr.leaflet); }      /* hide the styled copy while editing */
+  if(lyr.dotLayer){ mkMap.removeLayer(lyr.dotLayer); }
+  mkMap.pm.setGlobalOptions({snappable:true, snapDistance:15, allowSelfIntersection:false});
+  mkMap.pm.addControls({
+    position:'topright', drawMarker:lyr.geom==='point', drawPolyline:lyr.geom==='line',
+    drawPolygon:lyr.geom==='polygon', drawRectangle:lyr.geom==='polygon',
+    drawCircle:false, drawCircleMarker:false, drawText:false,
+    editMode:true, dragMode:true, cutPolygon:lyr.geom==='polygon', removalMode:true, rotateMode:true
+  });
+  mkMap.on('pm:create', onPmCreate);
+  mkMap.on('pm:remove', ()=>{ editState.dirty=true; });
+  group.on('pm:edit pm:dragend', ()=>{ editState.dirty=true; });
+  document.getElementById('mk-map').classList.add('editing');
+  renderEditPanel();
+  toast('Editing "'+lyr.name+'". Draw with the tools at the top right, then Save edits.', 5000);
+}
+function currentProjectName(){
+  const p=(typeof projectsCache!=='undefined') ? projectsCache.find(x=>x.id===currentProjectId) : null;
+  return p? p.name : '';
+}
+/* give this project its own copy of the dataset before editing it */
+function branchLayerDataset(lyr){
+  const gj=clone(lyr.geojson);
+  const ds=registerDataset(gj, lyr.name+' (edited)', lyr.geom, {});
+  lyr.datasetId=ds.id; lyr.geojson=ds.geojson; lyr.name=ds.name;
+  renderMakerLayerList(); markProjectDirty();
+  toast('Working on a copy — the shared dataset is untouched.', 4200);
+}
+function onPmCreate(e){
+  if(!editState) return;
+  const lyr=mkLayers.find(l=>l.id===editState.layerId);
+  const shape=e.layer;
+  /* new features start with the layer's fields present but empty, ready to be
+     filled in from the attribute table */
+  const props={};
+  if(lyr) fieldsOf(lyr).forEach(f=>{ props[f]=null; });
+  shape.feature={type:'Feature', properties:props};
+  editState.group.addLayer(shape);
+  editState.dirty=true;
+  shape.on('pm:edit', ()=>{ editState.dirty=true; });
+}
+function editedFeatureCollection(){
+  const feats=[];
+  editState.group.eachLayer(l=>{
+    let gj; try{ gj=l.toGeoJSON(); }catch(_){ return; }
+    if(!gj||!gj.geometry) return;
+    gj.properties=Object.assign({}, (l.feature&&l.feature.properties)||gj.properties||{});
+    feats.push(gj);
+  });
+  return {type:'FeatureCollection', features:feats};
+}
+function saveEditing(){
+  if(!editState) return;
+  const lyr=mkLayers.find(l=>l.id===editState.layerId);
+  if(lyr){
+    const fc=editedFeatureCollection();
+    lyr.geojson.features=fc.features;
+    invalidateFieldCache(lyr);
+    persistDataset(lyr.datasetId);
+    markProjectDirty();
+  }
+  stopEditing(true);
+  if(lyr){
+    renderLayer(lyr); renderMakerPanels(); updateMkStatus();
+    if(tableWinOpen()) renderAttrTable();
+    if(typeof mkPushHistory==='function') mkPushHistory();
+    toast('Saved '+lyr.geojson.features.length+' feature'+(lyr.geojson.features.length===1?'':'s')+' to "'+lyr.name+'".');
+  }
+}
+function cancelEditing(){
+  if(!editState) return;
+  if(editState.dirty && !window.confirm('Discard your unsaved edits?')) return;
+  const lyr=mkLayers.find(l=>l.id===editState.layerId);
+  stopEditing(true);
+  if(lyr) renderLayer(lyr);
+  toast('Edits discarded.');
+}
+function stopEditing(){
+  if(!editState) return;
+  try{ mkMap.pm.removeControls(); }catch(_){}
+  try{ mkMap.pm.disableDraw(); mkMap.pm.disableGlobalEditMode(); mkMap.pm.disableGlobalDragMode();
+       mkMap.pm.disableGlobalRemovalMode(); mkMap.pm.disableGlobalRotateMode(); }catch(_){}
+  mkMap.off('pm:create', onPmCreate);
+  try{ mkMap.removeLayer(editState.group); }catch(_){}
+  editState=null;
+  document.getElementById('mk-map').classList.remove('editing');
+  renderEditPanel();
+}
+/* create a new, empty layer to digitise into */
+function newEmptyLayer(geom){
+  const name=window.prompt('Name for the new '+geom+' layer:', 'New '+geom+' layer');
+  if(name===null) return;
+  const gj={type:'FeatureCollection', features:[]};
+  const ds=registerDataset(gj, name||('New '+geom+' layer'), geom, {});
+  const lyr={id:uid(), name:ds.name, datasetId:ds.id, geojson:ds.geojson, geom,
+    visible:true, opacity:1, style:defaultStyle(geom), labels:defaultLabels(),
+    filter:{logic:'AND', conds:[]}, leaflet:null};
+  mkLayers.unshift(lyr);
+  mkSelectedId=lyr.id;
+  renderAllMakerLayers(); renderMakerLayerList(); renderMakerPanels();
+  markProjectDirty();
+  if(typeof mkPushHistory==='function') mkPushHistory();
+  toast('Created "'+lyr.name+'". Click Start editing to draw into it.', 4200);
+  startEditing();
+}
+function renderEditPanel(){
+  const host=document.getElementById('mk-edit-panel');
+  if(!host) return;
+  const lyr=selectedLayer();
+  if(editingOn()){
+    const el=mkLayers.find(l=>l.id===editState.layerId);
+    host.innerHTML='<div class="edit-live"><b>Editing: '+esc(el?el.name:'')+'</b>'+
+      '<p class="kv">Use the tools at the top-right of the map to draw, reshape, drag, cut or delete. '+
+      'New features get empty values for this layer\'s fields — fill them in from the attribute table.</p>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+
+      '<button class="btn small" id="edSave">✓ Save edits</button>'+
+      '<button class="btn small light" id="edCancel">Cancel</button></div></div>';
+    host.querySelector('#edSave').onclick=saveEditing;
+    host.querySelector('#edCancel').onclick=cancelEditing;
+  } else {
+    host.innerHTML='<p class="kv" style="margin-top:0;">Digitise new features or reshape existing ones.</p>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">'+
+      '<button class="btn small secondary" data-new="point">+ Point layer</button>'+
+      '<button class="btn small secondary" data-new="line">+ Line layer</button>'+
+      '<button class="btn small secondary" data-new="polygon">+ Polygon layer</button></div>'+
+      '<button class="btn small" id="edStart"'+(lyr?'':' disabled')+'>✎ Start editing'+(lyr?' "'+esc(lyr.name)+'"':'')+'</button>'+
+      '<p class="kv">Editing a dataset that other projects share will offer to branch a copy first.</p>';
+    host.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>newEmptyLayer(b.getAttribute('data-new')));
+    const s=host.querySelector('#edStart'); if(s&&lyr) s.onclick=startEditing;
+  }
+}
+
+/* automated-testing hooks for the editor */
+window.__editCount=()=>editState? editState.group.getLayers().length : 0;
+window.__editAdd=(leafletLayer)=>{ if(editState) onPmCreate({layer:leafletLayer}); };
+window.__mkLayerByName=(n)=>mkLayers.find(l=>l.name===n||l.name.indexOf(n)===0);
+
 /* Spatial tools are their own tab. The list is built from the operation <select>
    itself, so the two can never drift apart. Each group is a collapsible heading. */
 (function(){
   const tab=document.getElementById('mk-tab-tools');
   const sel=document.getElementById('spOp');
   if(!tab||!sel) return;
-  let html='';
+  let html='<div class="acc open" id="acc-edit"><button class="acc-h">Edit features<span class="chev">▾</span></button>'+
+           '<div class="acc-b"><div id="mk-edit-panel"></div></div></div>';
   Array.from(sel.children).forEach((node,i)=>{
     if(node.tagName==='OPTGROUP'){
       html+='<div class="acc'+(i===0?' open':'')+'"><button class="acc-h">'+esc(node.label)+'<span class="chev">▾</span></button><div class="acc-b">';
@@ -4793,6 +4973,7 @@ function renderSpatialForm(){
   });
   html+='<p class="kv">Every tool creates a new layer — your input layers are never overwritten.</p>';
   tab.innerHTML=html;
+  renderEditPanel();
   tab.querySelectorAll('.tool-item').forEach(b=>{
     b.onclick=()=>{
       const op=b.getAttribute('data-op');
