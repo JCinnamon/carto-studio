@@ -93,8 +93,17 @@
   #fieldsList th{background:var(--navy);color:#fff;text-align:left;padding:6px 9px;font-size:11.5px;position:sticky;top:0;}
   #fieldsList td{padding:5px 9px;border-bottom:1px solid #eef1f6;}
   #fieldsList td.ftype{color:var(--muted);font-size:11px;}
-  #geoSearchWrap{position:relative;flex-shrink:1;min-width:110px;}
-  #geoSearchInput{width:190px;max-width:100%;padding:4px 7px;border:1px solid var(--line);border-radius:5px;font-size:12px;}
+  /* the place search sits in the left panel, above + Add data */
+  #geoSearchWrap{position:relative;display:block;width:100%;}
+  #geoSearchInput{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;}
+  #geoSearchInput.flash{border-color:var(--teal);box-shadow:0 0 0 3px rgba(47,125,120,.22);}
+  /* batch geocoder */
+  .gc-note{font-size:10.5px;line-height:1.5;color:var(--muted);background:#fdf7e6;border:1px solid #eadfb8;
+    border-radius:5px;padding:6px 8px;margin-top:9px;}
+  .gc-ready{border:1px solid var(--line);border-radius:6px;background:#f8fafc;padding:8px 9px;margin-top:8px;}
+  .gc-run{border:1px solid var(--teal);border-radius:6px;background:#eaf6f5;padding:9px 10px;}
+  .gc-bar{height:7px;background:#d7e4e3;border-radius:4px;overflow:hidden;margin:7px 0;}
+  .gc-bar span{display:block;height:100%;background:var(--teal);transition:width .2s;}
   #geoResults{position:absolute;top:100%;left:0;width:290px;background:#fff;border:1px solid var(--line);border-radius:6px;
     box-shadow:0 6px 20px rgba(20,30,60,.18);z-index:60;max-height:250px;overflow-y:auto;margin-top:3px;}
   #geoResults button{display:block;width:100%;text-align:left;background:none;border:none;padding:7px 10px;font-size:12px;border-bottom:1px solid #f0f3f7;}
@@ -696,6 +705,12 @@
 <div id="module-maker" class="module hidden">
   <aside id="mk-left">
     <div class="sec">
+      <span id="geoSearchWrap">
+        <input type="text" id="geoSearchInput" placeholder="🔍 Go to place…" autocomplete="off">
+        <div id="geoResults" class="hidden"></div>
+      </span>
+    </div>
+    <div class="sec">
       <div class="add-menu">
         <button class="btn" id="mkAddMenuBtn" style="width:100%;justify-content:center;" title="Upload GeoJSON, CSV, or a zipped shapefile — or fetch from online sources. Drag &amp; drop onto the map also works.">+ Add data ▾</button>
         <div class="add-menu-list hidden" id="mkAddMenuList">
@@ -781,10 +796,6 @@
       <button class="btn light small" id="mkToggleLeft" title="Show or hide the layers panel">⟨ Layers</button>
       <button class="btn light small" id="mkUndo" title="Undo (Ctrl+Z)" disabled>↩</button>
       <button class="btn light small" id="mkRedo" title="Redo (Ctrl+Shift+Z)" disabled>↪</button>
-      <span id="geoSearchWrap">
-        <input type="text" id="geoSearchInput" placeholder="🔍 Go to place…" autocomplete="off">
-        <div id="geoResults" class="hidden"></div>
-      </span>
       <span class="kv" id="mkStatus"></span>
       <span style="flex:1"></span>
       <span id="mkSelBar" class="hidden">
@@ -2025,7 +2036,8 @@ function addMapToolControls(){
     c.innerHTML=
       '<a href="#" id="mkGlobeBtn" title="Globe view (orthographic)">🌐</a>'+
       '<a href="#" id="mkMeasureBtn" title="Measure distance">📏</a>'+
-      '<a href="#" id="mkBasemapBtn" title="Basemap layers — turn parts on/off">🗺️</a>';
+      '<a href="#" id="mkBasemapBtn" title="Basemap layers — turn parts on/off">🗺️</a>'+
+      '<a href="#" id="mkFindBtn" title="Go to place — search for somewhere">🔍</a>';
     L.DomEvent.disableClickPropagation(c); L.DomEvent.disableScrollPropagation(c);
     return c;
   }});
@@ -2034,6 +2046,12 @@ function addMapToolControls(){
     const g=document.getElementById('mkGlobeBtn'); if(g) g.onclick=e=>{ e.preventDefault(); toggleGlobeView(); };
     const m=document.getElementById('mkMeasureBtn'); if(m) m.onclick=e=>{ e.preventDefault(); toggleMeasure(); };
     const b=document.getElementById('mkBasemapBtn'); if(b) b.onclick=e=>{ e.preventDefault(); toggleBasemapPanel(); };
+    /* the search box lives in the left panel now; this jumps focus to it */
+    const fb=document.getElementById('mkFindBtn'); if(fb) fb.onclick=e=>{
+      e.preventDefault();
+      const inp=document.getElementById('geoSearchInput');
+      if(inp){ inp.focus(); inp.select(); inp.classList.add('flash'); setTimeout(()=>inp.classList.remove('flash'), 1200); }
+    };
   }, 0);
 }
 /* --- globe view (MapLibre GL v5 native globe) ---
@@ -5495,7 +5513,122 @@ window.__globeShot=()=>mkGlobe? glFreshDataURL(mkGlobe) : Promise.resolve(null);
 window.__globeFitZoom=()=>globeFitZoom();
 window.__globeJump=(lat,z)=>{ if(mkGlobe) mkGlobe.jumpTo({center:[mkGlobe.getCenter().lng, lat], zoom:z, bearing:0, pitch:0}); };
 window.__poleDist=()=>globeScreenDiameter();
+/* ================= BATCH GEOCODER =================
+   Turn a CSV column of addresses or place names into mapped points.
+
+   This uses OpenStreetMap's Nominatim, which is free and needs no key, but is
+   run by volunteers: its usage policy asks for no more than one request per
+   second and discourages bulk jobs. So requests are spaced a second apart, the
+   run is capped, and the panel says so plainly before you start. */
+const GEOCODE_MAX=250;              /* rows per run — about 4 minutes at 1/sec */
+const GEOCODE_GAP=1100;             /* ms between requests, just over the 1/sec ask */
+let geocodeRows=null, geocodeCols=[], geocodeName='', geocodeBusy=false, geocodeCancel=false;
+/* Guess which column holds the address, most specific name first. One combined
+   pattern would just return the leftmost column matching anything — a "name"
+   column would beat an "address" column simply by sitting first. */
+function guessAddressCol(cols){
+  const patterns=[/^address$|full.?address/i, /address|addr/i, /street/i, /location/i, /^place/i, /name/i];
+  for(const p of patterns){ const hit=cols.find(c=>p.test(c)); if(hit) return hit; }
+  return cols[0];
+}
+function renderGeocodePanel(){
+  const host=document.getElementById('mk-geocode-panel');
+  if(!host) return;
+  if(geocodeBusy){ return; }          /* progress view owns the panel while running */
+  host.innerHTML=
+    '<p class="kv" style="margin-top:0;">Upload a CSV with an address or place-name column. Each row is looked up and mapped as a point, keeping its other columns as attributes.</p>'+
+    '<button class="btn small secondary" id="gcPick">⬆ Choose CSV…</button>'+
+    '<input type="file" id="gcFile" accept=".csv,.txt" hidden>'+
+    (geocodeRows
+      ? '<div class="gc-ready">'+
+          '<div class="kv"><b>'+esc(geocodeName)+'</b> · '+geocodeRows.length+' rows</div>'+
+          '<div class="calc-row" style="margin-top:6px;"><label>Address column</label>'+
+            '<select id="gcCol">'+geocodeCols.map(c=>'<option'+(c===guessAddressCol(geocodeCols)?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select></div>'+
+          '<div class="calc-row"><label>Add to the search (optional) — narrows results</label>'+
+            '<input type="text" id="gcSuffix" placeholder="e.g. Kelowna, BC, Canada"></div>'+
+          '<div class="kv" id="gcCount"></div>'+
+          '<button class="btn small" id="gcRun" style="margin-top:6px;">Geocode '+Math.min(geocodeRows.length,GEOCODE_MAX)+' rows</button>'+
+        '</div>'
+      : '')+
+    '<div class="gc-note">Uses OpenStreetMap\'s free Nominatim service, one row per second, up to '+GEOCODE_MAX+
+      ' rows at a time. Please don\'t run large jobs repeatedly — it\'s a shared volunteer service. Results are approximate; check them on the map.</div>';
+  host.querySelector('#gcPick').onclick=()=>host.querySelector('#gcFile').click();
+  host.querySelector('#gcFile').onchange=e=>{
+    const f=e.target.files[0]; e.target.value='';
+    if(f) loadGeocodeCsv(f);
+  };
+  const run=host.querySelector('#gcRun');
+  if(run) run.onclick=runGeocode;
+  const cnt=host.querySelector('#gcCount');
+  if(cnt && geocodeRows && geocodeRows.length>GEOCODE_MAX){
+    cnt.innerHTML='<b>Note:</b> only the first '+GEOCODE_MAX+' of '+geocodeRows.length+' rows will be geocoded.';
+  }
+}
+function loadGeocodeCsv(file){
+  file.text().then(text=>{
+    const parsed=Papa.parse(text,{header:true, dynamicTyping:false, skipEmptyLines:true});
+    const rows=parsed.data||[];
+    if(!rows.length){ toast('That CSV appears to be empty.'); return; }
+    geocodeRows=rows;
+    geocodeCols=Object.keys(rows[0]);
+    geocodeName=file.name;
+    renderGeocodePanel();      /* the panel pre-selects the likely address column */
+  }).catch(err=>toast('Could not read that CSV: '+err.message, 4000));
+}
+function geocodeOne(q){
+  return fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q))
+    .then(r=>r.ok? r.json() : [])
+    .then(j=>(j&&j[0]) ? {lat:+j[0].lat, lon:+j[0].lon, matched:j[0].display_name} : null)
+    .catch(()=>null);
+}
+function renderGeocodeProgress(done, total, ok){
+  const host=document.getElementById('mk-geocode-panel');
+  if(!host) return;
+  const pct=Math.round(done/total*100);
+  host.innerHTML='<div class="gc-run"><b>Geocoding…</b>'+
+    '<div class="gc-bar"><span style="width:'+pct+'%"></span></div>'+
+    '<div class="kv">'+done+' of '+total+' · '+ok+' found'+
+      ' · about '+Math.max(0, Math.round((total-done)*GEOCODE_GAP/1000))+'s left</div>'+
+    '<button class="btn small light" id="gcStop">Stop</button></div>';
+  const s=host.querySelector('#gcStop'); if(s) s.onclick=()=>{ geocodeCancel=true; };
+}
+async function runGeocode(){
+  if(!geocodeRows || geocodeBusy) return;
+  const col=document.getElementById('gcCol').value;
+  const suffix=(document.getElementById('gcSuffix').value||'').trim();
+  const rows=geocodeRows.slice(0, GEOCODE_MAX);
+  geocodeBusy=true; geocodeCancel=false;
+  const feats=[]; const failed=[];
+  for(let i=0;i<rows.length;i++){
+    if(geocodeCancel) break;
+    renderGeocodeProgress(i, rows.length, feats.length);
+    const raw=String(rows[i][col]==null?'':rows[i][col]).trim();
+    if(!raw){ failed.push(rows[i]); continue; }
+    const q=suffix? raw+', '+suffix : raw;
+    const hit=await geocodeOne(q);
+    if(hit){
+      const props=Object.assign({}, rows[i], {_matched:hit.matched});
+      feats.push({type:'Feature', properties:props, geometry:{type:'Point', coordinates:[hit.lon, hit.lat]}});
+    } else failed.push(rows[i]);
+    if(i<rows.length-1) await new Promise(r=>setTimeout(r, GEOCODE_GAP));
+  }
+  geocodeBusy=false;
+  renderGeocodePanel();
+  if(!feats.length){ toast('Nothing could be geocoded — check the column and try adding a place to narrow the search.', 5000); return; }
+  const gj={type:'FeatureCollection', features:feats};
+  const name=geocodeName.replace(/\.[^.]+$/,'')+' (geocoded)';
+  addMakerLayer(gj, name, {});
+  const miss=failed.length + (geocodeCancel? rows.length-feats.length-failed.length : 0);
+  toast('Mapped '+feats.length+' of '+rows.length+' rows'+(miss? ' · '+miss+' not found':'')+'.', 5200);
+}
+
 /* automated-testing hooks for the editor */
+window.__geocodeLoad=(text,name)=>{
+  const parsed=Papa.parse(text,{header:true, skipEmptyLines:true});
+  geocodeRows=parsed.data; geocodeCols=Object.keys(geocodeRows[0]); geocodeName=name||'test.csv';
+  renderGeocodePanel();
+};
+window.__geocodeState=()=>({rows:geocodeRows?geocodeRows.length:0, cols:geocodeCols, busy:geocodeBusy, max:GEOCODE_MAX});
 window.__editCount=()=>editState? editState.group.getLayers().length : 0;
 window.__editAdd=(leafletLayer)=>{ if(editState) onPmCreate({layer:leafletLayer}); };
 window.__mkLayerByName=(n)=>mkLayers.find(l=>l.name===n||l.name.indexOf(n)===0);
@@ -5507,7 +5640,9 @@ window.__mkLayerByName=(n)=>mkLayers.find(l=>l.name===n||l.name.indexOf(n)===0);
   const sel=document.getElementById('spOp');
   if(!tab||!sel) return;
   let html='<div class="acc open" id="acc-edit"><button class="acc-h">Edit features<span class="chev">▾</span></button>'+
-           '<div class="acc-b"><div id="mk-edit-panel"></div></div></div>';
+           '<div class="acc-b"><div id="mk-edit-panel"></div></div></div>'+
+           '<div class="acc" id="acc-geocode"><button class="acc-h">Geocode addresses<span class="chev">▾</span></button>'+
+           '<div class="acc-b"><div id="mk-geocode-panel"></div></div></div>';
   Array.from(sel.children).forEach((node,i)=>{
     if(node.tagName==='OPTGROUP'){
       html+='<div class="acc'+(i===0?' open':'')+'"><button class="acc-h">'+esc(node.label)+'<span class="chev">▾</span></button><div class="acc-b">';
@@ -5522,6 +5657,7 @@ window.__mkLayerByName=(n)=>mkLayers.find(l=>l.name===n||l.name.indexOf(n)===0);
   html+='<p class="kv">Every tool creates a new layer — your input layers are never overwritten.</p>';
   tab.innerHTML=html;
   renderEditPanel();
+  renderGeocodePanel();
   tab.querySelectorAll('.tool-item').forEach(b=>{
     b.onclick=()=>{
       const op=b.getAttribute('data-op');
