@@ -414,10 +414,26 @@
   .tbtn:hover{background:#e2e7ef;}
   .tbtn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
   .tbtn.on:hover{background:#243660;}
-  /* the caret makes it obvious these three open a panel below the toolbar */
-  .tbtn .car{display:inline-block;font-size:9px;transition:transform .12s;opacity:.85;}
+  /* a big caret, the same weight as the + on Add field, so it's obvious these
+     buttons expand a panel below the toolbar */
+  .tbtn .car{display:inline-block;font-size:13px;line-height:1;font-weight:700;
+    transition:transform .14s;opacity:.9;width:11px;text-align:center;}
   .tbtn.on .car{transform:rotate(90deg);}
   .tbtn.on{box-shadow:0 2px 0 var(--teal) inset;}
+  /* Edit attributes: one mode at a time */
+  .attr-modes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px;}
+  .attr-radio{font-size:11.5px;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+    border:1px solid var(--line);border-radius:14px;background:#f3f5f9;cursor:pointer;}
+  .attr-radio.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .attr-radio input{margin:0;}
+  /* field list inside the Field options panel */
+  .fp-fieldlist{max-height:150px;overflow-y:auto;border:1px solid var(--line);border-radius:5px;background:#fff;}
+  .fp-fieldlist table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  .fp-fieldlist th{background:var(--navy);color:#fff;text-align:left;padding:4px 8px;position:sticky;top:0;font-size:11px;}
+  .fp-fieldlist td{padding:3px 8px;border-bottom:1px solid #eef1f6;}
+  .fp-fieldlist td.ftype{color:var(--muted);}
+  .fp-sub{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
+    font-weight:700;margin:10px 0 6px;}
   .tbtn-sep{width:1px;height:18px;background:var(--line);margin:0 2px;}
   #tblFilterWrap{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:8px;background:#fafbfd;}
   .legend-row select{width:70px;padding:3px;border:1px solid var(--line);border-radius:4px;font-size:11px;flex-shrink:0;}
@@ -949,18 +965,16 @@
   </div>
   <div id="tableWinBody">
     <div class="tbl-toolbar">
-      <button class="tbtn" id="tblCalcBtn" title="Create a new field from an expression"><span class="car">▸</span> ƒx Field calculator</button>
-      <button class="tbtn" id="tblStatsBtn" title="Show summary statistics for the numeric fields"><span class="car">▸</span> Σ Statistics</button>
-      <button class="tbtn" id="tblFilterBtn" title="Build a filter for this layer"><span class="car">▸</span> ▼ Filter</button>
-      <span class="tbtn-sep"></span>
+      <button class="tbtn" id="tblFieldsBtn" title="Fields: add a field, or build one with the calculator"><span class="car">▸</span> ▤ Field options</button>
       <button class="tbtn" id="tblAttrBtn" title="Edit attribute values"><span class="car">▸</span> ✎ Edit attributes</button>
-      <button class="tbtn" id="tblAddFieldBtn" title="Add a new empty field to this layer">＋ Add field</button>
+      <button class="tbtn" id="tblFilterBtn" title="Build a filter for this layer"><span class="car">▸</span> Filter</button>
+      <button class="tbtn" id="tblStatsBtn" title="Show summary statistics for the numeric fields"><span class="car">▸</span> Σ Statistics</button>
       <span class="kv" id="attrCount"></span>
       <input type="checkbox" id="attrRespectFilter" checked hidden>
       <input type="checkbox" id="attrEdit" hidden>
     </div>
+    <div id="tblFieldsWrap" class="hidden"></div>
     <div id="tblAttrWrap" class="hidden"></div>
-    <div id="tblCalcWrap" class="hidden"></div>
     <div id="tblFilterWrap" class="hidden"></div>
     <div id="tblStatsWrap" class="hidden"></div>
     <div id="attr-table-wrap"><table id="attr-table"></table></div>
@@ -4664,7 +4678,16 @@ function tbtnSetOn(el, on){
 let attrPending=new Map();          /* featureIndex -> {field: value} */
 let attrPendingLayerId=null;
 let attrShownRows=[];               /* feature indices in displayed order */
+let attrEditMode='off';             /* 'off' | 'type' | 'paste' — one at a time */
 function currentAttrRows(){ return attrShownRows.slice(); }
+/* Editing must switch off whenever the panel is closed, or the table stays
+   typeable with no visible sign that it is. */
+function setAttrEditMode(m){
+  attrEditMode=m||'off';
+  document.getElementById('attrEdit').checked=(attrEditMode==='type');
+  renderAttrTable();
+  renderAttrEditPanel();
+}
 function attrPendingCount(){ let n=0; attrPending.forEach(o=>{ n+=Object.keys(o).length; }); return n; }
 function attrPendingFor(i, c){
   const o=attrPending.get(i);
@@ -4717,27 +4740,32 @@ function renderAttrEditPanel(){
   const lyr=selectedLayer(); if(!lyr) return;
   const fields=fieldsOf(lyr);
   const n=attrPendingCount();
-  const on=document.getElementById('attrEdit').checked;
+  const mode=attrEditMode;                 /* 'off' | 'type' | 'paste' */
+  const radio=(v,label)=>'<label class="attr-radio'+(mode===v?' on':'')+'">'+
+    '<input type="radio" name="attrMode" value="'+v+'" '+(mode===v?'checked':'')+'> '+label+'</label>';
   wrap.innerHTML='<div class="tbl-panel">'+
-    '<div class="checkline" style="margin:0 0 8px;"><input type="checkbox" id="attrTypeIn" '+(on?'checked':'')+'>'+
-      '<label for="attrTypeIn">Type directly into the table cells</label></div>'+
-    '<div class="calc-row"><label>Or paste a column of values</label>'+
-      '<div style="display:flex;gap:6px;align-items:flex-start;">'+
-        '<select id="attrPasteField" style="flex:0 0 34%;">'+fields.map(f=>'<option>'+esc(f)+'</option>').join('')+'</select>'+
-        '<textarea id="attrPasteData" rows="3" placeholder="One value per row, in the order the rows are shown — paste straight from a spreadsheet column"></textarea>'+
-      '</div></div>'+
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;">'+
-      '<button class="btn small secondary" id="attrPasteApply">Apply to column</button>'+
-      '<span style="flex:1"></span>'+
+    '<div class="attr-modes">'+radio('off','Off (browse only)')+radio('type','Type into cells')+radio('paste','Paste a column')+'</div>'+
+    (mode==='paste'
+      ? '<div class="calc-row"><label>Paste values for one field</label>'+
+        '<div style="display:flex;gap:6px;align-items:flex-start;">'+
+          '<select id="attrPasteField" style="flex:0 0 34%;">'+fields.map(f=>'<option>'+esc(f)+'</option>').join('')+'</select>'+
+          '<textarea id="attrPasteData" rows="3" placeholder="One value per row, in the order the rows are shown — paste straight from a spreadsheet column"></textarea>'+
+        '</div></div>'+
+        '<button class="btn small secondary" id="attrPasteApply" style="margin-top:6px;">Apply to column</button>'
+      : mode==='type'
+        ? '<p class="kv" style="margin:0;">Click any cell in the table and type. Enter commits, Esc cancels. Changes stay pending until you save.</p>'
+        : '<p class="kv" style="margin:0;">Editing is off — the table is read-only. Pick a mode above to make changes.</p>')+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;">'+
       '<span class="kv" id="attrPendingInfo">'+(n? '<b>'+n+'</b> unsaved edit'+(n===1?'':'s') : 'No unsaved edits')+'</span>'+
+      '<span style="flex:1"></span>'+
       '<button class="btn small" id="attrSaveEdits" '+(n?'':'disabled')+'>✓ Save edits</button>'+
       '<button class="btn small light" id="attrClearEdits" '+(n?'':'disabled')+'>Clear all edits</button>'+
     '</div></div>';
-  wrap.querySelector('#attrTypeIn').onchange=e=>{
-    document.getElementById('attrEdit').checked=e.target.checked;
-    renderAttrTable();
-  };
-  wrap.querySelector('#attrPasteApply').onclick=()=>applyPastedColumn();
+  wrap.querySelectorAll('input[name=attrMode]').forEach(r=>{
+    r.onchange=()=>{ setAttrEditMode(r.value); };
+  });
+  const pa=wrap.querySelector('#attrPasteApply');
+  if(pa) pa.onclick=()=>applyPastedColumn();
   wrap.querySelector('#attrSaveEdits').onclick=saveAttrEdits;
   wrap.querySelector('#attrClearEdits').onclick=discardAttrEdits;
   updateAttrBtnBadge();
@@ -4765,8 +4793,6 @@ function applyPastedColumn(){
   toast('Staged '+n+' value'+(n===1?'':'s')+' into "'+c+'". Press Save edits to keep them.', 4200);
 }
 (function(){
-  const af=document.getElementById('tblAddFieldBtn');
-  if(af) af.onclick=()=>addFieldToLayer(selectedLayer());
   const ab=document.getElementById('tblAttrBtn');
   if(ab) ab.onclick=()=>{
     const wrap=document.getElementById('tblAttrWrap');
@@ -4776,7 +4802,9 @@ function applyPastedColumn(){
     wrap.classList.toggle('hidden', !opening);
     if(opening){
       if(attrPendingLayerId!==selectedLayer().id) attrResetPending(selectedLayer().id);
-      renderAttrEditPanel();
+      setAttrEditMode('type');        /* opening the panel means you want to edit */
+    } else {
+      setAttrEditMode('off');         /* closing it makes the table read-only again */
     }
     tblSyncPanelButtons();
   };
@@ -4804,17 +4832,25 @@ function addFieldToLayer(lyr){
 }
 /* keep the three panel buttons' open/closed state on their carets */
 function tblSyncPanelButtons(){
-  [['tblAttrBtn','tblAttrWrap'],['tblCalcBtn','tblCalcWrap'],['tblStatsBtn','tblStatsWrap'],['tblFilterBtn','tblFilterWrap']].forEach(([b,w])=>{
+  [['tblFieldsBtn','tblFieldsWrap'],['tblAttrBtn','tblAttrWrap'],['tblFilterBtn','tblFilterWrap'],['tblStatsBtn','tblStatsWrap']].forEach(([b,w])=>{
     const btn=document.getElementById(b), wrap=document.getElementById(w);
     if(btn&&wrap) btn.classList.toggle('on', !wrap.classList.contains('hidden'));
   });
 }
 /* only one panel open at a time keeps the table area readable */
 function tblOpenPanel(which){
-  ['tblAttrWrap','tblCalcWrap','tblStatsWrap','tblFilterWrap'].forEach(id=>{
+  ['tblFieldsWrap','tblAttrWrap','tblFilterWrap','tblStatsWrap'].forEach(id=>{
     const el=document.getElementById(id);
     if(el && id!==which) el.classList.add('hidden');
   });
+  /* the Edit attributes panel is the only one that makes cells typeable, so if
+     it's no longer the open panel, editing goes back off */
+  if(which!=='tblAttrWrap' && typeof attrEditMode!=='undefined' && attrEditMode!=='off'){
+    attrEditMode='off';
+    const chk=document.getElementById('attrEdit'); if(chk) chk.checked=false;
+    /* re-draw so the cells actually lose contenteditable, not just the flag */
+    if(typeof renderAttrTable==='function' && selectedLayer()) renderAttrTable();
+  }
 }
 /* ---------- field statistics ---------- */
 function fieldStats(values){
@@ -4891,35 +4927,47 @@ document.getElementById('tblFilterBtn').onclick=()=>{
   }
   tblSyncPanelButtons();
 };
-/* Field calculator now lives inside the table window, like Filter and
-   Statistics, so all three behave the same way. */
-document.getElementById('tblCalcBtn').onclick=()=>{
-  const wrap=document.getElementById('tblCalcWrap');
+/* Field options: the field list, Add field, and the Field calculator all in one
+   expanding panel, so the toolbar carries four consistent buttons. */
+document.getElementById('tblFieldsBtn').onclick=()=>{
+  const wrap=document.getElementById('tblFieldsWrap');
   const lyr=selectedLayer(); if(!lyr) return;
   const opening=wrap.classList.contains('hidden');
-  tblOpenPanel(opening?'tblCalcWrap':null);
+  tblOpenPanel(opening?'tblFieldsWrap':null);
   wrap.classList.toggle('hidden', !opening);
-  if(opening) renderCalcPanel(wrap, lyr);
+  if(opening) renderFieldsPanel(wrap, lyr);
   tblSyncPanelButtons();
 };
-function renderCalcPanel(wrap, lyr){
+function renderFieldsPanel(wrap, lyr){
+  const fields=fieldsOf(lyr);
   wrap.innerHTML=
     '<div class="tbl-panel">'+
-      '<div class="kv" style="margin-bottom:6px;">Layer: <b>'+esc(lyr.name)+'</b></div>'+
-      '<div class="calc-row">'+
-        '<label>New field name</label><input type="text" id="calcFieldName" placeholder="e.g. rate_per_1000">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">'+
+        '<b style="font-size:12px;color:var(--navy);">'+fields.length+' field'+(fields.length===1?'':'s')+'</b>'+
+        '<span style="flex:1"></span>'+
+        '<button class="btn small secondary" id="fpAddField">＋ Add field</button>'+
       '</div>'+
-      '<div class="calc-row">'+
-        '<label>Expression (JavaScript; use field names directly)</label>'+
-        '<textarea id="calcExpr" rows="2" placeholder="e.g. crimes / pop * 1000"></textarea>'+
-      '</div>'+
-      '<div class="kv" id="calcFields"><b>Available fields:</b> '+fieldsOf(lyr).map(esc).join(', ')+'</div>'+
+      '<div class="fp-fieldlist"><table>'+
+        '<tr><th>Field</th><th>Type</th><th>Populated</th></tr>'+
+        fields.map(f=>{ const t=fieldTypeOf(lyr,f);
+          return '<tr><td><b>'+esc(f)+'</b></td><td class="ftype">'+t.type+'</td><td class="ftype">'+t.filledPct+'%</td></tr>';
+        }).join('')+'</table></div>'+
+      '<div class="fp-sub">ƒx Field calculator</div>'+
+      '<div class="calc-row"><label>New field name</label>'+
+        '<input type="text" id="calcFieldName" placeholder="e.g. rate_per_1000"></div>'+
+      '<div class="calc-row"><label>Expression (JavaScript; use field names directly)</label>'+
+        '<textarea id="calcExpr" rows="2" placeholder="e.g. crimes / pop * 1000"></textarea></div>'+
+      '<div class="kv" id="calcFields"><b>Available fields:</b> '+fields.map(esc).join(', ')+'</div>'+
       '<div class="kv" id="calcPreview" style="margin-top:6px;"></div>'+
       '<div style="display:flex;gap:6px;margin-top:8px;">'+
         '<button class="btn small secondary" id="calcTestBtn">Test</button>'+
         '<button class="btn small" id="calcApplyBtn">Apply</button>'+
       '</div>'+
     '</div>';
+  wrap.querySelector('#fpAddField').onclick=()=>{
+    addFieldToLayer(lyr);
+    renderFieldsPanel(wrap, lyr);        /* refresh the list with the new field */
+  };
   wrap.querySelector('#calcTestBtn').onclick=calcTest;
   wrap.querySelector('#calcApplyBtn').onclick=calcApply;
 }
@@ -5340,14 +5388,14 @@ function saveEditing(){
     if(typeof mkPushHistory==='function') mkPushHistory();
     const n=lyr.geojson.features.length;
     toast('Saved '+n+' feature'+(n===1?'':'s')+' to "'+lyr.name+'".');
-    /* a freshly drawn feature has empty fields — offer to go and fill them in */
-    if(n>before){
-      const added=n-before;
-      if(window.confirm(added+' new feature'+(added===1?'':'s')+' saved with empty attributes.\n\nEdit '+
-                        (added===1?'its':'their')+' attributes now?')){
-        openAttrEditorFor(lyr, added);
-      }
-    }
+    /* always offer the attribute table after saving — a freshly drawn feature
+       has empty fields, and a reshaped one often needs its values checking */
+    const added=n-before;
+    const msg = added>0
+      ? added+' new feature'+(added===1?'':'s')+' saved with empty attributes.\n\nEdit '+
+        (added===1?'its':'their')+' attributes now?'
+      : 'Edits to "'+lyr.name+'" saved.\n\nEdit this layer\'s attributes now?';
+    if(window.confirm(msg)) openAttrEditorFor(lyr, Math.max(1, added));
   }
 }
 /* open the attribute table with the Edit attributes panel expanded, scrolled to
@@ -5360,9 +5408,7 @@ function openAttrEditorFor(lyr, added){
     tblOpenPanel('tblAttrWrap');
     wrap.classList.remove('hidden');
     attrResetPending(lyr.id);
-    document.getElementById('attrEdit').checked=true;    /* cells ready to type into */
-    renderAttrTable();
-    renderAttrEditPanel();
+    setAttrEditMode('type');                 /* cells ready to type into */
     tblSyncPanelButtons();
     scrollAttrToBottom(added);
   }, 120);
