@@ -539,7 +539,14 @@
   #attr-table.editing td{cursor:text;}
   #attr-table.editing td[contenteditable]:focus{outline:2px solid var(--teal);outline-offset:-2px;background:#fff;}
   #attr-table.editing tr[data-i]{cursor:default;}
-  #tblStatsWrap,#tblCalcWrap{margin-bottom:8px;overflow:auto;}
+  #tblStatsWrap,#tblCalcWrap,#tblAttrWrap{margin-bottom:8px;overflow:auto;}
+  /* staged (unsaved) attribute edits */
+  #attr-table td.pending{background:#fff6d9;box-shadow:inset 2px 0 0 var(--accent);}
+  .tbtn.dirty{box-shadow:0 2px 0 var(--accent) inset;}
+  .tbtn.dirty::after{content:'•';color:var(--accent);font-weight:900;margin-left:2px;}
+  #attr-table tr.just-added td{background:#eaf6f2;}
+  /* room under the last row so a newly added feature isn't hard against the edge */
+  #attr-table-wrap{padding-bottom:26px;}
   .tbl-panel{border:1px solid var(--line);border-radius:6px;background:#f8fafc;padding:9px 10px;}
   .tbl-panel .calc-row{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;}
   .tbl-panel .calc-row label{font-size:11px;font-weight:700;color:var(--muted);}
@@ -946,11 +953,13 @@
       <button class="tbtn" id="tblStatsBtn" title="Show summary statistics for the numeric fields"><span class="car">▸</span> Σ Statistics</button>
       <button class="tbtn" id="tblFilterBtn" title="Build a filter for this layer"><span class="car">▸</span> ▼ Filter</button>
       <span class="tbtn-sep"></span>
+      <button class="tbtn" id="tblAttrBtn" title="Edit attribute values"><span class="car">▸</span> ✎ Edit attributes</button>
       <button class="tbtn" id="tblAddFieldBtn" title="Add a new empty field to this layer">＋ Add field</button>
-      <button class="tbtn" id="attrEdit" aria-pressed="false" title="Edit values directly in the table">✎ Edit cells</button>
       <span class="kv" id="attrCount"></span>
       <input type="checkbox" id="attrRespectFilter" checked hidden>
+      <input type="checkbox" id="attrEdit" hidden>
     </div>
+    <div id="tblAttrWrap" class="hidden"></div>
     <div id="tblCalcWrap" class="hidden"></div>
     <div id="tblFilterWrap" class="hidden"></div>
     <div id="tblStatsWrap" class="hidden"></div>
@@ -4647,16 +4656,130 @@ function tbtnSetOn(el, on){
   el.checked=!!on;
   el.setAttribute('aria-pressed', on?'true':'false');
 }
-(function(){
-  const ed=document.getElementById('attrEdit');
-  tbtnSetOn(ed, false);
-  ed.onclick=()=>{
-    tbtnSetOn(ed, !ed.checked);
-    if(ed.checked) toast('Edit mode — click a cell to change its value. Enter commits, Esc cancels.', 3600);
+/* ---------- attribute editing ----------
+   Edits are held as pending changes and only written to the dataset when you
+   press Save. The previous version wrote straight to the in-memory feature and
+   never persisted the dataset, which is why edits could vanish when the table
+   was closed and reopened. */
+let attrPending=new Map();          /* featureIndex -> {field: value} */
+let attrPendingLayerId=null;
+let attrShownRows=[];               /* feature indices in displayed order */
+function currentAttrRows(){ return attrShownRows.slice(); }
+function attrPendingCount(){ let n=0; attrPending.forEach(o=>{ n+=Object.keys(o).length; }); return n; }
+function attrPendingFor(i, c){
+  const o=attrPending.get(i);
+  return (o && Object.prototype.hasOwnProperty.call(o,c)) ? o[c] : undefined;
+}
+function attrStage(i, c, val){
+  if(!attrPending.has(i)) attrPending.set(i, {});
+  attrPending.get(i)[c]=val;
+  renderAttrEditPanel();
+}
+function attrResetPending(layerId){
+  attrPending=new Map();
+  attrPendingLayerId=layerId||null;
+}
+function coerceForField(lyr, c, raw){
+  const s=String(raw==null?'':raw).trim();
+  if(s==='') return null;
+  const numeric=fieldTypeOf(lyr,c).type==='number';
+  return (numeric && isFinite(parseFloat(s))) ? parseFloat(s) : s;
+}
+function saveAttrEdits(){
+  const lyr=selectedLayer(); if(!lyr) return;
+  const n=attrPendingCount();
+  if(!n){ toast('No pending edits to save.'); return; }
+  attrPending.forEach((changes, i)=>{
+    const f=lyr.geojson.features[i]; if(!f) return;
+    f.properties=f.properties||{};
+    Object.keys(changes).forEach(c=>{ f.properties[c]=changes[c]; });
+  });
+  invalidateFieldCache(lyr);
+  persistDataset(lyr.datasetId);      /* the step that was missing before */
+  markProjectDirty();
+  attrResetPending(lyr.id);
+  renderLayer(lyr); renderMakerPanels();
+  renderAttrTable();
+  renderAttrEditPanel();          /* refresh the counter and disable Save again */
+  if(typeof mkPushHistory==='function') mkPushHistory();
+  toast('Saved '+n+' edit'+(n===1?'':'s')+' to "'+lyr.name+'".');
+}
+function discardAttrEdits(){
+  if(!attrPendingCount()){ renderAttrEditPanel(); return; }
+  if(!window.confirm('Discard all unsaved attribute edits?')) return;
+  attrResetPending(attrPendingLayerId);
+  renderAttrTable();
+  toast('Unsaved edits discarded.');
+}
+function renderAttrEditPanel(){
+  const wrap=document.getElementById('tblAttrWrap');
+  if(!wrap || wrap.classList.contains('hidden')) { updateAttrBtnBadge(); return; }
+  const lyr=selectedLayer(); if(!lyr) return;
+  const fields=fieldsOf(lyr);
+  const n=attrPendingCount();
+  const on=document.getElementById('attrEdit').checked;
+  wrap.innerHTML='<div class="tbl-panel">'+
+    '<div class="checkline" style="margin:0 0 8px;"><input type="checkbox" id="attrTypeIn" '+(on?'checked':'')+'>'+
+      '<label for="attrTypeIn">Type directly into the table cells</label></div>'+
+    '<div class="calc-row"><label>Or paste a column of values</label>'+
+      '<div style="display:flex;gap:6px;align-items:flex-start;">'+
+        '<select id="attrPasteField" style="flex:0 0 34%;">'+fields.map(f=>'<option>'+esc(f)+'</option>').join('')+'</select>'+
+        '<textarea id="attrPasteData" rows="3" placeholder="One value per row, in the order the rows are shown — paste straight from a spreadsheet column"></textarea>'+
+      '</div></div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;">'+
+      '<button class="btn small secondary" id="attrPasteApply">Apply to column</button>'+
+      '<span style="flex:1"></span>'+
+      '<span class="kv" id="attrPendingInfo">'+(n? '<b>'+n+'</b> unsaved edit'+(n===1?'':'s') : 'No unsaved edits')+'</span>'+
+      '<button class="btn small" id="attrSaveEdits" '+(n?'':'disabled')+'>✓ Save edits</button>'+
+      '<button class="btn small light" id="attrClearEdits" '+(n?'':'disabled')+'>Clear all edits</button>'+
+    '</div></div>';
+  wrap.querySelector('#attrTypeIn').onchange=e=>{
+    document.getElementById('attrEdit').checked=e.target.checked;
     renderAttrTable();
   };
+  wrap.querySelector('#attrPasteApply').onclick=()=>applyPastedColumn();
+  wrap.querySelector('#attrSaveEdits').onclick=saveAttrEdits;
+  wrap.querySelector('#attrClearEdits').onclick=discardAttrEdits;
+  updateAttrBtnBadge();
+}
+function updateAttrBtnBadge(){
+  const b=document.getElementById('tblAttrBtn'); if(!b) return;
+  const n=attrPendingCount();
+  b.classList.toggle('dirty', n>0);
+  b.title=n? n+' unsaved edit'+(n===1?'':'s') : 'Edit attribute values';
+}
+/* paste a whole column: values map onto the rows in the order they're displayed */
+function applyPastedColumn(){
+  const lyr=selectedLayer(); if(!lyr) return;
+  const c=document.getElementById('attrPasteField').value;
+  const text=document.getElementById('attrPasteData').value;
+  if(!text.trim()){ toast('Paste some values first.'); return; }
+  const vals=text.replace(/\r/g,'').split('\n').map(s=>s.replace(/^\t+|\t+$/g,''));
+  while(vals.length && vals[vals.length-1].trim()==='') vals.pop();
+  const rows=currentAttrRows(lyr);
+  if(vals.length>rows.length && !window.confirm(vals.length+' values pasted but only '+rows.length+
+      ' rows are shown. Apply the first '+rows.length+'?')) return;
+  const n=Math.min(vals.length, rows.length);
+  for(let k=0;k<n;k++) attrStage(rows[k], c, coerceForField(lyr, c, vals[k]));
+  renderAttrTable();
+  toast('Staged '+n+' value'+(n===1?'':'s')+' into "'+c+'". Press Save edits to keep them.', 4200);
+}
+(function(){
   const af=document.getElementById('tblAddFieldBtn');
   if(af) af.onclick=()=>addFieldToLayer(selectedLayer());
+  const ab=document.getElementById('tblAttrBtn');
+  if(ab) ab.onclick=()=>{
+    const wrap=document.getElementById('tblAttrWrap');
+    if(!selectedLayer()) return;
+    const opening=wrap.classList.contains('hidden');
+    tblOpenPanel(opening?'tblAttrWrap':null);
+    wrap.classList.toggle('hidden', !opening);
+    if(opening){
+      if(attrPendingLayerId!==selectedLayer().id) attrResetPending(selectedLayer().id);
+      renderAttrEditPanel();
+    }
+    tblSyncPanelButtons();
+  };
 })();
 /* Add a new, empty field. No type is asked for: Map-O-Matic works out whether a
    field is text or a number by scanning its values, so the type follows from
@@ -4681,14 +4804,14 @@ function addFieldToLayer(lyr){
 }
 /* keep the three panel buttons' open/closed state on their carets */
 function tblSyncPanelButtons(){
-  [['tblCalcBtn','tblCalcWrap'],['tblStatsBtn','tblStatsWrap'],['tblFilterBtn','tblFilterWrap']].forEach(([b,w])=>{
+  [['tblAttrBtn','tblAttrWrap'],['tblCalcBtn','tblCalcWrap'],['tblStatsBtn','tblStatsWrap'],['tblFilterBtn','tblFilterWrap']].forEach(([b,w])=>{
     const btn=document.getElementById(b), wrap=document.getElementById(w);
     if(btn&&wrap) btn.classList.toggle('on', !wrap.classList.contains('hidden'));
   });
 }
 /* only one panel open at a time keeps the table area readable */
 function tblOpenPanel(which){
-  ['tblCalcWrap','tblStatsWrap','tblFilterWrap'].forEach(id=>{
+  ['tblAttrWrap','tblCalcWrap','tblStatsWrap','tblFilterWrap'].forEach(id=>{
     const el=document.getElementById(id);
     if(el && id!==which) el.classList.add('hidden');
   });
@@ -4819,10 +4942,19 @@ function renderAttrTable(){
   document.getElementById('attrCount').textContent=feats.length+' features'+(feats.length>MAXROWS?' (showing first '+MAXROWS+')':'');
   const tbl=document.getElementById('attr-table');
   const shown=feats.slice(0,MAXROWS);
+  attrShownRows=shown.map(f=>fidOf(lyr,f));      /* row order, for pasted columns */
   const editMode=!!(document.getElementById('attrEdit')&&document.getElementById('attrEdit').checked);
   tbl.classList.toggle('editing', editMode);
   tbl.innerHTML='<tr>'+cols.map(c=>'<th data-c="'+esc(c)+'">'+esc(c)+(attrSort.col===c?'<span class="arrow">'+(attrSort.asc?'▲':'▼')+'</span>':'')+'</th>').join('')+'</tr>'
-    + shown.map(f=>'<tr data-i="'+fidOf(lyr,f)+'">'+cols.map(c=>'<td data-c="'+esc(c)+'"'+(editMode?' contenteditable="true"':'')+'>'+esc((f.properties||{})[c])+'</td>').join('')+'</tr>').join('');
+    + shown.map(f=>{
+        const i=fidOf(lyr,f);
+        return '<tr data-i="'+i+'">'+cols.map(c=>{
+          const pend=attrPendingFor(i,c);
+          const has=pend!==undefined;
+          const v=has? pend : (f.properties||{})[c];
+          return '<td data-c="'+esc(c)+'"'+(editMode?' contenteditable="true"':'')+(has?' class="pending"':'')+'>'+esc(v)+'</td>';
+        }).join('')+'</tr>';
+      }).join('');
   tbl.querySelectorAll('th').forEach(th=>{
     th.onclick=()=>{
       const c=th.getAttribute('data-c');
@@ -4837,15 +4969,11 @@ function renderAttrTable(){
       const commit=()=>{
         const tr=td.parentElement; const i=+tr.getAttribute('data-i'); const c=td.getAttribute('data-c');
         const f=lyr.geojson.features[i]; if(!f) return;
-        f.properties=f.properties||{};
-        let raw=td.textContent.trim();
-        const numeric=fieldTypeOf(lyr,c).type==='number';
-        let val = raw==='' ? null : (numeric && isFinite(parseFloat(raw)) ? parseFloat(raw) : raw);
-        if(String(f.properties[c]==null?'':f.properties[c])===String(val==null?'':val)) return;   /* no change */
-        f.properties[c]=val;
-        invalidateFieldCache(lyr);
-        renderLayer(lyr);                 /* style/labels/classes may depend on it; also snapshots undo */
-        markProjectDirty();
+        const val=coerceForField(lyr, c, td.textContent);
+        const cur=attrPendingFor(i,c)!==undefined ? attrPendingFor(i,c) : (f.properties||{})[c];
+        if(String(cur==null?'':cur)===String(val==null?'':val)) return;   /* no change */
+        attrStage(i, c, val);            /* staged — written on Save edits */
+        td.classList.add('pending');
       };
       let orig=td.textContent;
       td.addEventListener('focus', ()=>{ orig=td.textContent; });
@@ -5197,6 +5325,7 @@ function editedFeatureCollection(){
 function saveEditing(){
   if(!editState) return;
   const lyr=mkLayers.find(l=>l.id===editState.layerId);
+  const before=lyr? lyr.geojson.features.length : 0;
   if(lyr){
     const fc=editedFeatureCollection();
     lyr.geojson.features=fc.features;
@@ -5209,7 +5338,47 @@ function saveEditing(){
     renderLayer(lyr); renderMakerPanels(); updateMkStatus();
     if(tableWinOpen()) renderAttrTable();
     if(typeof mkPushHistory==='function') mkPushHistory();
-    toast('Saved '+lyr.geojson.features.length+' feature'+(lyr.geojson.features.length===1?'':'s')+' to "'+lyr.name+'".');
+    const n=lyr.geojson.features.length;
+    toast('Saved '+n+' feature'+(n===1?'':'s')+' to "'+lyr.name+'".');
+    /* a freshly drawn feature has empty fields — offer to go and fill them in */
+    if(n>before){
+      const added=n-before;
+      if(window.confirm(added+' new feature'+(added===1?'':'s')+' saved with empty attributes.\n\nEdit '+
+                        (added===1?'its':'their')+' attributes now?')){
+        openAttrEditorFor(lyr, added);
+      }
+    }
+  }
+}
+/* open the attribute table with the Edit attributes panel expanded, scrolled to
+   the newly added rows at the bottom */
+function openAttrEditorFor(lyr, added){
+  selectMakerLayer(lyr.id);
+  openAttrTable();
+  setTimeout(()=>{
+    const wrap=document.getElementById('tblAttrWrap');
+    tblOpenPanel('tblAttrWrap');
+    wrap.classList.remove('hidden');
+    attrResetPending(lyr.id);
+    document.getElementById('attrEdit').checked=true;    /* cells ready to type into */
+    renderAttrTable();
+    renderAttrEditPanel();
+    tblSyncPanelButtons();
+    scrollAttrToBottom(added);
+  }, 120);
+}
+/* bring the last rows into view — they sit under the edge otherwise, especially
+   when the table is docked to the bottom of the window */
+function scrollAttrToBottom(count){
+  const box=document.getElementById('attr-table-wrap');
+  if(!box) return;
+  const rows=box.querySelectorAll('tr[data-i]');
+  if(!rows.length) return;
+  const target=rows[Math.max(0, rows.length-(count||1))];
+  if(target && target.scrollIntoView) target.scrollIntoView({block:'center'});
+  else box.scrollTop=box.scrollHeight;
+  for(let k=0;k<(count||1);k++){
+    const r=rows[rows.length-1-k]; if(r) r.classList.add('just-added');
   }
 }
 function cancelEditing(){
